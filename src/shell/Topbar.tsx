@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Monitor,
   Moon,
+  MoreHorizontal,
   Plus,
   Redo2,
   Smartphone,
@@ -55,11 +56,14 @@ export function Topbar() {
   const leftCollapsed = useUi((s) => s.leftCollapsed);
   const toggleLeft = useUi((s) => s.toggleLeft);
   const setRunMode = useUi((s) => s.setRunMode);
+  const setLeftTab = useUi((s) => s.setLeftTab);
+  const setLeftFlyout = useUi((s) => s.setLeftFlyout);
+  const setMobileRail = useUi((s) => s.setMobileRail);
   const setModal = useUi((s) => s.setModal);
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
   const toast = useUi((s) => s.toast);
-  const [menu, setMenu] = useState<'file' | 'theme' | 'screen' | null>(null);
+  const [menu, setMenu] = useState<'file' | 'theme' | 'screen' | 'more' | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
@@ -109,15 +113,17 @@ export function Topbar() {
         </span>
       </button>
 
-      <IconButton
-        label={leftCollapsed ? 'Show panels' : 'Hide panels'}
-        size="sm"
-        onClick={toggleLeft}
-      >
-        <LayoutGrid size={15} />
-      </IconButton>
+      <span className="topbar-desktop">
+        <IconButton
+          label={leftCollapsed ? 'Show panels' : 'Hide panels'}
+          size="sm"
+          onClick={toggleLeft}
+        >
+          <LayoutGrid size={15} />
+        </IconButton>
+      </span>
 
-      <div className="project-name" style={{ position: 'relative' }}>
+      <div className="project-name topbar-desktop" style={{ position: 'relative' }}>
         <input
           value={doc.name}
           aria-label="Project name"
@@ -182,10 +188,12 @@ export function Topbar() {
             )}
           </button>
         ))}
-        <IconButton label="Add screen" size="sm" onClick={addScreen}>
-          <Plus size={14} />
-        </IconButton>
-        <div style={{ position: 'relative' }}>
+        <span className="topbar-desktop" style={{ display: 'contents' }}>
+          <IconButton label="Add screen" size="sm" onClick={addScreen}>
+            <Plus size={14} />
+          </IconButton>
+        </span>
+        <div className="topbar-desktop" style={{ position: 'relative' }}>
           <IconButton
             label="Screen actions"
             size="sm"
@@ -265,7 +273,7 @@ export function Topbar() {
 
       <span className="topbar-spacer" />
 
-      <div className="segmented" role="group" aria-label="Breakpoint">
+      <div className="segmented topbar-desktop" role="group" aria-label="Breakpoint">
         {BPS.map((bp) => {
           const Icon = bp.icon;
           return (
@@ -283,22 +291,24 @@ export function Topbar() {
         })}
       </div>
 
-      <IconButton
-        label={`Undo${undoDepth ? ` (${undoDepth})` : ''}`}
-        size="sm"
-        disabled={!undoDepth}
-        onClick={() => undo()}
-      >
-        <Undo2 size={15} />
-      </IconButton>
-      <IconButton
-        label={`Redo${redoDepth ? ` (${redoDepth})` : ''}`}
-        size="sm"
-        disabled={!redoDepth}
-        onClick={() => redo()}
-      >
-        <Redo2 size={15} />
-      </IconButton>
+      <span className="topbar-desktop" style={{ display: 'contents' }}>
+        <IconButton
+          label={`Undo${undoDepth ? ` (${undoDepth})` : ''}`}
+          size="sm"
+          disabled={!undoDepth}
+          onClick={() => undo()}
+        >
+          <Undo2 size={15} />
+        </IconButton>
+        <IconButton
+          label={`Redo${redoDepth ? ` (${redoDepth})` : ''}`}
+          size="sm"
+          disabled={!redoDepth}
+          onClick={() => redo()}
+        >
+          <Redo2 size={15} />
+        </IconButton>
+      </span>
 
       <div className="topbar-right">
         {busy && (
@@ -320,7 +330,7 @@ export function Topbar() {
         >
           ▶ Run
         </button>
-        <div style={{ position: 'relative' }}>
+        <div className="topbar-desktop" style={{ position: 'relative' }}>
           <IconButton
             label="Theme"
             size="sm"
@@ -375,14 +385,16 @@ export function Topbar() {
             </button>
           </Menu>
         </div>
-        <IconButton
-          label="Settings & models"
-          size="sm"
-          onClick={() => setModal('settingsOpen', true)}
-        >
-          <Sparkles size={15} />
-        </IconButton>
-        <div style={{ position: 'relative' }}>
+        <span className="topbar-desktop" style={{ display: 'contents' }}>
+          <IconButton
+            label="Settings & models"
+            size="sm"
+            onClick={() => setModal('settingsOpen', true)}
+          >
+            <Sparkles size={15} />
+          </IconButton>
+        </span>
+        <div className="topbar-desktop" style={{ position: 'relative' }}>
           <IconButton
             label="Project file"
             size="sm"
@@ -437,6 +449,159 @@ export function Topbar() {
               }}
             >
               <X size={13} /> Keyboard shortcuts
+            </button>
+          </Menu>
+        </div>
+        {/* Phones: everything the desktop bar shows, in one 44px target. */}
+        <div className="topbar-mobile" style={{ position: 'relative' }}>
+          <IconButton
+            label="More actions"
+            size="sm"
+            active={menu === 'more'}
+            onClick={() => setMenu(menu === 'more' ? null : 'more')}
+          >
+            <MoreHorizontal size={16} />
+          </IconButton>
+          <Menu open={menu === 'more'} onClose={() => setMenu(null)}>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setLeftTab('insert');
+                setLeftFlyout(true);
+              }}
+            >
+              <Plus size={13} /> Insert components
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setLeftTab('layers');
+                setLeftFlyout(true);
+              }}
+            >
+              <LayoutGrid size={13} /> Layers
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                addScreen();
+              }}
+            >
+              <Plus size={13} /> Add screen
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setMobileRail(true);
+              }}
+            >
+              <Sparkles size={13} /> Open muse
+            </button>
+            <hr />
+            {BPS.map((bp) => {
+              const Icon = bp.icon;
+              return (
+                <button
+                  type="button"
+                  key={bp.value}
+                  onClick={() => {
+                    setBreakpoint(bp.value);
+                    setMenu(null);
+                  }}
+                >
+                  <Icon size={13} /> {bp.label}
+                  {breakpoint === bp.value ? ' ✓' : ''}
+                </button>
+              );
+            })}
+            <hr />
+            <button
+              type="button"
+              disabled={!undoDepth}
+              onClick={() => {
+                undo();
+                setMenu(null);
+              }}
+            >
+              <Undo2 size={13} /> Undo
+            </button>
+            <button
+              type="button"
+              disabled={!redoDepth}
+              onClick={() => {
+                redo();
+                setMenu(null);
+              }}
+            >
+              <Redo2 size={13} /> Redo
+            </button>
+            <hr />
+            <button
+              type="button"
+              onClick={() => {
+                cycleTheme();
+                setMenu(null);
+              }}
+            >
+              {theme === 'dark' ? <Moon size={13} /> : <Sun size={13} />} Theme: {theme}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setModal('settingsOpen', true);
+              }}
+            >
+              <Sparkles size={13} /> Settings &amp; models
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setModal('exportOpen', true);
+              }}
+            >
+              <Download size={13} /> Export the app…
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                downloadProjectFile(doc);
+              }}
+            >
+              <Download size={13} /> Download .json
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                importRef.current?.click();
+              }}
+            >
+              <Upload size={13} /> Import .json
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setModal('receiptsOpen', true);
+              }}
+            >
+              <Sparkles size={13} /> Receipts
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenu(null);
+                setModal('onboardingOpen', true);
+              }}
+            >
+              <X size={13} /> About Museware
             </button>
           </Menu>
         </div>

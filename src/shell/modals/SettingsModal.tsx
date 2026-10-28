@@ -176,11 +176,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           ships one serverless file. The browser bundle never contains the key — CI greps
           the dist for it.
         </p>
-        {statusError && (
-          <p className="field-hint" style={{ color: 'var(--mw-warn)' }}>
-            {statusError}
-          </p>
-        )}
+        {statusError ? (
+          <div className="proxy-problem" role="status">
+            <strong>/api/muse is not answering.</strong>
+            <p className="field-hint field-hint-warn">{statusError}</p>
+            <p className="field-hint">
+              On Vercel that means the <span className="mono">api/</span> folder did not
+              deploy, <span className="mono">/api/*</span> is being rewritten to the app
+              shell, or an env var was added without redeploying. Open{' '}
+              <span className="mono">/api/muse/status</span> on this domain: JSON means the
+              proxy is alive, HTML or 404 means it is not.
+            </p>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {keySource === 'session' && (
             <Button

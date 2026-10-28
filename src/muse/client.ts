@@ -172,9 +172,38 @@ async function pace(signal?: AbortSignal, minGapMs = PACE_FLOOR): Promise<void> 
   });
 }
 
+/**
+ * Boot's one question: who is this server?
+ *
+ * The failure modes here are invisible if we let `res.json()` throw, and the app
+ * ends up telling a visitor "you need a key" when the truth is "your deployment
+ * has no serverless function". So every branch names itself.
+ */
 export async function fetchStatus(): Promise<ServerStatus> {
-  const res = await fetch('/api/muse/status', { headers: headers() });
-  if (!res.ok) throw new MuseError('upstream', `status ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch('/api/muse/status', { headers: headers() });
+  } catch {
+    throw new MuseError(
+      'network',
+      'could not reach /api/muse/status — the proxy is not deployed on this domain',
+    );
+  }
+  const type = res.headers.get('content-type') || '';
+  if (!res.ok) {
+    const hint =
+      res.status === 404
+        ? 'the API function is not deployed on this domain'
+        : `the proxy answered ${res.status}`;
+    throw new MuseError('upstream', `GET /api/muse/status failed: ${hint}`, res.status);
+  }
+  if (!type.includes('json')) {
+    // A SPA rewrite sending /api/* to index.html lands here.
+    throw new MuseError(
+      'network',
+      'the server answered /api/muse/status with HTML — /api/* is being rewritten to the app shell',
+    );
+  }
   return (await res.json()) as ServerStatus;
 }
 

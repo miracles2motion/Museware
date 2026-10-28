@@ -33,10 +33,12 @@ if (!files.some((f) => rel(f) === 'index.html'))
   problems.push('dist/index.html is missing');
 
 const textFiles = files.filter((f) => /\.(js|mjs|css|html|json|map|txt)$/.test(f));
+// A variable NAME is not a secret — the app is allowed to tell a stranded
+// visitor "set MUSE_API_KEY on the server and redeploy". A variable VALUE is.
 const SECRET_PATTERNS = [
-  [/MUSE_API_KEY/, 'the MUSE_API_KEY env name'],
-  [/MUSE_API_BASE/, 'the MUSE_API_BASE env name'],
-  [/OPENAI_API_KEY/, 'an OpenAI env name'],
+  [/MUSE_API_KEY\s*[:=]\s*['"`][^'"`]{6,}/, 'a hardcoded MUSE_API_KEY value'],
+  [/MUSE_API_BASE\s*[:=]\s*['"`][^'"`]{6,}/, 'a hardcoded MUSE_API_BASE value'],
+  [/OPENAI_API_KEY\s*[:=]\s*['"`][^'"`]{6,}/, 'a hardcoded OpenAI key'],
   [/sk-[A-Za-z0-9_-]{24,}/, 'something that looks like an API key'],
   [/api[_-]?key\s*[:=]\s*['"][A-Za-z0-9_-]{16,}['"]/i, 'a hardcoded api key'],
 ];
