@@ -229,23 +229,23 @@ export async function retryTurn(cardId: string, text: string): Promise<void> {
   await runAgentTurn(text);
 }
 
-export async function generateHeroImage(): Promise<void> {
+/**
+ * §6.1 image role: muse-image illustrates the node you point at, and the asset
+ * lands in the project tree (props.image), so it survives reload and export.
+ */
+export async function illustrate(
+  nodeId: string,
+  brief = 'a clean editorial illustration, no text, no logos',
+): Promise<void> {
   const doc = useProject.getState().doc;
-  let hero: { id: string } | null = null;
-  for (const screen of doc.screens) {
-    const stack = [screen.root];
-    while (stack.length) {
-      const node = stack.pop()!;
-      if (node.type === 'hero') {
-        hero = node;
-        break;
-      }
-      stack.push(...node.children);
-    }
-    if (hero) break;
+  const hit = findNodeInDoc(doc, nodeId);
+  if (!hit) {
+    useUi.getState().toast('Pick a node first.', 'warn');
+    return;
   }
-  if (!hero) {
-    useUi.getState().toast('Add a hero first — then I illustrate it.', 'warn');
+  const node = hit.node;
+  if (node.type !== 'hero' && node.type !== 'image' && node.type !== 'card') {
+    useUi.getState().toast('Images go on a hero, an image or a card.', 'warn');
     return;
   }
   const light = doc.tokens.openuiTheme.light_colors || {};
@@ -256,34 +256,42 @@ export async function generateHeroImage(): Promise<void> {
     light.openui_bg,
     light.openui_text_primary,
   ].filter(Boolean) as string[];
+
   if (useAgent.getState().demoMode) {
-    await demoAddImageToHero(`hero-${Date.now() % 99999}`);
-    useUi.getState().toast('Hero illustrated from your palette (local).', 'ok');
+    if (node.type === 'hero') {
+      await demoAddImageToHero(`node-${Date.now() % 99999}`);
+      useUi.getState().toast('Illustrated from your palette (local).', 'ok');
+    } else {
+      useUi
+        .getState()
+        .toast('Images need a muse key — the local engine has no image model.', 'warn');
+    }
     return;
   }
-  useAgent.getState().setLive('Generating a hero image…');
+
+  const wide = node.type === 'hero';
+  const size = wide ? '1200x640' : '1024x1024';
+  useAgent.getState().setLive('Generating an image…');
   try {
     const src = await generateImage(
       imageBrief(
-        'abstract hero illustration for a product landing page',
-        palette[3] ||
-          String(
-            useProject.getState().doc.tokens.openuiTheme.light_colors.openui_bg ||
-              'transparent',
-          ),
+        brief,
+        palette[3] || 'transparent',
         palette,
-        1200,
-        640,
+        wide ? 1200 : 1024,
+        wide ? 640 : 1024,
       ),
-      '1200x640',
+      size,
     );
     const res = useProject
       .getState()
-      .applyBatch([{ op: 'setProps', id: hero.id, props: { image: src } }], {
+      .applyBatch([{ op: 'setProps', id: node.id, props: { image: src } }], {
         source: 'agent',
       });
     if (res.errors.length) throw new Error(res.errors[0].message);
-    system('🖼 muse-image placed a hero — real asset, persisted with the project.');
+    system(
+      `🖼 muse-image illustrated ${node.id} — a real asset, persisted with the project and carried into the export.`,
+    );
   } catch (err) {
     useUi
       .getState()
@@ -291,9 +299,34 @@ export async function generateHeroImage(): Promise<void> {
         `Image generation failed: ${err instanceof Error ? err.message : String(err)}`,
         'danger',
       );
-    await demoAddImageToHero(`hero-${Date.now() % 99999}`);
-    system('Fell back to the palette placeholder so the canvas never breaks.');
+    if (node.type === 'hero') {
+      await demoAddImageToHero(`node-${Date.now() % 99999}`);
+      system('Fell back to a palette placeholder so the canvas never breaks.');
+    }
   } finally {
     useAgent.getState().setLive(null);
   }
+}
+
+/** The rail's one-tap path: find the first hero and illustrate it. */
+export async function generateHeroImage(): Promise<void> {
+  const doc = useProject.getState().doc;
+  let heroId = '';
+  for (const screen of doc.screens) {
+    const stack = [screen.root];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node.type === 'hero') {
+        heroId = node.id;
+        break;
+      }
+      stack.push(...node.children);
+    }
+    if (heroId) break;
+  }
+  if (!heroId) {
+    useUi.getState().toast('Add a hero first — then I illustrate it.', 'warn');
+    return;
+  }
+  await illustrate(heroId, 'abstract hero illustration for a product landing page');
 }

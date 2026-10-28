@@ -19,6 +19,7 @@ import { PRESETS } from '../design/presets';
 import { Icon } from '../canvas/Icon';
 import { Segmented } from '../components/ui';
 import { ActionEditor } from './ActionEditor';
+import { illustrate } from '../muse/cards';
 import {
   ClearOverride,
   ColorField,
@@ -208,6 +209,24 @@ export function Inspector() {
       <div className="inspector-body">
         {tab === 'props' && (
           <>
+            {(node.type === 'hero' || node.type === 'image' || node.type === 'card') && (
+              <div className="insp-section">
+                <div className="insp-section-head">
+                  <span className="eyebrow">Illustration</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => void illustrate(node.id)}
+                >
+                  <Sparkles size={12} /> Illustrate with muse-image
+                </button>
+                <p className="field-hint">
+                  The asset is written into this node, so it survives reload, undo and the
+                  export. Costs one image from your key.
+                </p>
+              </div>
+            )}
             <div className="insp-section">
               <div className="insp-section-head">
                 <span className="eyebrow">Layer</span>

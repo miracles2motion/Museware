@@ -14,6 +14,7 @@ import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
 import { runAgentTurn, stopAgent } from '../muse/loop';
 import { recreateFromScreenshot } from '../muse/screenshot';
+import { generateHeroImage } from '../muse/cards';
 import { transcribe } from '../muse/client';
 import { RailCard } from './RailCard';
 import type { RailEntry } from '../types/tree';
@@ -127,13 +128,30 @@ export function AgentRail() {
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
+  const heroId = (() => {
+    for (const screen of doc.screens) {
+      const stack = [screen.root];
+      while (stack.length) {
+        const node = stack.pop()!;
+        if (node.type === 'hero') return node.id;
+        stack.push(...node.children);
+      }
+    }
+    return '';
+  })();
+
   const suggestions = (() => {
-    if (!doc.screens.length)
-      return ['Design me a landing page website', 'Recreate a screenshot'];
-    if (selectedId) return [`Restyle ${selectedId}`, 'Make it feel more premium'];
-    if (!doc.blueprint) return ['Propose a blueprint', 'Add a settings screen'];
-    if (!doc.blueprint.decided) return ['Approve the blueprint', 'Adjust the plan'];
-    return ['Add a settings screen', 'Rerun the review'];
+    const base = (() => {
+      if (!doc.screens.length)
+        return ['Design me a landing page website', 'Recreate a screenshot'];
+      if (selectedId) return [`Restyle ${selectedId}`, 'Make it feel more premium'];
+      if (!doc.blueprint) return ['Propose a blueprint', 'Add a settings screen'];
+      if (!doc.blueprint.decided) return ['Approve the blueprint', 'Adjust the plan'];
+      return ['Add a settings screen', 'Rerun the review'];
+    })();
+    // One tap to a real muse-image asset, only where a hero exists to fill.
+    if (heroId && doc.screens.length) return [...base.slice(0, 1), 'Illustrate the hero'];
+    return base;
   })();
 
   const send = async (text?: string) => {
@@ -198,6 +216,12 @@ export function AgentRail() {
     recorderRef.current?.stop();
     recorderRef.current = null;
   };
+
+  // Touch presses and holds; a mouse clicks to start and clicks again to stop.
+  const coarsePointer =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches;
 
   if (railCollapsed) {
     return (
@@ -351,9 +375,11 @@ export function AgentRail() {
                 type="button"
                 key={s}
                 className="suggestion"
-                onClick={() =>
-                  s === 'Recreate a screenshot' ? fileRef.current?.click() : void send(s)
-                }
+                onClick={() => {
+                  if (s === 'Recreate a screenshot') fileRef.current?.click();
+                  else if (s === 'Illustrate the hero') void generateHeroImage();
+                  else void send(s);
+                }}
               >
                 {s}
               </button>
@@ -397,10 +423,29 @@ export function AgentRail() {
               type="button"
               className="icon-btn icon-btn-sm mic-btn"
               data-recording={recording}
-              aria-label={recording ? 'Stop recording' : 'Hold to talk'}
-              onPointerDown={() => void startRecording()}
-              onPointerUp={stopRecording}
-              onPointerLeave={() => recording && stopRecording()}
+              aria-label={
+                recording
+                  ? 'Stop recording'
+                  : coarsePointer
+                    ? 'Hold to talk'
+                    : 'Click to talk'
+              }
+              data-tip={coarsePointer ? 'Hold to talk' : 'Click to talk'}
+              // §8.10: press-and-hold on touch, click-to-toggle on desktop.
+              onPointerDown={() => {
+                if (coarsePointer) void startRecording();
+              }}
+              onPointerUp={() => {
+                if (coarsePointer) stopRecording();
+              }}
+              onPointerLeave={() => {
+                if (coarsePointer && recording) stopRecording();
+              }}
+              onClick={() => {
+                if (coarsePointer) return;
+                if (recording) stopRecording();
+                else void startRecording();
+              }}
             >
               <Mic size={15} />
             </button>

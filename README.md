@@ -76,7 +76,8 @@ Add a key in Settings (or `.env`) and the pinned muse models take over.
 npm run dev          # editor + the muse gate as Vite middleware
 npm run build        # tsc --noEmit && vite build
 npm run typecheck    # tsc --noEmit
-npm test             # vitest: op model, blueprint parse, demo trace, shell smoke
+npm test             # vitest: op model, blueprint parse, demo trace, shell smoke,
+                     # the proxy over real HTTP, the key card, wonder routing
 npm run check:tokens # no raw hex outside mw.css + WCAG AA in both themes
 npm run check:dist   # no key material, no sourcemaps, size budget
 npm run check:export # export a demo app, then typecheck + build it for real
@@ -93,6 +94,36 @@ Dev: `vite.config.ts` mounts `server/museProxy.ts` as middleware on
 pasted in the UI lives in `sessionStorage` and travels as `x-muse-key`; it is
 never bundled, logged, or exported. `npm run check:dist` greps the built assets
 for `MUSE_API_KEY`, key-shaped strings and dev-server URLs.
+
+## Deploying with a house key
+
+The deployed site is the honest version: one shared key, a daily cap, and a real
+key card the moment the shared key is spent.
+
+```bash
+vercel            # preview
+vercel --prod     # production
+```
+
+`vercel.json` points at `dist` and gives `api/muse/[...path].ts` 60 s. Set these
+in the project's environment (never in the repo):
+
+| Variable | What it does |
+|---|---|
+| `MUSE_API_KEY` | The house key. Without it `/status` reports `houseKey: "absent"` and the app asks visitors for their own. |
+| `MUSE_DAILY_CAP` | USD per UTC day, house key only. 80% warns, 100% hard-stops with `BUDGET_EXHAUSTED`. Visitors' own keys are never capped. |
+| `MUSE_LIVE` | `1` on the real deployment so `/status` reports `live: true`. CI and local dev leave it unset. |
+| `MUSE_BASE_URL` | `https://api.meta.ai` — `/v1` is appended once, never twice. |
+| `MUSE_REASONING` | `1` to send reasoning effort on the chat surface. |
+
+What happens when the house key runs out, in order: the proxy answers
+`402 HOUSE_KEY_EXHAUSTED` (or `BUDGET_EXHAUSTED` at the cap), the rail parks the
+turn on a **key card**, the card asks for a key and retries the exact prompt you
+typed with your key. The demo engine is never entered automatically — it is a
+switch in Settings and the path CI uses.
+
+A visitor's key lives in `sessionStorage` and travels as `x-muse-key`; it never
+touches the bundle, the logs or the export.
 
 ## Design system
 
