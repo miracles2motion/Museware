@@ -38,7 +38,8 @@ export function ReceiptsModal({ onClose }: { onClose: () => void }) {
           </span>
         </div>
         <p className="field-hint">
-          {sessionRequests} request{sessionRequests === 1 ? '' : 's'} on this tab.
+          {sessionRequests} request{sessionRequests === 1 ? '' : 's'} on this tab, priced at
+          the §6.1 rate card. The Key column says whose money each call spent.
           {demoMode
             ? ' The local engine makes no network calls — every receipt here is labelled demo and costs nothing.'
             : ' Every model call is logged with its role, model, latency and token usage the moment it returns.'}
@@ -57,6 +58,7 @@ export function ReceiptsModal({ onClose }: { onClose: () => void }) {
             <tr>
               <th>Time</th>
               <th>Role</th>
+              <th>Key</th>
               <th>Model</th>
               <th>Tools</th>
               <th className="num">Chars</th>
@@ -76,6 +78,7 @@ export function ReceiptsModal({ onClose }: { onClose: () => void }) {
                   })}
                 </td>
                 <td>{r.role}</td>
+                <td>{r.key === 'user' ? 'your key' : r.key === 'house' ? 'house' : '—'}</td>
                 <td className="mono">{r.model}</td>
                 <td className="mono">
                   {r.toolNames.length ? r.toolNames.join(', ') : '—'}

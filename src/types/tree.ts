@@ -141,7 +141,7 @@ export interface RailEntry {
   role: 'user' | 'agent' | 'system' | 'card';
   text: string;
   card?: {
-    kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error';
+    kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error' | 'key';
     state: 'pending' | 'answered' | 'cancelled' | 'expired';
     data: RailCardData;
   };

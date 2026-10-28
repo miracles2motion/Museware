@@ -78,7 +78,7 @@ function addAgent(text: string) {
 }
 
 function addCard(
-  kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error',
+  kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error' | 'key',
   data: Record<string, unknown>,
   text = '',
 ) {
@@ -156,6 +156,7 @@ function recordReceipt(
     outputTokens: result.usage.outputTokens,
     cachedTokens: result.usage.cachedTokens,
     cents: estimateCents(result.model, result.usage),
+    key: useAgent.getState().keySource === 'session' ? 'user' : 'house',
   });
 }
 
@@ -506,16 +507,54 @@ async function verifyGate(
   }
 }
 
+/**
+ * The key card (§2b): one honest card, one paste field, one retry. It appears
+ * when the shared key is gone or out of budget — never a silent demo fallback,
+ * because a scripted build pretending to be muse is the lie this product exists
+ * to avoid.
+ */
+export function offerKey(detail: string, retryText: string) {
+  const agent = useAgent.getState();
+  agent.setPendingRetry(retryText || null);
+  const already = useProject
+    .getState()
+    .doc.rail.some(
+      (entry) =>
+        entry.role === 'card' &&
+        entry.card?.kind === 'key' &&
+        entry.card.state === 'pending',
+    );
+  addSystem(detail);
+  if (already) return;
+  addCard(
+    'key',
+    { reason: detail, retryText: retryText || '', houseKey: useAgent.getState().houseKey },
+    'Add your Meta API key',
+  );
+}
+
 function wrapError(err: unknown, userText: string) {
   const message = err instanceof Error ? err.message : String(err);
   const code = err instanceof MuseError ? err.code : 'error';
   useAgent.getState().setError(message);
-  addCard('error', { message, code, retryText: userText }, 'That did not finish.');
-  if (code === 'no_key') {
-    addSystem(
-      'No key: add one to .env or paste it in Settings. The canvas still works by hand.',
-    );
+  if (code === 'house_key_exhausted') {
+    useAgent.getState().setStatus({
+      configured: false,
+      demoMode: false,
+      houseKey: 'exhausted',
+      statusError: message,
+    });
+    offerKey(`The shared key for this demo is out of budget. ${message}`, userText);
+    return;
   }
+  if (code === 'no_key') {
+    useAgent
+      .getState()
+      .setStatus({ configured: false, demoMode: false, houseKey: 'absent' });
+    offerKey('No muse key on this server yet.', userText);
+    return;
+  }
+  addCard('error', { message, code, retryText: userText }, 'That did not finish.');
 }
 
 /** Persist-on-create + approval card. Shared by the tool, the screenshot path and the local engine. */

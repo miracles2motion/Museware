@@ -41,7 +41,7 @@ function agent(text: string) {
 }
 
 function card(
-  kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error',
+  kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error' | 'key',
   data: Record<string, unknown>,
   text: string,
 ) {

@@ -41,9 +41,24 @@ export interface ModelRole {
   effort: string | null;
 }
 
+export type HouseKeyState = 'ok' | 'exhausted' | 'absent';
+
+export interface BudgetState {
+  capUsd: number | null;
+  spentUsd: number;
+  day: string;
+  warn: boolean;
+  exhausted: boolean;
+}
+
 export interface ServerStatus {
   configured: boolean;
   source: 'env' | 'session' | 'none';
+  /** The owner's shared key. Drives the key card without spending a turn. */
+  houseKey: HouseKeyState;
+  houseKeyDetail?: string | null;
+  budget?: BudgetState;
+  live?: boolean;
   baseUrl: string;
   reasoning: boolean;
   models: {
@@ -59,6 +74,7 @@ export interface ServerStatus {
 
 export type MuseErrorCode =
   | 'no_key'
+  | 'house_key_exhausted'
   | 'rate_limited'
   | 'unauthorized'
   | 'network'
@@ -128,8 +144,15 @@ interface Gate {
 
 const gate: Gate = { lastStart: 0, chain: Promise.resolve() };
 
-/** LAW 10: ≥4s between request STARTS, one in-flight request at a time. */
-async function pace(signal?: AbortSignal, minGapMs = 4000): Promise<void> {
+/**
+ * LAW 10: ≥4s between request STARTS, one in-flight request at a time.
+ * Tests run the same gate with an empty floor so suites do not sleep; the shipped
+ * build always uses PACE_MS.
+ */
+const PACE_MS = 4000;
+const PACE_FLOOR = import.meta.env.MODE === 'test' ? 0 : PACE_MS;
+
+async function pace(signal?: AbortSignal, minGapMs = PACE_FLOOR): Promise<void> {
   const previous = gate.chain;
   let release: () => void = () => undefined;
   gate.chain = new Promise<void>((resolve) => {
@@ -350,7 +373,7 @@ export async function chatStream(opts: ChatOptions): Promise<ChatResult> {
   const backoff = opts.backoffMs || [2000, 8000, 30000];
   let attempt = 0;
   for (;;) {
-    await pace(opts.signal, opts.minGapMs ?? 4000);
+    await pace(opts.signal, opts.minGapMs ?? PACE_FLOOR);
     const state: SSEParseState = {
       text: '',
       toolCalls: new Map(),
@@ -391,6 +414,16 @@ export async function chatStream(opts: ChatOptions): Promise<ChatResult> {
         throw new MuseError(
           'no_key',
           'No muse key on this server.',
+          res.status,
+          info.detail,
+        );
+      }
+      // The shared key is dead or out of budget. Never retry, never fall back
+      // to the demo engine: ask the visitor for their own key.
+      if (info.error === 'HOUSE_KEY_EXHAUSTED' || info.error === 'BUDGET_EXHAUSTED') {
+        throw new MuseError(
+          'house_key_exhausted',
+          info.detail || 'The shared key is out of budget.',
           res.status,
           info.detail,
         );

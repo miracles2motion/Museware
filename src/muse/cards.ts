@@ -17,6 +17,7 @@ import {
 } from './loop';
 import { demoAddImageToHero, demoAnswerChoice, startDemoBuild } from './demo/agent';
 import { findNodeInDoc } from '../ops/treeUtils';
+import { setSessionKey } from './sessionKey';
 
 function system(text: string) {
   useProject.getState().addRail({ role: 'system', text });
@@ -181,6 +182,41 @@ export async function applyColorCard(
     system(`🎨 ${hex} — just ${hit?.node.id || 'that element'}`);
   }
   useUi.getState().setColorCard(null);
+}
+
+/**
+ * Paste → store in this tab → retry the parked turn, in that order. The turn
+ * that failed fires again by itself: one paste, no re-typing.
+ */
+export async function submitKey(cardId: string, rawKey: string): Promise<void> {
+  const key = rawKey.trim();
+  if (!key) return;
+  setSessionKey(key);
+  markCard(cardId, 'answered', { source: 'user' });
+  useAgent.getState().setStatus({
+    configured: true,
+    demoMode: false,
+    keySource: 'session',
+    statusError: null,
+  });
+  system('✓ Your key is stored in this tab only — it never touches the bundle.');
+  const retry = useAgent.getState().pendingRetry;
+  useAgent.getState().setPendingRetry(null);
+  if (retry?.trim()) await runAgentTurn(retry);
+}
+
+/** "Not now": the canvas still works by hand, and demo is an explicit choice. */
+export function dismissKey(cardId: string, useDemo: boolean): void {
+  markCard(cardId, 'cancelled', { demo: useDemo });
+  useAgent.getState().setPendingRetry(null);
+  if (useDemo) {
+    useAgent.getState().setStatus({ configured: false, demoMode: true, keySource: 'none' });
+    system(
+      'Local engine on — the real pipeline, no key, no credit. Switch it off in Settings.',
+    );
+    return;
+  }
+  system('No key — the canvas still works by hand. Add one any time in Settings.');
 }
 
 export async function retryTurn(cardId: string, text: string): Promise<void> {

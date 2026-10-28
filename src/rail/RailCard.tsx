@@ -27,6 +27,7 @@ import { CanvasStyle } from '../canvas/NodeView';
 import { NodeBody } from '../canvas/NodeBody';
 import { stopAgent } from '../muse/loop';
 import { QUICK_SWATCHES } from '../design/palettes';
+import { KeyCard } from './KeyCard';
 
 function ScreenThumbs({ blueprint }: { blueprint: string }) {
   const doc = useProject((s) => s.doc);
@@ -501,6 +502,8 @@ export function RailCard({ entry }: { entry: RailEntry }) {
       return <ProgressCard entry={entry} />;
     case 'error':
       return <ErrorCard entry={entry} />;
+    case 'key':
+      return <KeyCard entry={entry} />;
     default:
       return null;
   }

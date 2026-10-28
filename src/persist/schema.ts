@@ -11,7 +11,15 @@ const actionSchemaLoose = z
 
 const railCardSchema = z
   .object({
-    kind: z.enum(['build_choice', 'blueprint', 'choice', 'color', 'progress', 'error']),
+    kind: z.enum([
+      'build_choice',
+      'blueprint',
+      'choice',
+      'color',
+      'progress',
+      'error',
+      'key',
+    ]),
     state: z.enum(['pending', 'answered', 'cancelled', 'expired']),
     data: z.record(z.unknown()),
   })

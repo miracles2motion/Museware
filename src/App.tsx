@@ -5,6 +5,7 @@ import { useAgent } from './store/useAgent';
 import { loadProject, saveProjectSoon } from './persist/save';
 import { parseProjectDoc } from './persist/schema';
 import { fetchStatus } from './muse/client';
+import { offerKey } from './muse/loop';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
 import { Landing } from './shell/Landing';
@@ -43,20 +44,49 @@ export default function App() {
       const first = restored.screens.find((s) => s.entry) || restored.screens[0];
       if (first) useUi.getState().setActiveScreen(first.id);
 
+      const userKey = hasSessionKey();
       try {
         const status = await fetchStatus();
+        // Three honest states: a working key (yours or the house's), a dead or
+        // absent house key (ask for yours — never fake it with the local engine),
+        // or a dev machine with no key at all, where the local engine is the
+        // documented offline path and CI's only path.
+        const houseOk = status.houseKey === 'ok';
+        const usable = Boolean(userKey || (houseOk && status.configured));
+        const devNoKey = !usable && import.meta.env.DEV;
         useAgent.getState().setStatus({
-          configured: status.configured || hasSessionKey(),
-          demoMode: !status.configured && !hasSessionKey(),
+          configured: usable,
+          demoMode: devNoKey,
+          houseKey: status.houseKey,
+          houseKeyDetail: status.houseKeyDetail ?? null,
+          budget: status.budget ?? null,
+          live: Boolean(status.live),
           models: status.models,
-          keySource: status.source,
+          keySource: userKey ? 'session' : status.source,
           statusError: null,
         });
+        if (devNoKey) {
+          useProject.getState().addRail({
+            role: 'system',
+            text: 'No key on this machine — local engine on. Add one in Settings for the real models.',
+          });
+        } else if (!usable) {
+          offerKey(
+            status.houseKey === 'exhausted'
+              ? 'The shared demo key is out of budget for today.'
+              : 'This deployment has no shared key configured.',
+            '',
+          );
+        }
       } catch (err) {
+        // The proxy is unreachable (plain `vite` with no middleware, or a static
+        // preview). Nothing can be spent, so the local engine is the honest mode.
         useAgent.getState().setStatus({
-          configured: hasSessionKey(),
-          demoMode: !hasSessionKey(),
-          keySource: hasSessionKey() ? 'session' : 'none',
+          configured: userKey,
+          demoMode: !userKey,
+          houseKey: 'absent',
+          models: null,
+          keySource: userKey ? 'session' : 'none',
           statusError:
             err instanceof Error ? err.message : 'The muse proxy is not reachable.',
         });

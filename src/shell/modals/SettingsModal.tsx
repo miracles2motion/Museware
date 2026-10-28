@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
 import { Modal, Button } from '../../components/ui';
 import { useProject, createProject } from '../../store/useProject';
 import { useUi } from '../../store/useUi';
@@ -23,6 +23,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const configured = useAgent((s) => s.configured);
   const demoMode = useAgent((s) => s.demoMode);
   const keySource = useAgent((s) => s.keySource);
+  const houseKey = useAgent((s) => s.houseKey);
+  const budget = useAgent((s) => s.budget);
   const models = useAgent((s) => s.models);
   const probes = useAgent((s) => s.probes);
   const probing = useAgent((s) => s.probing);
@@ -126,16 +128,32 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">Your key</span>
-          <span className={`chip chip-static`} style={{ fontSize: 10 }}>
-            {keySource === 'env'
-              ? 'server env'
-              : keySource === 'session'
-                ? 'this tab'
-                : demoMode
-                  ? 'demo mode'
-                  : 'missing'}
+          <span className="chip chip-static" style={{ fontSize: 10 }}>
+            {keySource === 'session'
+              ? 'using your key'
+              : demoMode
+                ? 'local engine'
+                : configured
+                  ? 'using the house key'
+                  : 'no key'}
           </span>
         </div>
+        <p className="field-hint" style={{ marginTop: -2 }}>
+          {keySource === 'session'
+            ? 'Using your key (this tab only). It rides as a header to this app’s proxy and is gone when the tab closes.'
+            : demoMode
+              ? 'The local engine is on: the real pipeline, no model calls, no cost. Turn it off to use the muse models.'
+              : configured
+                ? 'Using the house key — the owner’s shared key on this server. Nothing about it reaches your browser.'
+                : houseKey === 'exhausted'
+                  ? 'The house key is out of budget today. Paste your own key below to keep the muse models running.'
+                  : houseKey === 'absent'
+                    ? 'This server has no shared key. Paste your own to switch the muse models on.'
+                    : 'No key yet.'}
+          {budget?.capUsd
+            ? ` House budget today: $${budget.spentUsd.toFixed(3)} of $${budget.capUsd}.`
+            : ''}
+        </p>
         <div className="token-row">
           <input
             className="input"
@@ -165,13 +183,46 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {statusError}
           </p>
         )}
-        {!configured && !key.trim() && (
-          <p className="field-hint">
-            No key is fine: the <strong>local engine</strong> runs the real pipeline offline
-            — same cards, same ops, same verify gate. Add a key when you want the muse
-            models.
-          </p>
-        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {keySource === 'session' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                setSessionKey('');
+                setKey('');
+                await refreshStatus();
+                toast(
+                  houseKey === 'ok'
+                    ? 'Your key removed — back on the house key.'
+                    : 'Your key removed. Paste another, or keep building by hand.',
+                  'ok',
+                );
+              }}
+            >
+              Remove my key
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={demoMode ? 'secondary' : 'ghost'}
+            onClick={() => {
+              const next = !demoMode;
+              useAgent.getState().setStatus({
+                demoMode: next,
+                configured: next ? false : configured,
+              });
+              toast(
+                next
+                  ? 'Local engine on — same pipeline, no model calls.'
+                  : 'Local engine off — the muse models take over.',
+                'ok',
+              );
+            }}
+          >
+            <Sparkles size={12} /> {demoMode ? 'Local engine: on' : 'Try the local engine'}
+          </Button>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
             <RefreshCw size={12} /> Re-check status

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { RailEntry } from '../types/tree';
+import type { BudgetState, HouseKeyState } from '../muse/client';
 
 export interface ModelRoleInfo {
   id: string;
@@ -37,6 +38,8 @@ export interface Receipt {
   outputTokens?: number;
   cachedTokens?: number;
   cents?: number;
+  /** Whose money this call spent. */
+  key?: 'house' | 'user';
 }
 
 export interface ProgressPart {
@@ -68,6 +71,13 @@ interface AgentStore {
   turns: number;
   configured: boolean;
   demoMode: boolean;
+  /** The owner's shared key, as the server sees it. */
+  houseKey: HouseKeyState;
+  houseKeyDetail: string | null;
+  budget: BudgetState | null;
+  live: boolean;
+  /** Set while a turn is parked waiting for the visitor's key. */
+  pendingRetry: string | null;
   statusError: string | null;
   models: ModelMatrix | null;
   keySource: 'env' | 'session' | 'none';
@@ -91,6 +101,10 @@ interface AgentStore {
   setStatus: (s: {
     configured: boolean;
     demoMode: boolean;
+    houseKey?: HouseKeyState;
+    houseKeyDetail?: string | null;
+    budget?: BudgetState | null;
+    live?: boolean;
     statusError?: string | null;
     models?: ModelMatrix | null;
     keySource?: 'env' | 'session' | 'none';
@@ -103,6 +117,7 @@ interface AgentStore {
   setVerification: (v: AgentStore['verification'], notes?: string | null) => void;
   setInterrupted: (b: boolean) => void;
   setError: (e: string | null) => void;
+  setPendingRetry: (text: string | null) => void;
 }
 
 export const useAgent = create<AgentStore>((set, get) => ({
@@ -119,6 +134,11 @@ export const useAgent = create<AgentStore>((set, get) => ({
   turns: 0,
   configured: false,
   demoMode: true,
+  houseKey: 'absent',
+  houseKeyDetail: null,
+  budget: null,
+  live: false,
+  pendingRetry: null,
   statusError: null,
   models: null,
   keySource: 'none',
@@ -177,6 +197,10 @@ export const useAgent = create<AgentStore>((set, get) => ({
     set({
       configured: s.configured,
       demoMode: s.demoMode,
+      houseKey: s.houseKey ?? get().houseKey,
+      houseKeyDetail: s.houseKeyDetail ?? null,
+      budget: s.budget ?? null,
+      live: s.live ?? false,
       statusError: s.statusError ?? null,
       models: s.models ?? get().models,
       keySource: s.keySource ?? get().keySource,
@@ -199,6 +223,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
     set({ verification, reviewNotes: notes }),
   setInterrupted: (interrupted) => set({ interrupted }),
   setError: (lastError) => set({ lastError }),
+  setPendingRetry: (pendingRetry) => set({ pendingRetry }),
 }));
 
 export const RAIL_ENTRY_CAP = 100;
