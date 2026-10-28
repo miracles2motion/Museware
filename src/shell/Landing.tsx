@@ -8,7 +8,7 @@ import { n } from '../muse/demo/build';
 import { PRESETS } from '../design/presets';
 import { MUSEWARE_DEFAULT_THEME } from '../design/starter';
 import { Button } from '../components/ui';
-import type { ScreenDoc } from '../types/tree';
+import type { ComponentNode, ScreenDoc } from '../types/tree';
 
 function miniScreens(): ScreenDoc[] {
   const root = n('screen', 'mini_root', {
@@ -73,16 +73,48 @@ export function Landing() {
   const [prompt, setPrompt] = useState(
     'Design me a landing page website for a small coffee roaster.',
   );
+  const [added, setAdded] = useState<ComponentNode[]>([]);
   const screens = useMemo(miniScreens, []);
+
+  // The hero is a real canvas, not a picture of one: these are real nodes
+  // rendered by the same engine, so a visitor can put something on it.
+  const liveScreens = useMemo<ScreenDoc[]>(() => {
+    const base = screens[0];
+    if (!added.length) return screens;
+    return [
+      {
+        ...base,
+        root: { ...base.root, children: [...base.root.children, ...added] },
+      },
+    ];
+  }, [added, screens]);
+
   const miniDoc = useMemo(
     () => ({
       ...createProject('Preview'),
       tokens: doc.tokens || MUSEWARE_DEFAULT_THEME,
-      screens,
+      screens: liveScreens,
       kind: 'app' as const,
     }),
-    [doc.tokens, screens],
+    [doc.tokens, liveScreens],
   );
+
+  const addToMini = (type: 'button' | 'heading' | 'badge') => {
+    setAdded((list) => {
+      if (list.length >= 4) return list;
+      const index = list.length + 1;
+      const extra =
+        type === 'button'
+          ? n(type, `tmp_live_${index}`, {
+              props: { text: 'You added this', variant: 'primary' },
+              styles: { width: 'auto' },
+            })
+          : type === 'heading'
+            ? n(type, `tmp_live_${index}`, { props: { text: 'A real heading', level: 2 } })
+            : n(type, `tmp_live_${index}`, { props: { text: 'live node' } });
+      return [...list, extra];
+    });
+  };
 
   const go = (want?: string) => {
     if (want) startPrompt(want);
@@ -193,8 +225,33 @@ export function Landing() {
                   width: 390,
                 }}
               >
-                <NodeView doc={miniDoc} screen={screens[0]} mode="edit" />
+                <NodeView doc={miniDoc} screen={liveScreens[0]} mode="edit" />
               </div>
+            </div>
+            <div className="mini-add">
+              <span className="eyebrow">Try it</span>
+              <button type="button" className="chip" onClick={() => addToMini('heading')}>
+                + Heading
+              </button>
+              <button type="button" className="chip" onClick={() => addToMini('button')}>
+                + Button
+              </button>
+              <button type="button" className="chip" onClick={() => addToMini('badge')}>
+                + Badge
+              </button>
+              {added.length > 0 && (
+                <button
+                  type="button"
+                  className="chip"
+                  title="Reset the live canvas"
+                  onClick={() => setAdded([])}
+                >
+                  ↺ {added.length}
+                </button>
+              )}
+              <span className="faint" style={{ fontSize: 10 }}>
+                real nodes, real engine
+              </span>
             </div>
           </div>
         </div>

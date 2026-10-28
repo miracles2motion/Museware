@@ -57,6 +57,15 @@ describe('the shell actually renders', () => {
     expect(screen.getAllByText(/Start building/).length).toBeGreaterThan(0);
   });
 
+  it('the hero mini-canvas accepts real nodes before you sign up for anything', async () => {
+    await boot();
+    const addButton = screen.getAllByText('+ Button')[0];
+    fireEvent.click(addButton);
+    expect(screen.getByText('You added this')).toBeTruthy();
+    fireEvent.click(screen.getByText('↺ 1'));
+    expect(screen.queryByText('You added this')).toBeNull();
+  });
+
   it('navigates to the editor and shows the empty-canvas teaching state', async () => {
     await boot();
     const start = screen.getAllByText(/Start building/)[0];
