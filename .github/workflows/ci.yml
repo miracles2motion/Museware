@@ -1,0 +1,34 @@
+name: ci
+
+# CI must pass with NO key present. It never sets MUSE_API_KEY, MUSE_LIVE or a
+# daily cap, so nothing here can spend a cent: every model path is exercised
+# against the local engine or a fake upstream.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck, lint, tokens and tests
+        run: npm run check
+
+      - name: Build the app
+        run: npm run build
+
+      - name: Guard the bundle (no key material, no sourcemaps)
+        run: npm run check:dist
+
+      - name: Export a project and compile it for real
+        run: npm run check:export

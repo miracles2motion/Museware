@@ -1,0 +1,264 @@
+/* ==========================================================================
+   Museware's own token system — three tiers. This is the ONLY file allowed
+   to contain raw hex values (CI greps for hexes outside this file).
+   Tier 1: primitives · Tier 2: semantic aliases · Tier 3: component tokens.
+   ========================================================================== */
+
+:root {
+  /* Tier 1 — primitives (never referenced by components) */
+  --mw-indigo-50: #eeebff;
+  --mw-indigo-100: #dfd9ff;
+  --mw-indigo-200: #c4baff;
+  --mw-indigo-300: #a897ff;
+  --mw-indigo-400: #8f79ff;
+  --mw-indigo-500: #6d5cff;
+  --mw-indigo-600: #5b49f5;
+  --mw-indigo-700: #4a38d6;
+  --mw-indigo-800: #3a2bb0;
+  --mw-indigo-900: #2b2090;
+  --mw-indigo-950: #1f1a66;
+
+  --mw-violet-50: #faf5ff;
+  --mw-violet-100: #f3e8ff;
+  --mw-violet-200: #e9d5ff;
+  --mw-violet-300: #d8b4fe;
+  --mw-violet-400: #c084fc;
+  --mw-violet-500: #a855f7;
+  --mw-violet-600: #9333ea;
+  --mw-violet-700: #7e22ce;
+  --mw-violet-800: #6b21a8;
+  --mw-violet-900: #581c87;
+  --mw-violet-950: #3b0764;
+
+  --mw-neutral-0: #ffffff;
+  --mw-neutral-50: #f7f8fa;
+  --mw-neutral-100: #f0f2f5;
+  --mw-neutral-150: #e8ebef;
+  --mw-neutral-200: #e3e6eb;
+  --mw-neutral-300: #d3d7de;
+  --mw-neutral-400: #b9bfc9;
+  --mw-neutral-500: #8b93a3;
+  --mw-neutral-600: #62697a;
+  --mw-neutral-700: #5a6170;
+  --mw-neutral-800: #454b57;
+  --mw-neutral-850: #333947;
+  --mw-neutral-900: #262b36;
+  --mw-neutral-950: #151821;
+  --mw-neutral-1000: #0e1015;
+
+  --mw-green-50: #ecfdf5;
+  --mw-green-100: #d1fae5;
+  --mw-green-200: #a7f3d0;
+  --mw-green-300: #6ee7b7;
+  --mw-green-400: #34d399;
+  --mw-green-500: #10b981;
+  --mw-green-600: #059669;
+  --mw-green-700: #047857;
+  --mw-green-950: #022c22;
+
+  --mw-amber-50: #fffbeb;
+  --mw-amber-100: #fef3c7;
+  --mw-amber-200: #fde68a;
+  --mw-amber-300: #fcd34d;
+  --mw-amber-400: #f5b544;
+  --mw-amber-500: #f59e0b;
+  --mw-amber-600: #d97706;
+  --mw-amber-700: #b45309;
+  --mw-amber-950: #451a03;
+
+  --mw-red-50: #fef2f2;
+  --mw-red-100: #fee2e2;
+  --mw-red-200: #fecaca;
+  --mw-red-300: #fca5a5;
+  --mw-red-400: #f87171;
+  --mw-red-500: #ef4444;
+  --mw-red-600: #dc2626;
+  --mw-red-700: #b91c1c;
+  --mw-red-950: #450a0a;
+
+  /* Primitive geometry & type */
+  --mw-space-1: 4px;
+  --mw-space-2: 8px;
+  --mw-space-3: 12px;
+  --mw-space-4: 16px;
+  --mw-space-5: 20px;
+  --mw-space-6: 24px;
+  --mw-space-7: 32px;
+  --mw-space-8: 40px;
+  --mw-space-9: 48px;
+  --mw-space-10: 64px;
+  --mw-space-11: 80px;
+  --mw-space-12: 96px;
+
+  --mw-radius-none: 0px;
+  --mw-radius-sm: 6px;
+  --mw-radius-md: 10px;
+  --mw-radius-lg: 12px;
+  --mw-radius-xl: 16px;
+  --mw-radius-pill: 999px;
+
+  --mw-fs-11: 11px;
+  --mw-fs-12: 12px;
+  --mw-fs-13: 13px;
+  --mw-fs-14: 14px;
+  --mw-fs-15: 15px;
+  --mw-fs-16: 16px;
+  --mw-fs-18: 18px;
+  --mw-fs-20: 20px;
+  --mw-fs-24: 24px;
+  --mw-fs-28: 28px;
+
+  --mw-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mw-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Tier 2 — semantic aliases (dark is the default product theme) */
+  --mw-bg: var(--mw-neutral-1000);
+  --mw-surface: var(--mw-neutral-950);
+  --mw-surface-2: var(--mw-neutral-900);
+  --mw-border: var(--mw-neutral-900);
+  --mw-border-strong: var(--mw-neutral-800);
+  --mw-ink: #e8eaf0;
+  --mw-ink-2: #9aa1ae;
+  /* AA-first: ink-3 is 12px label text, so it must clear 4.5:1 on
+     surface-2 (#262B36) too — #8B93A3, slightly lighter than the sketch. */
+  --mw-ink-3: #8b93a3;
+  --mw-on-accent: var(--mw-neutral-0);
+  --mw-on-danger: var(--mw-neutral-0);
+  --mw-accent: var(--mw-indigo-500);
+  --mw-accent-2: var(--mw-violet-500);
+  --mw-accent-subtle: rgba(109, 92, 255, 0.16);
+  --mw-accent-soft: rgba(109, 92, 255, 0.28);
+  --mw-ok: var(--mw-green-400);
+  --mw-warn: var(--mw-amber-400);
+  --mw-danger: var(--mw-red-400);
+  --mw-ok-subtle: rgba(52, 211, 153, 0.14);
+  --mw-warn-subtle: rgba(245, 181, 68, 0.14);
+  --mw-danger-subtle: rgba(248, 113, 113, 0.14);
+  --mw-hover: rgba(232, 234, 240, 0.06);
+  --mw-active: rgba(232, 234, 240, 0.1);
+  --mw-focus-ring: rgba(109, 92, 255, 0.6);
+  --mw-canvas-bg: #0a0c11;
+  --mw-dot: rgba(255, 255, 255, 0.07);
+  --mw-canvas-bg-light: var(--mw-neutral-100);
+  --mw-grid-light: rgba(14, 16, 21, 0.06);
+  --mw-scrim: rgba(14, 16, 21, 0.6);
+
+  --mw-shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --mw-shadow-e2: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --mw-shadow-e3: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --mw-glow: 0 0 0 1px rgba(109, 92, 255, 0.35), 0 12px 32px rgba(109, 92, 255, 0.18);
+
+  --mw-gradient: linear-gradient(135deg, var(--mw-accent), var(--mw-accent-2));
+
+  /* Type roles */
+  --mw-type-display: 700 var(--mw-fs-28) / 1.15 var(--mw-font-ui);
+  --mw-type-title: 600 var(--mw-fs-20) / 1.3 var(--mw-font-ui);
+  --mw-type-section: 600 var(--mw-fs-16) / 1.4 var(--mw-font-ui);
+  --mw-type-body: 400 var(--mw-fs-13) / 1.5 var(--mw-font-ui);
+  --mw-type-label: 500 var(--mw-fs-12) / 1.4 var(--mw-font-ui);
+  --mw-type-code: 400 var(--mw-fs-12) / 1.5 var(--mw-font-mono);
+
+  /* Motion */
+  --mw-motion-fast: 120ms;
+  --mw-motion-base: 180ms;
+  --mw-motion-slow: 250ms;
+  --mw-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Tier 3 — component tokens */
+  --mw-topbar-h: 64px;
+  --mw-statusbar-h: 26px;
+  --mw-left-w: 264px;
+  --mw-left-icon-rail: 48px;
+  --mw-rail-w: 348px;
+  --mw-inspector-w: 284px;
+  --mw-rail-peek: 88px;
+  --mw-flyout-w: 240px;
+  --mw-menu-w: 208px;
+  --mw-panel-pad: 12px;
+  --mw-section-gap: 16px;
+  --mw-frame-radius: 18px;
+
+  --mw-control-h: 36px;
+  --mw-chip-h: 28px;
+  --mw-row-h: 44px;
+  --mw-tab-h: 40px;
+  --mw-input-h: 36px;
+  --mw-icon-sm: 16px;
+  --mw-icon-md: 20px;
+  --mw-icon-lg: 24px;
+  --mw-touch-min: 40px;
+
+  --mw-card-radius: 16px;
+  --mw-panel-radius: 12px;
+  --mw-input-radius: 10px;
+  --mw-chip-radius: 999px;
+  --mw-card-pad: 16px;
+  --mw-card-gap: 12px;
+  --mw-chip-pad-x: 12px;
+  --mw-chip-pad-y: 6px;
+  --mw-row-pad: 12px;
+  --mw-tab-pad: 10px;
+
+  --mw-railcard-pad: 12px;
+  --mw-railcard-head-size: 14px;
+  --mw-railcard-gap: 8px;
+  --mw-rail-composer-min: 56px;
+  --mw-rail-max-rows: 6;
+  --mw-swatch-size: 16px;
+  --mw-swatch-gap: 5px;
+
+  --mw-scroll-w: 10px;
+  --mw-scroll-thumb: var(--mw-neutral-600);
+  --mw-scroll-thumb-hover: var(--mw-neutral-800);
+  --mw-scroll-thumb-active: var(--mw-neutral-400);
+
+  /* z-index scale */
+  --mw-z-canvas: 0;
+  --mw-z-panels: 10;
+  --mw-z-sticky: 20;
+  --mw-z-popover: 30;
+  --mw-z-modal: 40;
+  --mw-z-toast: 50;
+  --mw-z-tooltip: 60;
+
+  color-scheme: dark;
+}
+
+[data-mw-theme='light'] {
+  --mw-bg: var(--mw-neutral-50);
+  --mw-surface: var(--mw-neutral-0);
+  --mw-surface-2: var(--mw-neutral-100);
+  --mw-border: var(--mw-neutral-200);
+  --mw-border-strong: var(--mw-neutral-300);
+  --mw-ink: #171a21;
+  --mw-ink-2: #5a6170;
+  /* AA-first: the same label token must clear 4.5:1 on #F0F2F5, so the
+     light theme's faint ink is darker than the sketch's #8B93A3. */
+  --mw-ink-3: #62697a;
+  --mw-on-accent: var(--mw-neutral-0);
+  --mw-on-danger: var(--mw-neutral-0);
+  --mw-accent: var(--mw-indigo-600);
+  --mw-accent-2: var(--mw-violet-600);
+  --mw-accent-subtle: rgba(91, 73, 245, 0.1);
+  --mw-accent-soft: rgba(91, 73, 245, 0.2);
+  --mw-ok: var(--mw-green-600);
+  --mw-warn: var(--mw-amber-600);
+  --mw-danger: var(--mw-red-600);
+  --mw-ok-subtle: rgba(5, 150, 105, 0.1);
+  --mw-warn-subtle: rgba(217, 119, 6, 0.12);
+  --mw-danger-subtle: rgba(220, 38, 38, 0.1);
+  --mw-hover: rgba(14, 16, 21, 0.05);
+  --mw-active: rgba(14, 16, 21, 0.09);
+  --mw-focus-ring: rgba(91, 73, 245, 0.55);
+  --mw-canvas-bg: var(--mw-neutral-100);
+  --mw-dot: rgba(14, 16, 21, 0.08);
+  --mw-scrim: rgba(14, 16, 21, 0.4);
+  --mw-shadow-e1: 0 1px 2px rgba(14, 16, 21, 0.08);
+  --mw-shadow-e2: 0 8px 24px rgba(14, 16, 21, 0.12);
+  --mw-shadow-e3: 0 24px 64px rgba(14, 16, 21, 0.18);
+  --mw-glow: 0 0 0 1px rgba(91, 73, 245, 0.25), 0 12px 32px rgba(91, 73, 245, 0.12);
+  --mw-scroll-thumb: var(--mw-neutral-300);
+  --mw-scroll-thumb-hover: var(--mw-neutral-400);
+  --mw-scroll-thumb-active: var(--mw-neutral-500);
+  color-scheme: light;
+}
