@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
 import { useProject } from './store/useProject';
+import { useAgent } from './store/useAgent';
 import { useUi } from './store/useUi';
 import { addScreenBatch } from './ops/screenOps';
 
@@ -163,6 +164,35 @@ describe('the shell actually renders', () => {
     fireEvent.click(swatch!);
     const root = useProject.getState().doc.screens[0].root;
     expect(root.styles.background).toBe('var(--openui-accent)');
+  });
+
+  it('first-run onboarding shows the probe chips and the three starts', async () => {
+    await boot();
+    act(() => {
+      useUi.getState().setModal('onboardingOpen', true);
+    });
+    expect(screen.getByText(/The canvas where Muse builds with you/)).toBeTruthy();
+    expect(screen.getByText('Builder')).toBeTruthy();
+    expect(screen.getByText(/Start from blueprint/)).toBeTruthy();
+    expect(screen.getAllByText(/Recreate a screenshot/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Import a preset/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Use the local engine'));
+    expect(useAgent.getState().demoMode).toBe(true);
+  });
+
+  it('settings owns the wonder switch and says what it costs', async () => {
+    await boot();
+    act(() => {
+      useUi.getState().setModal('settingsOpen', true);
+    });
+    expect(screen.getByText('Wonder mode')).toBeTruthy();
+    expect(screen.getByText(/Plan with the architect model/)).toBeTruthy();
+    const label = screen.getByText(/Plan with the architect model/).closest('label');
+    const box = within(label as HTMLElement).getByRole('checkbox') as HTMLInputElement;
+    fireEvent.click(box);
+    expect(useAgent.getState().wonder).toBe(true);
+    fireEvent.click(box);
+    expect(useAgent.getState().wonder).toBe(false);
   });
 
   it('run mode executes the tree and Escape leaves it', async () => {
