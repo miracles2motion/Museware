@@ -3050,6 +3050,50 @@ button.how-card .field-hint {
     padding: 0 10px;
   }
 
+  /* Thumb-sized targets everywhere, and no double-tap zoom on controls. */
+  button,
+  .chip,
+  .screen-tab,
+  .layer-row,
+  .palette-item {
+    touch-action: manipulation;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .icon-btn-sm {
+    width: 34px;
+    height: 34px;
+  }
+
+  .menu button {
+    height: 42px;
+    font-size: var(--mw-fs-13);
+  }
+
+  .menu {
+    min-width: 220px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .canvas-empty {
+    padding: 20px 14px;
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .inspector-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .inspector-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
   /* ---------- workspace ---------- */
   .workspace {
     flex: 1 1 auto;
