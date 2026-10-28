@@ -39,15 +39,13 @@ const sent: Array<Record<string, unknown>> = [];
 
 beforeEach(() => {
   const doc = useProject.getState().doc;
-  useProject
-    .getState()
-    .replaceDoc({
-      ...doc,
-      screens: [],
-      opLog: [],
-      rail: [],
-      builtWithContributor: undefined,
-    });
+  useProject.getState().replaceDoc({
+    ...doc,
+    screens: [],
+    opLog: [],
+    rail: [],
+    builtWithContributor: undefined,
+  });
   useAgent.setState({
     busy: false,
     demoMode: false,
