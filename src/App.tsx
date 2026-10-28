@@ -115,6 +115,26 @@ export default function App() {
     return () => media.removeEventListener('change', apply);
   }, [theme]);
 
+  // First run (§9.1): the first time the editor appears without a key, show the
+  // one-screen setup — paste a key, watch the models prove themselves, pick a
+  // start. Once only; the Topbar keeps a door to it forever.
+  useEffect(() => {
+    if (route !== 'editor') return;
+    let seen = false;
+    try {
+      seen = Boolean(localStorage.getItem('museware/onboarded'));
+    } catch {
+      seen = true;
+    }
+    if (seen || hasSessionKey()) return;
+    try {
+      localStorage.setItem('museware/onboarded', '1');
+    } catch {
+      /* private mode — the modal simply shows again next time */
+    }
+    useUi.getState().setModal('onboardingOpen', true);
+  }, [route]);
+
   // Hash routing — deep links work without a router dependency.
   useEffect(() => {
     const sync = () => useUi.getState().setRoute(routeFromHash());

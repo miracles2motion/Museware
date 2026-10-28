@@ -2285,6 +2285,96 @@ a {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  margin: 10px 0 8px;
+}
+
+/* A probe chip tells the truth: green only when the model answered, red with
+   the upstream's own words when it did not. */
+.probe-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--mw-radius-md);
+  border: 1px solid var(--mw-border);
+  background: var(--mw-surface-2);
+}
+
+.probe-chip[data-tone='ok'] {
+  border-color: var(--mw-ok);
+  background: var(--mw-ok-subtle);
+}
+
+.probe-chip[data-tone='danger'] {
+  border-color: var(--mw-danger);
+  background: var(--mw-danger-subtle);
+}
+
+.probe-chip .probe-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: var(--mw-type-label);
+  font-weight: 600;
+  color: var(--mw-ink);
+}
+
+.probe-chip[data-tone='ok'] .probe-head {
+  color: var(--mw-ok);
+}
+
+.probe-chip[data-tone='danger'] .probe-head {
+  color: var(--mw-danger);
+}
+
+.probe-chip .probe-model {
+  font-size: 10px;
+  color: var(--mw-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.probe-chip .probe-detail {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--mw-ink-3);
+  overflow-wrap: anywhere;
+}
+
+.probe-chip[data-tone='danger'] .probe-detail {
+  color: var(--mw-danger);
+}
+
+.field-hint-warn {
+  color: var(--mw-warn);
+}
+
+button.how-card {
+  flex: 1 1 220px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.how-card:hover {
+  border-color: var(--mw-border-strong);
+  background: var(--mw-surface-2);
+}
+
+button.how-card strong {
+  font: var(--mw-type-label);
+  font-weight: 600;
+  color: var(--mw-ink);
+}
+
+button.how-card .field-hint {
+  margin: 3px 0 0;
 }
 
 .probe-row {

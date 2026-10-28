@@ -4,7 +4,8 @@ import { Modal, Button } from '../../components/ui';
 import { useProject, createProject } from '../../store/useProject';
 import { useUi } from '../../store/useUi';
 import { useAgent } from '../../store/useAgent';
-import { fetchStatus, probeModel } from '../../muse/client';
+import { fetchStatus } from '../../muse/client';
+import { probeTextRoles } from '../../muse/probe';
 import { getSessionKey, setSessionKey, hasSessionKey } from '../../muse/sessionKey';
 import { wipeProject, readThemeFile } from '../../persist/save';
 import { PRESETS } from '../../design/presets';
@@ -29,6 +30,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const probes = useAgent((s) => s.probes);
   const probing = useAgent((s) => s.probing);
   const statusError = useAgent((s) => s.statusError);
+  const wonder = useAgent((s) => s.wonder);
   const [key, setKey] = useState(getSessionKey());
   const [reveal, setReveal] = useState(false);
   const themeFile = useRef<HTMLInputElement>(null);
@@ -70,14 +72,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   const runProbes = async () => {
     if (!models) return;
-    const agent = useAgent.getState();
-    agent.setProbing(true);
-    for (const role of ROLE_ORDER) {
-      const model = models[role].id;
-      const result = await probeModel(model);
-      agent.setProbe({ ...result, model });
-    }
-    agent.setProbing(false);
+    // Text roles only: image, SAM and voice bill per call, so pinging them here
+    // would spend the visitor's money to learn something we do not need.
+    await probeTextRoles(models);
     toast('Probes finished — red is honest, not scary.', 'ok');
   };
 
@@ -233,9 +230,38 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             disabled={probing || !configured}
             onClick={() => void runProbes()}
           >
-            {probing ? 'Probing…' : 'Probe every model'}
+            {probing ? 'Probing…' : 'Probe the text models'}
           </Button>
         </div>
+      </div>
+
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">Wonder mode</span>
+        </div>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={wonder}
+            onChange={(e) => {
+              useAgent.getState().setWonder(e.target.checked);
+              toast(
+                e.target.checked
+                  ? 'Wonder mode on — planning rounds run on muse-wonder-1.0 (4x price).'
+                  : 'Wonder mode off — planning rounds run on the builder model.',
+                'ok',
+              );
+            }}
+          />
+          <span>
+            Plan with the architect model (muse-wonder-1.0). Opt-in: one planning round and
+            the final verify cost roughly 4x the builder. Routine edits never switch models.
+          </span>
+        </label>
+        <p className="field-hint">
+          Costs nothing while off. The role&apos;s pinned model never changes — Wonder mode
+          only lets the architect role do the thinking it is pinned for.
+        </p>
       </div>
 
       <div className="insp-section">

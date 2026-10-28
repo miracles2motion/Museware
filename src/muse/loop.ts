@@ -188,7 +188,12 @@ interface ToolLoopResult {
 
 async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
   const models = useAgent.getState().models;
-  const model = opts.model || models?.builder.id || 'muse-spark-1.3';
+  // One pinned model per role: the role picks the model, never the other way
+  // round. Wonder mode can only move a planning turn onto the architect role.
+  const model =
+    opts.model ||
+    (opts.role === 'architect' ? models?.architect.id : models?.builder.id) ||
+    'muse-spark-1.3';
   const effort = opts.effort || 'medium';
   const messages = [...opts.messages];
   let calls = 0;
@@ -439,9 +444,10 @@ async function reviewer(
 ): Promise<{ verdict: 'pass' | 'problems' | 'error'; notes: string }> {
   const models = useAgent.getState().models;
   try {
+    const wonder = useAgent.getState().wonder;
     const result = await chatStream({
-      model: models?.chat.id || 'muse-spark-1.3',
-      effort: 'medium',
+      model: (wonder ? models?.architect.id : models?.chat.id) || 'muse-spark-1.3',
+      effort: wonder ? 'max' : 'medium',
       messages: [
         {
           role: 'system',
@@ -451,7 +457,6 @@ async function reviewer(
       ],
       signal: controller?.signal,
       maxTokens: 700,
-      minGapMs: 0,
     });
     recordReceipt(result, 'reviewer', outline.length, []);
     const text = result.text.trim();
@@ -620,11 +625,15 @@ export async function runAgentTurn(
 
   try {
     const messages = contextMessages(before, userText);
+    // Wonder mode (§6.1): an opt-in, 4x-priced planning round on the architect
+    // role. Only the FIRST turn — before anything exists to fill — and never
+    // for the routine edits that follow.
+    const wonder = useAgent.getState().wonder && before.screens.length === 0;
     const result = await executeToolLoop({
       messages,
       maxCalls: TURN_CALL_CAP,
-      role: opts.role || 'builder',
-      effort: opts.effort || 'medium',
+      role: opts.role || (wonder ? 'architect' : 'builder'),
+      effort: opts.effort || (wonder ? 'max' : 'medium'),
     });
     if (result.stopped) {
       addSystem(
@@ -841,9 +850,10 @@ export async function adjustBlueprint(wish: string): Promise<void> {
   startHeartbeat(Date.now());
   try {
     const models = useAgent.getState().models;
+    const wonder = useAgent.getState().wonder;
     const result = await chatStream({
-      model: models?.architect.id || 'muse-spark-1.3',
-      effort: 'high',
+      model: (wonder ? models?.architect.id : models?.builder.id) || 'muse-spark-1.3',
+      effort: wonder ? 'max' : 'high',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'system', content: `CURRENT BLUEPRINT:\n${base}` },
@@ -854,7 +864,7 @@ export async function adjustBlueprint(wish: string): Promise<void> {
       maxTokens: 1800,
       onText: (t) => useAgent.getState().appendText(t),
     });
-    recordReceipt(result, 'architect', base.length, []);
+    recordReceipt(result, wonder ? 'architect' : 'builder', base.length, []);
     const text = result.text || base;
     useProject.getState().setBlueprint(text, false);
     const parsed = parseBlueprint(text, doc.tokens);

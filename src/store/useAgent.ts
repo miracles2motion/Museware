@@ -78,6 +78,9 @@ interface AgentStore {
   live: boolean;
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
+  /** Opt-in Wonder mode: planning rounds run on the architect role. */
+  wonder: boolean;
+  setWonder: (on: boolean) => void;
   statusError: string | null;
   models: ModelMatrix | null;
   keySource: 'env' | 'session' | 'none';
@@ -139,6 +142,21 @@ export const useAgent = create<AgentStore>((set, get) => ({
   budget: null,
   live: false,
   pendingRetry: null,
+  wonder: (() => {
+    try {
+      return localStorage.getItem('museware/wonder') === '1';
+    } catch {
+      return false;
+    }
+  })(),
+  setWonder: (wonder) => {
+    try {
+      localStorage.setItem('museware/wonder', wonder ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+    set({ wonder });
+  },
   statusError: null,
   models: null,
   keySource: 'none',
