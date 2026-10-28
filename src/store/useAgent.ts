@@ -81,6 +81,9 @@ interface AgentStore {
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
   wonder: boolean;
   setWonder: (on: boolean) => void;
+  /** Dev/testing only: the 20x-cheaper contributor tier. Never ships. */
+  contributorMode: boolean;
+  setContributorMode: (on: boolean) => void;
   statusError: string | null;
   models: ModelMatrix | null;
   keySource: 'env' | 'session' | 'none';
@@ -149,6 +152,8 @@ export const useAgent = create<AgentStore>((set, get) => ({
       return false;
     }
   })(),
+  contributorMode: false,
+  setContributorMode: (contributorMode) => set({ contributorMode }),
   setWonder: (wonder) => {
     try {
       localStorage.setItem('museware/wonder', wonder ? '1' : '0');

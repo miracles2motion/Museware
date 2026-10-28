@@ -105,6 +105,8 @@ interface ProjectStore {
   setBlueprint: (text: string, decided?: boolean) => void;
   replaceTheme: (tokens: DesignTokens) => void;
   setScreensEntry: (screenId: string) => void;
+  /** Sticky marker: this project was shaped by contributor-tier output. */
+  markContributor: () => void;
 }
 
 export const useProject = create<ProjectStore>((set, get) => ({
@@ -206,6 +208,13 @@ export const useProject = create<ProjectStore>((set, get) => ({
 
   replaceTheme: (tokens) =>
     set((s) => ({ doc: { ...s.doc, tokens: clone(tokens), updatedAt: Date.now() } })),
+
+  markContributor: () =>
+    set((s) =>
+      s.doc.builtWithContributor
+        ? {}
+        : { doc: { ...s.doc, builtWithContributor: true, updatedAt: Date.now() } },
+    ),
 
   setScreensEntry: (screenId) =>
     set((s) => ({

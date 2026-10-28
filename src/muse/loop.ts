@@ -190,10 +190,18 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
   const models = useAgent.getState().models;
   // One pinned model per role: the role picks the model, never the other way
   // round. Wonder mode can only move a planning turn onto the architect role.
+  // The contributor tier is a dev/testing switch with a legal catch (§6.1):
+  // its output can never leave a production build, so touching it marks the doc.
+  const contributor = useAgent.getState().contributorMode && import.meta.env.DEV;
   const model =
     opts.model ||
-    (opts.role === 'architect' ? models?.architect.id : models?.builder.id) ||
+    (contributor
+      ? models?.contributor.id
+      : opts.role === 'architect'
+        ? models?.architect.id
+        : models?.builder.id) ||
     'muse-spark-1.3';
+  if (contributor) useProject.getState().markContributor();
   const effort = opts.effort || 'medium';
   const messages = [...opts.messages];
   let calls = 0;
@@ -221,7 +229,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       });
       recordReceipt(
         result,
-        opts.role || 'builder',
+        contributor ? 'contributor' : opts.role || 'builder',
         promptChars,
         result.toolCalls.map((c) => c.name),
       );

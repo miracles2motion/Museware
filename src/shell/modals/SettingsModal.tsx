@@ -31,6 +31,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const probing = useAgent((s) => s.probing);
   const statusError = useAgent((s) => s.statusError);
   const wonder = useAgent((s) => s.wonder);
+  const contributorMode = useAgent((s) => s.contributorMode);
   const [key, setKey] = useState(getSessionKey());
   const [reveal, setReveal] = useState(false);
   const themeFile = useRef<HTMLInputElement>(null);
@@ -263,6 +264,37 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           only lets the architect role do the thinking it is pinned for.
         </p>
       </div>
+
+      {import.meta.env.DEV && (
+        <div className="insp-section">
+          <div className="insp-section-head">
+            <span className="eyebrow">Dev only · contributor tier</span>
+          </div>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={contributorMode}
+              onChange={(e) => {
+                useAgent.getState().setContributorMode(e.target.checked);
+                toast(
+                  e.target.checked
+                    ? 'Contributor tier on — 20x cheaper. Any project it touches is marked and the demo refuses to export it.'
+                    : 'Contributor tier off — back on the standard models.',
+                  e.target.checked ? 'warn' : 'ok',
+                );
+              }}
+            />
+            <span>
+              muse-spark-1.3-contributor ($0.10 / $1M). Testing and development only.
+            </span>
+          </label>
+          <p className="field-hint">
+            Legal, not just technical: contributor outputs carry a training-consent tradeoff
+            and Meta&apos;s Geographic Use Policy. This switch does not exist in a
+            production build, and a project it touched cannot be exported from one.
+          </p>
+        </div>
+      )}
 
       <div className="insp-section">
         <div className="insp-section-head">

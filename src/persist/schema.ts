@@ -96,6 +96,7 @@ export const projectSchema = z
     blueprint: z
       .object({ text: z.string(), decided: z.boolean(), updatedAt: z.number() })
       .optional(),
+    builtWithContributor: z.boolean().optional(),
     updatedAt: z.number().default(() => Date.now()),
   })
   .passthrough();

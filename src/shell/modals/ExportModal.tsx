@@ -25,6 +25,9 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   const toast = useUi((s) => s.toast);
   const [copied, setCopied] = useState<string | null>(null);
   const install = useMemo(() => installInstructions(doc), [doc]);
+  // §6.1 legal guard: contributor-tier output trades training consent for a 20x
+  // discount, so a production build refuses to export a project shaped by it.
+  const blocked = Boolean(doc.builtWithContributor) && !import.meta.env.DEV;
 
   const copy = async (label: string, text: string) => {
     try {
@@ -49,17 +52,32 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
           <Button
             variant="primary"
             size="sm"
+            disabled={blocked}
             onClick={async () => {
+              if (blocked) return;
               toast('Zipping the project…');
               await downloadZip(doc);
               toast('Downloaded — npm install && npm run dev', 'ok');
             }}
           >
-            <Download size={13} /> Download .zip
+            <Download size={13} /> {blocked ? 'Export blocked' : 'Download .zip'}
           </Button>
         </>
       }
     >
+      {blocked && (
+        <div className="insp-section" data-tone="danger">
+          <div className="insp-section-head">
+            <span className="eyebrow">Export blocked</span>
+          </div>
+          <p className="field-hint field-hint-warn">
+            This project was shaped with the contributor tier (muse-spark-1.3-contributor).
+            That tier trades Meta&apos;s training-consent terms for a 20x lower price, so
+            its output cannot leave a production build. Open the project in a dev build, or
+            rebuild it with the standard models — then export.
+          </p>
+        </div>
+      )}
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">What ships</span>
