@@ -195,6 +195,33 @@ describe('the shell actually renders', () => {
     expect(useAgent.getState().wonder).toBe(false);
   });
 
+  it('the phone shell is a tab bar plus one overflow menu, not the desktop bar', async () => {
+    await boot();
+    act(() => {
+      useUi.getState().setRoute('editor');
+    });
+
+    const bar = document.querySelector('.mobile-bottom-bar');
+    expect(bar).toBeTruthy();
+    expect(bar?.querySelectorAll('button').length).toBe(5);
+    expect(bar?.textContent).toMatch(/Insert/);
+    expect(bar?.textContent).toMatch(/Run/);
+
+    // Everything the desktop bar shows is marked so CSS can hide it on a phone…
+    expect(document.querySelectorAll('.topbar-desktop').length).toBeGreaterThan(4);
+
+    // …and the phone menu still reaches all of it.
+    const more = document.querySelector('.topbar-mobile button');
+    expect(more).toBeTruthy();
+    fireEvent.click(more!);
+    const menu = document.querySelector('.topbar-mobile .menu');
+    expect(menu).toBeTruthy();
+    const inside = within(menu as HTMLElement);
+    expect(inside.getByText(/Settings & models/)).toBeTruthy();
+    expect(inside.getByText(/Export the app/)).toBeTruthy();
+    expect(inside.getByText(/Compact 390/)).toBeTruthy();
+  });
+
   it('run mode executes the tree and Escape leaves it', async () => {
     await boot();
     act(() => {

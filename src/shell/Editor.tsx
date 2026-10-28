@@ -1,4 +1,4 @@
-import { Layers, LayoutGrid, Play, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Layers, LayoutGrid, Play, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { Topbar } from './Topbar';
@@ -17,6 +17,10 @@ export function Editor() {
   const activeScreenId = useUi((s) => s.activeScreenId);
   const screens = useProject((s) => s.doc.screens);
   const railCollapsed = useUi((s) => s.railCollapsed);
+  const leftTab = useUi((s) => s.leftTab);
+  const leftFlyout = useUi((s) => s.leftFlyout);
+  const propertiesOpen = useUi((s) => s.propertiesOpen);
+  const mobileRailOpen = useUi((s) => s.mobileRailOpen);
 
   return (
     <div className="app-shell">
@@ -27,30 +31,44 @@ export function Editor() {
         <Inspector />
         <AgentRail />
       </div>
-      <div className="mobile-bottom-bar">
+      <nav className="mobile-bottom-bar" aria-label="Workspace">
         <button
           type="button"
+          data-active={leftFlyout && leftTab === 'insert'}
           onClick={() => {
             setLeftTab('insert');
             setLeftFlyout(true);
           }}
         >
-          <LayoutGrid size={14} /> Insert
+          <LayoutGrid size={18} />
+          <span>Insert</span>
         </button>
         <button
           type="button"
+          data-active={leftFlyout && leftTab === 'layers'}
           onClick={() => {
             setLeftTab('layers');
             setLeftFlyout(true);
           }}
         >
-          <Layers size={14} /> Layers
+          <Layers size={18} />
+          <span>Layers</span>
         </button>
-        <button type="button" onClick={() => useUi.getState().setPropertiesOpen(true)}>
-          <SlidersHorizontal size={14} /> Inspect
+        <button
+          type="button"
+          data-active={propertiesOpen}
+          onClick={() => useUi.getState().setPropertiesOpen(!propertiesOpen)}
+        >
+          <SlidersHorizontal size={18} />
+          <span>Inspect</span>
         </button>
-        <button type="button" onClick={() => setMobileRail(true)}>
-          <Sparkles size={14} /> muse
+        <button
+          type="button"
+          data-active={mobileRailOpen}
+          onClick={() => setMobileRail(!mobileRailOpen)}
+        >
+          {mobileRailOpen ? <X size={18} /> : <Sparkles size={18} />}
+          <span>muse</span>
         </button>
         <button
           type="button"
@@ -60,9 +78,10 @@ export function Editor() {
               : startPrompt('Design me a small app to start from.')
           }
         >
-          <Play size={14} /> Run
+          <Play size={18} />
+          <span>Run</span>
         </button>
-      </div>
+      </nav>
       <Statusbar />
     </div>
   );

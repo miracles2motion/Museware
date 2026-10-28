@@ -6,6 +6,7 @@ import { loadProject, saveProjectSoon } from './persist/save';
 import { parseProjectDoc } from './persist/schema';
 import { fetchStatus } from './muse/client';
 import { offerKey } from './muse/loop';
+import { diagnose } from './muse/connection';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
 import { Landing } from './shell/Landing';
@@ -79,8 +80,11 @@ export default function App() {
           );
         }
       } catch (err) {
-        // The proxy is unreachable (plain `vite` with no middleware, or a static
-        // preview). Nothing can be spent, so the local engine is the honest mode.
+        // The proxy is unreachable (plain `vite` with no middleware, a static
+        // preview, or a deployment whose api/ folder never shipped). Nothing can
+        // be spent, so the local engine is the honest mode — but say WHY, once,
+        // in the visitor's own words rather than making them guess.
+        useProject.getState().addRail({ role: 'system', text: diagnose(err).text });
         useAgent.getState().setStatus({
           configured: userKey,
           demoMode: !userKey,

@@ -5,7 +5,8 @@ import { useUi } from '../store/useUi';
 import { chatStream, segmentImage, MuseError } from './client';
 import { buildTokenSheet } from './tokenSheet';
 import { buildProjectIndex } from './projectIndex';
-import { presentBlueprint } from './loop';
+import { offerKey, presentBlueprint } from './loop';
+import { diagnose } from './connection';
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -277,14 +278,23 @@ export async function recreateFromScreenshot(file: File): Promise<void> {
   const addAgent = (text: string) => useProject.getState().addRail({ role: 'agent', text });
   try {
     const dataUrl = await readAsDataUrl(file);
-    if (agent.demoMode || !agent.configured) {
-      addSystem(
-        'Screenshot reading needs a muse key (SAM + spark vision). No key on this server.',
-      );
+    // Only an explicitly chosen local engine pre-empts the pipeline. A stale or
+    // failed boot status must NOT: if a key exists, dropping a screenshot should
+    // just work, and if it truly does not, the proxy will say so in its own words.
+    if (agent.demoMode) {
+      if (agent.statusError) {
+        addSystem(
+          `The muse proxy is not answering on this deployment (${agent.statusError}), so the local engine is running. Vision needs the proxy.`,
+        );
+      } else {
+        addSystem(
+          'The local engine is on, and it has no vision model (SAM + spark). That is a setting, not a suggestion that you did something wrong.',
+        );
+      }
       addAgent(
         'I can still build this from words: describe the screen in one line ("a habit tracker home with today\'s progress and a habit list") and I will propose the blueprint. Canvas, drag/drop, inspector and Run mode all work without a key.',
       );
-      useUi.getState().toast('No key for vision — describe it instead.', 'warn');
+      useUi.getState().toast('No vision without the proxy — describe it instead.', 'warn');
       return;
     }
     useAgent.getState().startTurn();
@@ -299,6 +309,21 @@ export async function recreateFromScreenshot(file: File): Promise<void> {
         `SAM found ${total} element${total === 1 ? '' : 's'} — sorted in reading order, nested by containment, spark is naming all of them in one pass…`,
       );
     } catch (err) {
+      const why = diagnose(err);
+      // A key problem or a missing deployment will fail the next call too, so we
+      // stop here and say the true thing instead of blaming the screenshot.
+      if (why.kind !== 'other') {
+        addSystem(why.text);
+        if (why.offerKey) offerKey(why.text, '');
+        else
+          addAgent(
+            'The canvas, drag/drop, the inspector and the export all work without the proxy. Screenshot reading is the one thing that needs it.',
+          );
+        useUi
+          .getState()
+          .toast('Vision is unavailable — the reason is in the rail.', 'warn');
+        return;
+      }
       addSystem(
         `SAM segmentation failed (${err instanceof Error ? err.message : String(err)}). Continuing with vision only.`,
       );
@@ -314,9 +339,13 @@ export async function recreateFromScreenshot(file: File): Promise<void> {
     addSystem('Recreation drafted — approve it to fill the screen, or adjust.');
   } catch (err) {
     if (err instanceof MuseError && err.code === 'aborted') return;
+    const why = diagnose(err);
     addSystem(
-      `Screenshot pipeline failed: ${err instanceof Error ? err.message : String(err)}`,
+      why.kind === 'other'
+        ? `Screenshot pipeline failed: ${why.text}`
+        : `Screenshot pipeline stopped: ${why.text}`,
     );
+    if (why.offerKey) offerKey(why.text, '');
   } finally {
     useAgent.getState().endTurn();
     useAgent.getState().setLive(null);

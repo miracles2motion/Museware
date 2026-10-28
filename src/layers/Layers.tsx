@@ -136,7 +136,11 @@ export function Layers() {
                 onRenameChange={setRenameValue}
                 onRenameCommit={() => commitRename(row.node)}
                 onRenameCancel={() => setRenaming(null)}
-                onSelect={() => select(row.node.id)}
+                onSelect={() => {
+                  select(row.node.id);
+                  // The drawer did its job; get out of the canvas's way.
+                  useUi.getState().setLeftFlyout(false);
+                }}
                 onStartRename={() => {
                   setRenaming(row.node.id);
                   setRenameValue(

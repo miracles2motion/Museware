@@ -10,6 +10,16 @@ html,
 body,
 #root {
   height: 100%;
+  max-width: 100%;
+}
+
+/* Nothing may make the PAGE wider than the phone. Sheets, tabs and canvases
+   scroll inside themselves; the document never does. */
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -2929,4 +2939,432 @@ button.how-card .field-hint {
   gap: 6px;
   flex-wrap: wrap;
   padding: 8px 4px 0;
+}
+
+/* ==========================================================================
+   Phone layout (<= 700px). The shell is a column: topbar, canvas, tab bar.
+   The rail and the inspector are sheets inside the workspace, so they can
+   never cover the tab bar or push the page wider than the screen.
+   ========================================================================== */
+
+.topbar-mobile {
+  display: none;
+}
+
+.menu button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.proxy-problem {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: var(--mw-radius-md);
+  border: 1px solid var(--mw-danger);
+  background: var(--mw-danger-subtle);
+  font-size: var(--mw-fs-12);
+  color: var(--mw-ink-2);
+}
+
+.proxy-problem strong {
+  color: var(--mw-danger);
+}
+
+.proxy-problem p {
+  margin: 6px 0 0;
+}
+
+@media (max-width: 700px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  /* iOS zooms the page when a focused field is under 16px. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar {
+    height: 52px;
+    gap: 4px;
+    padding: 0 6px 0 8px;
+    flex: 0 0 auto;
+  }
+
+  .topbar-desktop {
+    display: none !important;
+  }
+
+  .topbar-mobile {
+    display: block;
+  }
+
+  .topbar .brand {
+    padding: 0;
+    gap: 0;
+  }
+
+  .brand-word {
+    display: none;
+  }
+
+  .topbar .screen-tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar .screen-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar .screen-tab {
+    height: 34px;
+    padding: 0 10px;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-right {
+    gap: 2px;
+    flex: 0 0 auto;
+  }
+
+  .topbar-right .run-btn,
+  .topbar-right .stop-btn {
+    height: 34px;
+    padding: 0 10px;
+  }
+
+  /* Thumb-sized targets everywhere, and no double-tap zoom on controls. */
+  button,
+  .chip,
+  .screen-tab,
+  .layer-row,
+  .palette-item {
+    touch-action: manipulation;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .icon-btn-sm {
+    width: 34px;
+    height: 34px;
+  }
+
+  .menu button {
+    height: 42px;
+    font-size: var(--mw-fs-13);
+  }
+
+  .menu {
+    min-width: 220px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .canvas-empty {
+    padding: 20px 14px;
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .inspector-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .inspector-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ---------- workspace ---------- */
+  .workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .canvas-area {
+    padding-bottom: 0;
+    min-height: 0;
+  }
+
+  .canvas-toolbar {
+    min-height: 30px;
+    padding: 0 8px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .canvas-toolbar > .mono {
+    max-width: 55vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .canvas-scroll {
+    padding: 6px;
+    display: block;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  /* The artboard IS the screen on a phone. No 390px card floating in a void. */
+  .device-frame[data-bp] {
+    width: 100% !important;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    border-radius: 12px;
+  }
+
+  .device-frame[data-run='true'] {
+    height: 100%;
+  }
+
+  .frame-chrome {
+    display: none;
+  }
+
+  /* ---------- rail sheet ---------- */
+  .rail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    height: var(--mw-rail-peek);
+    max-height: none;
+    border-left: none;
+    border-top: 1px solid var(--mw-border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--mw-shadow-e3);
+    z-index: var(--mw-z-sticky);
+  }
+
+  .rail[data-open='true'] {
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .rail[data-open='true'] .rail-header {
+    height: 52px;
+  }
+
+  .rail .rail-peek {
+    height: var(--mw-rail-peek);
+    padding: 0 12px;
+  }
+
+  /* A collapsed rail is still a horizontal bar down here, never a 56px-wide
+     sliver eating the canvas. */
+  .rail[data-collapsed='true'] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: var(--mw-rail-peek);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .rail[data-collapsed='true'] .rail-collapsed {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 12px;
+    height: 100%;
+  }
+
+  .rail[data-collapsed='true'] .rail-collapsed .eyebrow {
+    writing-mode: horizontal-tb !important;
+  }
+
+  .rail[data-open='true'] .rail-body {
+    padding-bottom: 8px;
+  }
+
+  /* The composer sits above the tab bar, not behind it. */
+  .rail[data-open='true'] .composer {
+    padding-bottom: 6px;
+  }
+
+  /* ---------- inspector sheet ---------- */
+  .inspector,
+  .inspector[data-open='true'] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    max-width: none;
+    height: min(58vh, 520px);
+    border-left: none;
+    border-top: 1px solid var(--mw-border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--mw-shadow-e3);
+    z-index: calc(var(--mw-z-sticky) + 1);
+  }
+
+  .inspector {
+    display: none;
+  }
+
+  .inspector[data-open='true'] {
+    display: flex;
+  }
+
+  .inspector-close {
+    display: inline-flex;
+  }
+
+  /* ---------- left panel flyout ---------- */
+  .left-panel,
+  .left-panel[data-flyout='false'] {
+    display: none;
+  }
+
+  .left-panel[data-flyout='true'] {
+    display: flex;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(320px, 86vw);
+    z-index: calc(var(--mw-z-sticky) + 2);
+    box-shadow: var(--mw-shadow-e3);
+  }
+
+  /* ---------- tab bar ---------- */
+  .mobile-bottom-bar {
+    display: flex;
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    align-items: center;
+    height: auto;
+    min-height: 56px;
+    padding: 0 2px env(safe-area-inset-bottom);
+    gap: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .mobile-bottom-bar button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 56px;
+    gap: 3px;
+    border-radius: 10px;
+    font-size: 10px;
+    letter-spacing: 0.01em;
+  }
+
+  .mobile-bottom-bar button:active {
+    background: var(--mw-hover);
+  }
+
+  .statusbar {
+    display: none;
+  }
+
+  /* ---------- modals ---------- */
+  .modal {
+    width: min(100vw - 16px, 560px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .modal-body {
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
+
+  /* ---------- landing ---------- */
+  .landing-nav {
+    padding: 12px 16px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .landing-nav a:not(.btn) {
+    display: none;
+  }
+
+  .hero-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    padding: 18px 16px 8px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(32px, 10vw, 44px);
+    margin: 10px 0;
+  }
+
+  .hero-copy p.lead {
+    font-size: 15px;
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+
+  .hero-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .mini-stage {
+    padding: 10px;
+  }
+
+  .landing-section {
+    padding: 28px 16px;
+  }
+
+  .landing-section h2 {
+    font-size: clamp(22px, 7vw, 30px);
+  }
+
+  .family-strip {
+    padding: 0 16px;
+    gap: 6px;
+  }
+
+  .landing-footer {
+    padding: 18px 16px 28px;
+  }
+}
+
+/* Very small phones (iPhone SE, 320px): keep the chrome, shrink the type. */
+@media (max-width: 380px) {
+  .mobile-bottom-bar button {
+    font-size: 9px;
+  }
+
+  .topbar .screen-tab {
+    max-width: 38vw;
+  }
+
+  .agent-pill span.pill-text {
+    display: none;
+  }
 }

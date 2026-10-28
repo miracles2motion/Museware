@@ -56,6 +56,9 @@ export function Palette() {
     }
     const added = batch.ops[0] as { node?: { id: string } };
     if (added.node) select(added.node.id);
+    // On a phone the panel is a drawer: dropping the block should reveal it,
+    // not leave the visitor staring at the drawer that "did nothing".
+    useUi.getState().setLeftFlyout(false);
     toast(`${spec(type)?.label || type} added to ${batch.parentId}`, 'ok');
   };
 
