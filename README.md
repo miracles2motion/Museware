@@ -83,6 +83,11 @@ npm run check:dist   # no key material, no sourcemaps, size budget
 npm run check:export # export a demo app, then typecheck + build it for real
 ```
 
+CI (`.github/workflows/ci.yml`) runs exactly these steps with **no key set**:
+`check` → `build` → `check:dist` → `check:export`. The suite never calls a real
+model — the proxy tests run against a fake upstream on ephemeral ports, and the
+engine tests run the local engine.
+
 `check:export` is the honest one: it renders the landing template through
 `generateProjectFiles`, writes it to a temp directory, and runs `tsc --noEmit`
 and `vite build` on the result. The export is code, not a promise.

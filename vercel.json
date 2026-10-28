@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "functions": {
-    "api/muse/[...path].ts": {
+    "api/**/*.ts": {
       "maxDuration": 60
     }
   },
