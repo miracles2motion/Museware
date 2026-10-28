@@ -1,0 +1,261 @@
+import type { DesignTokens, ThemeComponentToken } from '../types/tokens';
+
+/** Component tokens are CSS-ready: the canvas applies them straight through. */
+export function coreTokens(): ThemeComponentToken[] {
+  return [
+    {
+      key: 'screen',
+      label: 'Screen',
+      kind: 'screen',
+      props: {
+        padding: 'var(--pad-screen)',
+        background: 'var(--openui-bg)',
+        gap: 'var(--gap-section)',
+      },
+    },
+    {
+      key: 'card',
+      label: 'Card',
+      kind: 'card',
+      props: {
+        padding: 'var(--pad-card)',
+        background: 'var(--openui-elevated)',
+        radius: 'var(--radius-card)',
+        border: '1px solid var(--openui-border-default)',
+        gap: 'var(--gap-item)',
+      },
+    },
+    {
+      key: 'sunk_card',
+      label: 'Sunk card',
+      kind: 'card',
+      props: {
+        padding: 'var(--pad-card)',
+        background: 'var(--openui-sunk)',
+        radius: 'var(--radius-card)',
+        border: '1px solid transparent',
+      },
+    },
+    {
+      key: 'primary_button',
+      label: 'Primary button',
+      kind: 'button',
+      props: {
+        background: 'var(--openui-accent)',
+        color: 'var(--openui-text-on-accent)',
+        height: 'var(--h-button)',
+        radius: 'var(--radius-button)',
+        padding: '0 var(--pad-control-x)',
+      },
+    },
+    {
+      key: 'secondary_button',
+      label: 'Secondary button',
+      kind: 'button',
+      props: {
+        background: 'var(--openui-sunk)',
+        color: 'var(--openui-text-primary)',
+        height: 'var(--h-button)',
+        radius: 'var(--radius-button)',
+        border: '1px solid var(--openui-border-default)',
+        padding: '0 var(--pad-control-x)',
+      },
+    },
+    {
+      key: 'input',
+      label: 'Input',
+      kind: 'input',
+      props: {
+        background: 'var(--openui-fg)',
+        color: 'var(--openui-text-primary)',
+        height: 'var(--h-input)',
+        radius: 'var(--radius-input)',
+        border: '1px solid var(--openui-border-default)',
+        padding: '0 var(--pad-control-x)',
+      },
+    },
+    {
+      key: 'chip',
+      label: 'Chip',
+      kind: 'chip',
+      props: {
+        background: 'var(--openui-accent-subtle)',
+        color: 'var(--openui-text-brand)',
+        height: 'var(--h-chip)',
+        radius: 'var(--radius-chip)',
+        padding: '0 12px',
+      },
+    },
+    {
+      key: 'list_row',
+      label: 'List row',
+      kind: 'list_row',
+      props: {
+        background: 'var(--openui-elevated)',
+        color: 'var(--openui-text-primary)',
+        height: 'var(--h-row)',
+        padding: '0 var(--pad-card)',
+        border: '1px solid var(--openui-border-default)',
+      },
+    },
+    {
+      key: 'title',
+      label: 'Title',
+      kind: 'text',
+      props: {
+        color: 'var(--openui-text-primary)',
+        fontSize: 'var(--type-title)',
+        fontWeight: '700',
+      },
+    },
+    {
+      key: 'body',
+      label: 'Body',
+      kind: 'text',
+      props: {
+        color: 'var(--openui-text-secondary)',
+        fontSize: 'var(--type-body)',
+        lineHeight: '1.55',
+      },
+    },
+    {
+      key: 'nav_bar',
+      label: 'Nav bar',
+      kind: 'nav_bar',
+      props: {
+        background: 'var(--openui-fg)',
+        color: 'var(--openui-text-primary)',
+        height: 'var(--h-nav)',
+        border: '1px solid var(--openui-border-default)',
+      },
+    },
+    {
+      key: 'tab_bar',
+      label: 'Tab bar',
+      kind: 'tab_bar',
+      props: {
+        background: 'var(--openui-fg)',
+        color: 'var(--openui-text-secondary)',
+        height: 'var(--h-nav)',
+      },
+    },
+    {
+      key: 'fab',
+      label: 'FAB',
+      kind: 'fab',
+      props: {
+        background: 'var(--openui-accent)',
+        color: 'var(--openui-text-on-accent)',
+        radius: 'var(--radius-chip)',
+      },
+    },
+    {
+      key: 'dialog',
+      label: 'Dialog',
+      kind: 'dialog',
+      props: {
+        background: 'var(--openui-elevated)',
+        color: 'var(--openui-text-primary)',
+        radius: 'var(--radius-card)',
+        padding: 'var(--pad-card)',
+      },
+    },
+  ];
+}
+
+const LIGHT = {
+  openui_bg: '#F8FAFC',
+  openui_fg: '#FFFFFF',
+  openui_sunk: '#EEF2F7',
+  openui_elevated: '#FFFFFF',
+  openui_highlight: '#E8EEF7',
+  openui_accent: '#2563EB',
+  openui_accent_pressed: '#1D4ED8',
+  openui_accent_subtle: '#DBEAFE',
+  openui_text_on_accent: '#FFFFFF',
+  openui_secondary: '#6366F1',
+  openui_text_on_secondary: '#FFFFFF',
+  openui_text_primary: '#0F172A',
+  openui_text_secondary: '#475569',
+  openui_text_tertiary: '#94A3B8',
+  openui_text_brand: '#2563EB',
+  openui_border_default: '#E2E8F0',
+  openui_border_interactive: '#93C5FD',
+  openui_border_accent: '#2563EB',
+  openui_info_bg: '#EFF6FF',
+  openui_info_text: '#1D4ED8',
+  openui_info_border: '#BFDBFE',
+  openui_success_bg: '#F0FDF4',
+  openui_success_text: '#15803D',
+  openui_success_border: '#BBF7D0',
+  openui_alert_bg: '#FFFBEB',
+  openui_alert_text: '#B45309',
+  openui_alert_border: '#FDE68A',
+  openui_danger_bg: '#FEF2F2',
+  openui_danger_text: '#B91C1C',
+  openui_danger_border: '#FECACA',
+};
+
+const DARK = {
+  openui_bg: '#0B1220',
+  openui_fg: '#111A2C',
+  openui_sunk: '#16203A',
+  openui_elevated: '#18233F',
+  openui_highlight: '#1E2B4D',
+  openui_accent: '#3B82F6',
+  openui_accent_pressed: '#2563EB',
+  openui_accent_subtle: '#1E3A8A',
+  openui_text_on_accent: '#FFFFFF',
+  openui_secondary: '#818CF8',
+  openui_text_on_secondary: '#FFFFFF',
+  openui_text_primary: '#F1F5F9',
+  openui_text_secondary: '#94A3B8',
+  openui_text_tertiary: '#64748B',
+  openui_text_brand: '#60A5FA',
+  openui_border_default: '#243049',
+  openui_border_interactive: '#3B82F6',
+  openui_border_accent: '#60A5FA',
+  openui_info_bg: '#172554',
+  openui_info_text: '#93C5FD',
+  openui_info_border: '#1E3A8A',
+  openui_success_bg: '#052E16',
+  openui_success_text: '#4ADE80',
+  openui_success_border: '#166534',
+  openui_alert_bg: '#451A03',
+  openui_alert_text: '#FCD34D',
+  openui_alert_border: '#92400E',
+  openui_danger_bg: '#450A0A',
+  openui_danger_text: '#F87171',
+  openui_danger_border: '#7F1D1D',
+};
+
+export const MUSEWARE_DEFAULT_THEME: DesignTokens = {
+  title: 'Museware Default',
+  specVersion: 'openui-1.0',
+  openuiTheme: {
+    brand_color: LIGHT.openui_accent,
+    secondary_color: LIGHT.openui_secondary,
+    neutral_scale: 'slate',
+    corner_profile: 'balanced',
+    density: 'comfortable',
+    theme_mode: 'DayNight',
+    radii_dp: { card: 14, button: 12, input: 12, chip: 20, tag: 8, callout: 12 },
+    metrics_dp: {
+      screen_pad: 20,
+      section_gap: 16,
+      card_pad: 16,
+      button_height: 50,
+      input_height: 50,
+      chip_height: 34,
+      row_height: 60,
+    },
+    light_colors: { ...LIGHT },
+    dark_colors: { ...DARK },
+  },
+  tokens: coreTokens(),
+};
+
+/** Deep clone that keeps unknown sections intact. */
+export function cloneTheme(t: DesignTokens): DesignTokens {
+  return JSON.parse(JSON.stringify(t)) as DesignTokens;
+}

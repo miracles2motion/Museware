@@ -1,0 +1,98 @@
+import { Modal, Button } from '../../components/ui';
+import { useAgent } from '../../store/useAgent';
+import { useUi } from '../../store/useUi';
+
+function money(cents: number): string {
+  return `$${(cents / 100).toFixed(3)}`;
+}
+
+export function ReceiptsModal({ onClose }: { onClose: () => void }) {
+  const receipts = useAgent((s) => s.receipts);
+  const sessionCents = useAgent((s) => s.sessionCents);
+  const sessionRequests = useAgent((s) => s.sessionRequests);
+  const demoMode = useAgent((s) => s.demoMode);
+  const setModal = useUi((s) => s.setModal);
+  const recent = receipts.slice(-60).reverse();
+
+  return (
+    <Modal
+      title="Receipts, not claims"
+      size="wide"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={() => setModal('settingsOpen', true)}>
+            Models & key
+          </Button>
+          <Button variant="primary" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </>
+      }
+    >
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">This session</span>
+          <span className="chip chip-static">
+            {demoMode ? 'local engine · $0.000' : money(sessionCents)}
+          </span>
+        </div>
+        <p className="field-hint">
+          {sessionRequests} request{sessionRequests === 1 ? '' : 's'} on this tab.
+          {demoMode
+            ? ' The local engine makes no network calls — every receipt here is labelled demo and costs nothing.'
+            : ' Every model call is logged with its role, model, latency and token usage the moment it returns.'}
+        </p>
+      </div>
+
+      {recent.length === 0 ? (
+        <div className="insp-section">
+          <p className="field-hint">
+            Nothing yet. Ask muse for something — the receipts fill in as calls return.
+          </p>
+        </div>
+      ) : (
+        <table className="receipt-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Role</th>
+              <th>Model</th>
+              <th>Tools</th>
+              <th className="num">Chars</th>
+              <th className="num">Latency</th>
+              <th className="num">Tokens</th>
+              <th className="num">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recent.map((r) => (
+              <tr key={r.id}>
+                <td className="mono">
+                  {new Date(r.at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </td>
+                <td>{r.role}</td>
+                <td className="mono">{r.model}</td>
+                <td className="mono">
+                  {r.toolNames.length ? r.toolNames.join(', ') : '—'}
+                </td>
+                <td className="num">{r.promptChars}</td>
+                <td className="num">{r.latencyMs} ms</td>
+                <td className="num">
+                  {r.inputTokens === undefined && r.outputTokens === undefined
+                    ? '—'
+                    : `${r.inputTokens ?? 0}→${r.outputTokens ?? 0}`}
+                </td>
+                <td className="num">{r.cents === undefined ? '—' : money(r.cents)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Modal>
+  );
+}

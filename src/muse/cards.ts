@@ -1,0 +1,263 @@
+/**
+ * Card answers. One dispatcher so live muse and the local muse behave the same
+ * from the UI's point of view: tap → card leaves → one-line receipt → action.
+ */
+import type { RailEntry } from '../types/tree';
+import { useProject } from '../store/useProject';
+import { useAgent } from '../store/useAgent';
+import { useUi } from '../store/useUi';
+import { generateImage } from './client';
+import { imageBrief } from './prompts';
+import {
+  adjustBlueprint,
+  approveBlueprint,
+  runAgentTurn,
+  runFillQueue,
+  stopAgent,
+} from './loop';
+import { demoAddImageToHero, demoAnswerChoice, startDemoBuild } from './demo/agent';
+import { findNodeInDoc } from '../ops/treeUtils';
+
+function system(text: string) {
+  useProject.getState().addRail({ role: 'system', text });
+}
+
+function findCard(cardId: string): RailEntry | undefined {
+  return useProject.getState().doc.rail.find((r) => r.id === cardId);
+}
+
+function markCard(
+  cardId: string,
+  state: 'answered' | 'cancelled' | 'expired',
+  extra: Record<string, unknown> = {},
+) {
+  const entry = findCard(cardId);
+  if (!entry?.card) return;
+  useProject.getState().patchRail(cardId, {
+    card: {
+      ...entry.card,
+      state,
+      data: { ...entry.card.data, ...extra },
+    },
+  });
+}
+
+export interface ChoiceOption {
+  label: string;
+  hexes?: string[];
+  note?: string;
+}
+
+export async function answerChoice(cardId: string, index: number): Promise<void> {
+  const entry = findCard(cardId);
+  if (!entry?.card || entry.card.state !== 'pending') return;
+  const options = (entry.card.data.options as ChoiceOption[]) || [];
+  const option = options[index];
+  if (!option) return;
+  if (useAgent.getState().busy) stopAgent();
+  if (useAgent.getState().demoMode) {
+    await demoAnswerChoice(cardId, entry, option);
+    return;
+  }
+  markCard(cardId, 'answered', { picked: option.label });
+  system(`✓ Picked: ${option.label}`);
+  useProject.getState().addRail({ role: 'user', text: option.label });
+  await runAgentTurn(option.label);
+}
+
+export async function answerBlueprint(
+  cardId: string,
+  action: 'build' | 'adjust' | 'cancel',
+  wish = '',
+): Promise<void> {
+  const entry = findCard(cardId);
+  if (!entry?.card) return;
+  if (useAgent.getState().busy) stopAgent();
+  if (action === 'cancel') {
+    markCard(cardId, 'cancelled');
+    system('Blueprint cancelled — it stays in the log if you want it back.');
+    return;
+  }
+  if (action === 'adjust') {
+    if (!wish.trim()) return;
+    markCard(cardId, 'answered', { adjustedWith: wish });
+    system('✓ Adjusting the blueprint');
+    if (useAgent.getState().demoMode) {
+      useProject.getState().addRail({ role: 'user', text: wish });
+      useProject.getState().addRail({
+        role: 'agent',
+        text: `Noted: ${wish}. The local engine keeps the plan as-is for now — with a muse key this round rewrites the blueprint with Wonder. Approve the existing plan, or clear it and ask again.`,
+      });
+      system('Adjust rounds need a muse key; the plan stands as-is.');
+      return;
+    }
+    await adjustBlueprint(wish);
+    return;
+  }
+
+  markCard(cardId, 'answered');
+  const doc = useProject.getState().doc;
+  if (!doc.blueprint) return;
+  system('✓ Blueprint approved');
+  if (useAgent.getState().demoMode) {
+    await startDemoBuild('steady');
+  } else {
+    await approveBlueprint('steady');
+  }
+}
+
+export async function answerBuildChoice(
+  cardId: string,
+  mode: 'blueprint' | 'steady' | 'fast' | 'not_now',
+): Promise<void> {
+  const entry = findCard(cardId);
+  if (!entry?.card) return;
+  if (useAgent.getState().busy) stopAgent();
+  markCard(cardId, mode === 'not_now' ? 'cancelled' : 'answered', { mode });
+  if (mode === 'not_now') {
+    system('Left alone — drag anything by hand. Undo is shared with mine.');
+    return;
+  }
+  if (mode === 'blueprint') {
+    system('Blueprint first — say what the app is for and I will plan it.');
+    useProject.getState().addRail({
+      role: 'agent',
+      text: 'Good call. Tell me the product in one line (who it is for and what it does) and I will propose the screens, ids, LOOK numbers and wiring before building anything.',
+    });
+    return;
+  }
+  system(
+    mode === 'fast'
+      ? 'Fast screens — final verify gate stays on.'
+      : 'Steady screens — one at a time, reviewed.',
+  );
+  if (useAgent.getState().demoMode) {
+    if (!useProject.getState().doc.blueprint?.text) {
+      useProject.getState().addRail({
+        role: 'agent',
+        text: 'No blueprint yet — ask me to design the product and I will propose one first (law three: decide up front, fill in blanks).',
+      });
+      return;
+    }
+    await startDemoBuild(mode);
+  } else {
+    await runFillQueue({ mode });
+  }
+}
+
+export async function applyColorCard(
+  hex: string,
+  scope: 'everywhere' | 'element',
+  nodeId?: string,
+): Promise<void> {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    useUi.getState().toast('That is not a six-digit hex colour.', 'warn');
+    return;
+  }
+  if (scope === 'everywhere') {
+    const res = useProject
+      .getState()
+      .applyBatch(
+        [{ op: 'setTokens', patch: { brand_color: hex, secondary_color: hex } }],
+        { source: 'user' },
+      );
+    if (res.errors.length) {
+      useUi.getState().toast(res.errors[0].message, 'danger');
+      return;
+    }
+    system(`🎨 ${hex} — applied everywhere`);
+    useUi.getState().toast('Every surface repainted from the token.', 'ok');
+  } else if (nodeId) {
+    const hit = findNodeInDoc(useProject.getState().doc, nodeId);
+    const res = useProject
+      .getState()
+      .applyBatch([{ op: 'setStyles', id: nodeId, styles: { background: hex } }], {
+        source: 'user',
+      });
+    if (res.errors.length) {
+      useUi.getState().toast(res.errors[0].message, 'danger');
+      return;
+    }
+    system(`🎨 ${hex} — just ${hit?.node.id || 'that element'}`);
+  }
+  useUi.getState().setColorCard(null);
+}
+
+export async function retryTurn(cardId: string, text: string): Promise<void> {
+  markCard(cardId, 'answered');
+  if (!text.trim()) return;
+  if (useAgent.getState().demoMode) {
+    await runAgentTurn(text);
+    return;
+  }
+  await runAgentTurn(text);
+}
+
+export async function generateHeroImage(): Promise<void> {
+  const doc = useProject.getState().doc;
+  let hero: { id: string } | null = null;
+  for (const screen of doc.screens) {
+    const stack = [screen.root];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node.type === 'hero') {
+        hero = node;
+        break;
+      }
+      stack.push(...node.children);
+    }
+    if (hero) break;
+  }
+  if (!hero) {
+    useUi.getState().toast('Add a hero first — then I illustrate it.', 'warn');
+    return;
+  }
+  const light = doc.tokens.openuiTheme.light_colors || {};
+  const palette = [
+    light.openui_accent,
+    light.openui_secondary,
+    light.openui_accent_subtle,
+    light.openui_bg,
+    light.openui_text_primary,
+  ].filter(Boolean) as string[];
+  if (useAgent.getState().demoMode) {
+    await demoAddImageToHero(`hero-${Date.now() % 99999}`);
+    useUi.getState().toast('Hero illustrated from your palette (local).', 'ok');
+    return;
+  }
+  useAgent.getState().setLive('Generating a hero image…');
+  try {
+    const src = await generateImage(
+      imageBrief(
+        'abstract hero illustration for a product landing page',
+        palette[3] ||
+          String(
+            useProject.getState().doc.tokens.openuiTheme.light_colors.openui_bg ||
+              'transparent',
+          ),
+        palette,
+        1200,
+        640,
+      ),
+      '1200x640',
+    );
+    const res = useProject
+      .getState()
+      .applyBatch([{ op: 'setProps', id: hero.id, props: { image: src } }], {
+        source: 'agent',
+      });
+    if (res.errors.length) throw new Error(res.errors[0].message);
+    system('🖼 muse-image placed a hero — real asset, persisted with the project.');
+  } catch (err) {
+    useUi
+      .getState()
+      .toast(
+        `Image generation failed: ${err instanceof Error ? err.message : String(err)}`,
+        'danger',
+      );
+    await demoAddImageToHero(`hero-${Date.now() % 99999}`);
+    system('Fell back to the palette placeholder so the canvas never breaks.');
+  } finally {
+    useAgent.getState().setLive(null);
+  }
+}

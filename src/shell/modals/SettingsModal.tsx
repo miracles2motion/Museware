@@ -1,0 +1,315 @@
+import { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from 'lucide-react';
+import { Modal, Button } from '../../components/ui';
+import { useProject, createProject } from '../../store/useProject';
+import { useUi } from '../../store/useUi';
+import { useAgent } from '../../store/useAgent';
+import { fetchStatus, probeModel } from '../../muse/client';
+import { getSessionKey, setSessionKey, hasSessionKey } from '../../muse/sessionKey';
+import { wipeProject, readThemeFile } from '../../persist/save';
+import { PRESETS } from '../../design/presets';
+import type { DesignTokens } from '../../types/tokens';
+
+const ROLE_ORDER: Array<
+  'builder' | 'architect' | 'chat' | 'contributor' | 'image' | 'sam' | 'voice'
+> = ['builder', 'architect', 'chat', 'contributor', 'image', 'sam', 'voice'];
+
+export function SettingsModal({ onClose }: { onClose: () => void }) {
+  const applyBatch = useProject((s) => s.applyBatch);
+  const replaceDoc = useProject((s) => s.replaceDoc);
+  const setActivePreset = useUi((s) => s.setActivePreset);
+  const activePreset = useUi((s) => s.activePreset);
+  const toast = useUi((s) => s.toast);
+  const configured = useAgent((s) => s.configured);
+  const demoMode = useAgent((s) => s.demoMode);
+  const keySource = useAgent((s) => s.keySource);
+  const models = useAgent((s) => s.models);
+  const probes = useAgent((s) => s.probes);
+  const probing = useAgent((s) => s.probing);
+  const statusError = useAgent((s) => s.statusError);
+  const [key, setKey] = useState(getSessionKey());
+  const [reveal, setReveal] = useState(false);
+  const themeFile = useRef<HTMLInputElement>(null);
+
+  const refreshStatus = async () => {
+    const agent = useAgent.getState();
+    try {
+      const status = await fetchStatus();
+      agent.setStatus({
+        configured: status.configured,
+        demoMode: !status.configured && !hasSessionKey(),
+        models: {
+          builder: status.models.builder,
+          architect: status.models.architect,
+          chat: status.models.chat,
+          contributor: status.models.contributor,
+          image: status.models.image,
+          sam: status.models.sam,
+          voice: status.models.voice,
+        },
+        keySource: status.source,
+        statusError: null,
+      });
+      return true;
+    } catch (err) {
+      agent.setStatus({
+        configured: hasSessionKey(),
+        demoMode: !hasSessionKey(),
+        keySource: hasSessionKey() ? 'session' : 'none',
+        statusError: err instanceof Error ? err.message : 'The proxy is not reachable.',
+      });
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    void refreshStatus();
+  }, []);
+
+  const runProbes = async () => {
+    if (!models) return;
+    const agent = useAgent.getState();
+    agent.setProbing(true);
+    for (const role of ROLE_ORDER) {
+      const model = models[role].id;
+      const result = await probeModel(model);
+      agent.setProbe({ ...result, model });
+    }
+    agent.setProbing(false);
+    toast('Probes finished — red is honest, not scary.', 'ok');
+  };
+
+  const applyPreset = (tokens: DesignTokens, id: string) => {
+    const res = applyBatch(
+      [{ op: 'setTokens', patch: { ...tokens.openuiTheme, title: tokens.title } }],
+      { source: 'user' },
+    );
+    if (res.errors.length) {
+      toast(res.errors[0].message, 'warn');
+      return;
+    }
+    setActivePreset(id);
+    toast(`${tokens.title} applied to every screen`, 'ok');
+  };
+
+  return (
+    <Modal
+      title="Settings & models"
+      size="wide"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={async () => {
+              setSessionKey(key.trim());
+              const ok = await refreshStatus();
+              toast(
+                ok
+                  ? key.trim()
+                    ? 'Key stored for this tab — the muse models are live.'
+                    : 'Session key cleared.'
+                  : 'Key saved, but the proxy did not answer.',
+                ok ? 'ok' : 'warn',
+              );
+            }}
+          >
+            <KeyRound size={13} /> Save key
+          </Button>
+        </>
+      }
+    >
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">Your key</span>
+          <span className={`chip chip-static`} style={{ fontSize: 10 }}>
+            {keySource === 'env'
+              ? 'server env'
+              : keySource === 'session'
+                ? 'this tab'
+                : demoMode
+                  ? 'demo mode'
+                  : 'missing'}
+          </span>
+        </div>
+        <div className="token-row">
+          <input
+            className="input"
+            type={reveal ? 'text' : 'password'}
+            placeholder="muse_… (stored in sessionStorage, never in the bundle)"
+            value={key}
+            autoComplete="off"
+            onChange={(e) => setKey(e.target.value)}
+            style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 11 }}
+          />
+          <button
+            type="button"
+            className="icon-btn icon-btn-sm"
+            aria-label={reveal ? 'Hide key' : 'Show key'}
+            onClick={() => setReveal(!reveal)}
+          >
+            {reveal ? <EyeOff size={13} /> : <Eye size={13} />}
+          </button>
+        </div>
+        <p className="field-hint">
+          Dev uses the Vite proxy at <span className="mono">/api/muse</span>; production
+          ships one serverless file. The browser bundle never contains the key — CI greps
+          the dist for it.
+        </p>
+        {statusError && (
+          <p className="field-hint" style={{ color: 'var(--mw-warn)' }}>
+            {statusError}
+          </p>
+        )}
+        {!configured && !key.trim() && (
+          <p className="field-hint">
+            No key is fine: the <strong>local engine</strong> runs the real pipeline offline
+            — same cards, same ops, same verify gate. Add a key when you want the muse
+            models.
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
+            <RefreshCw size={12} /> Re-check status
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={probing || !configured}
+            onClick={() => void runProbes()}
+          >
+            {probing ? 'Probing…' : 'Probe every model'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">One pinned model per role</span>
+        </div>
+        <table className="receipt-table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Model</th>
+              <th>Effort</th>
+              <th>Probe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ROLE_ORDER.map((role) => {
+              const model = models?.[role];
+              const probe = model ? probes[model.id] : undefined;
+              return (
+                <tr key={role}>
+                  <td>{role}</td>
+                  <td className="num mono">{model?.id || '—'}</td>
+                  <td>{model?.effort || '—'}</td>
+                  <td>
+                    {probe ? (
+                      <span
+                        className="chip chip-static"
+                        data-tone={probe.ok ? 'ok' : 'danger'}
+                        title={probe.detail || `${probe.ms} ms`}
+                        style={{ fontSize: 10 }}
+                      >
+                        {probe.ok ? `ok · ${probe.ms}ms` : probe.detail || 'failed'}
+                      </span>
+                    ) : (
+                      <span className="faint">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="field-hint">
+          No routing, no fallbacks — a pinned model is the contract. A red probe shows the
+          verbatim reason instead of pretending.
+        </p>
+      </div>
+
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">Design presets</span>
+          <Button size="sm" variant="ghost" onClick={() => themeFile.current?.click()}>
+            Import tokens…
+          </Button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {PRESETS.map((preset) => (
+            <button
+              type="button"
+              key={preset.id}
+              className="preset-card"
+              data-selected={activePreset === preset.id}
+              onClick={() => applyPreset(preset.tokens, preset.id)}
+              style={{ width: 200 }}
+            >
+              <span className="preset-swatches">
+                <i style={{ background: preset.tokens.openuiTheme.brand_color }} />
+                <i style={{ background: preset.tokens.openuiTheme.secondary_color }} />
+                <i
+                  style={{ background: preset.tokens.openuiTheme.light_colors.openui_bg }}
+                />
+              </span>
+              <strong>{preset.name}</strong>
+              <span className="field-hint">{preset.blurb}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          ref={themeFile}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            try {
+              const incoming = await readThemeFile(file);
+              const tokens = incoming as DesignTokens;
+              if (!tokens?.openuiTheme)
+                throw new Error('That file has no openuiTheme block.');
+              applyPreset(tokens, 'imported');
+            } catch (err) {
+              toast(
+                err instanceof Error ? err.message : 'Could not read that theme',
+                'danger',
+              );
+            }
+          }}
+        />
+      </div>
+
+      <div className="insp-section">
+        <div className="insp-section-head">
+          <span className="eyebrow">This browser</span>
+        </div>
+        <p className="field-hint">
+          The project autosaves to IndexedDB after every op. Wiping is permanent — export
+          first if you want a copy.
+        </p>
+        <Button
+          size="sm"
+          variant="danger"
+          onClick={async () => {
+            await wipeProject();
+            replaceDoc(createProject());
+            setActivePreset(null);
+            toast('Local project wiped', 'ok');
+            onClose();
+          }}
+        >
+          <Trash2 size={12} /> Wipe the local project
+        </Button>
+      </div>
+    </Modal>
+  );
+}
