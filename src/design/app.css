@@ -810,7 +810,10 @@ a {
 .palette-item span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  /* A two-word name is worth two lines: "Row (horizontal)" must not be read as
+     "Row (horiz…" — the direction is the instruction. */
+  white-space: normal;
+  line-height: 1.3;
 }
 
 .layers-list {

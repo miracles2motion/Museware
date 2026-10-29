@@ -15,7 +15,8 @@ import {
 import { useProject } from '../store/useProject';
 import { useUi, type Breakpoint } from '../store/useUi';
 import type { Action, ComponentNode, StyleSet } from '../types/tree';
-import { ICON_NAMES, spec } from '../types/library';
+import { ICON_NAMES, eventsFor, spec } from '../types/library';
+import { StyleTab } from './StyleTab';
 import { findNode, findParent } from '../ops/treeUtils';
 import { duplicateNodeBatch } from '../ops/screenOps';
 import { PRESETS } from '../design/presets';
@@ -23,42 +24,32 @@ import { Icon } from '../canvas/Icon';
 import { Segmented } from '../components/ui';
 import { ActionEditor } from './ActionEditor';
 import { illustrate } from '../muse/cards';
-import {
-  ClearOverride,
-  ColorField,
-  NumberField,
-  SelectField,
-  SpacingField,
-  TextField,
-  ToggleField,
-} from './Fields';
-
-const SPACING_TOKENS = [
-  'var(--pad-screen)',
-  'var(--pad-card)',
-  'var(--pad-control-x)',
-  'var(--gap-section)',
-  'var(--gap-item)',
-  '0',
-];
-const RADIUS_TOKENS = [
-  'var(--radius-card)',
-  'var(--radius-button)',
-  'var(--radius-input)',
-  'var(--radius-chip)',
-  'var(--radius-tag)',
-  '0',
-];
-const TYPE_TOKENS = [
-  'var(--type-display)',
-  'var(--type-title)',
-  'var(--type-heading)',
-  'var(--type-body)',
-  'var(--type-label)',
-];
-const SHADOWS = ['', 'var(--shadow-card)', 'var(--shadow-raised)', 'none'];
+import { ClearOverride, NumberField, SelectField, TextField, ToggleField } from './Fields';
 
 type Tab = 'props' | 'style' | 'events';
+
+/** What each trigger means, in the words the blocks themselves use. */
+const EVENT_COPY: Array<{
+  name: 'tap' | 'change' | 'submit';
+  label: string;
+  hint: string;
+}> = [
+  {
+    name: 'tap',
+    label: 'When tapped',
+    hint: 'Runs in Run mode. Common: go to a screen, then set a value — compose them in any order.',
+  },
+  {
+    name: 'change',
+    label: 'When changed',
+    hint: 'Fires as the value changes, and stores it under the field’s state key.',
+  },
+  {
+    name: 'submit',
+    label: 'When submitted',
+    hint: 'Fires when the form’s submit button is tapped in Run mode.',
+  },
+];
 
 const BP_LABEL: Record<Breakpoint, string> = {
   compact: 'compact (base)',
@@ -172,7 +163,7 @@ export function Inspector() {
     return base === undefined ? '' : String(base);
   };
 
-  const writeStyle = (key: string, value: string) => {
+  const writeStyle = (key: string, value: string | number | boolean) => {
     const styles: StyleSet =
       breakpoint === 'compact'
         ? { [key]: value }
@@ -244,9 +235,7 @@ export function Inspector() {
             { value: 'style', label: 'Style' },
             {
               value: 'events',
-              label: (eventValue('tap').length +
-              eventValue('change').length +
-              eventValue('submit').length
+              label: (eventsFor(node.type).some((name) => eventValue(name).length)
                 ? 'Events •'
                 : 'Events') as string,
             },
@@ -450,7 +439,11 @@ export function Inspector() {
                 );
               })}
               {(info?.props || []).length === 0 && (
-                <p className="field-hint">This block has no props.</p>
+                <p className="field-hint">
+                  {info?.container
+                    ? `${info.label} has no content of its own — what it holds, and how it spaces it, lives in the Style tab.`
+                    : 'This block has no content props. Its look lives in the Style tab.'}
+                </p>
               )}
             </div>
 
@@ -505,209 +498,44 @@ export function Inspector() {
                 ? ' — changes write an override at this width; the base stays intact.'
                 : ' — changes are the base all wider widths inherit.'}
             </div>
-
-            <div className="insp-section">
-              <div className="insp-section-head">
-                <span className="eyebrow">Colour</span>
-                {Object.keys(overrides).length > 0 && (
-                  <ClearOverride
-                    label="all colour+spacing overrides"
-                    onClear={() => {
-                      for (const key of Object.keys(overrides)) clearStyle(key);
-                    }}
-                  />
-                )}
-              </div>
-              <ColorField
-                label="Background"
-                value={valueOf('background')}
-                tokens={doc.tokens}
-                allowTransparent
-                overridden={isOverridden('background')}
-                onClearOverride={
-                  isOverridden('background') ? () => clearStyle('background') : undefined
-                }
-                onCommit={(v) => writeStyle('background', v)}
-              />
-              <ColorField
-                label="Text"
-                value={valueOf('color')}
-                tokens={doc.tokens}
-                overridden={isOverridden('color')}
-                onClearOverride={
-                  isOverridden('color') ? () => clearStyle('color') : undefined
-                }
-                onCommit={(v) => writeStyle('color', v)}
-              />
-              <SpacingField
-                label="Border"
-                value={valueOf('border')}
-                suggestions={[
-                  '1px solid var(--openui-border-default)',
-                  'none',
-                  '1px solid var(--openui-border-accent)',
-                ]}
-                overridden={isOverridden('border')}
-                onCommit={(v) => writeStyle('border', v)}
-              />
-            </div>
-
-            <div className="insp-section">
-              <div className="insp-section-head">
-                <span className="eyebrow">Space</span>
-              </div>
-              <SpacingField
-                label="Padding"
-                value={valueOf('padding')}
-                suggestions={SPACING_TOKENS}
-                overridden={isOverridden('padding')}
-                onCommit={(v) => writeStyle('padding', v)}
-              />
-              <SpacingField
-                label="Margin"
-                value={valueOf('margin')}
-                suggestions={['0', 'auto', ...SPACING_TOKENS.filter((t) => t !== '0')]}
-                overridden={isOverridden('margin')}
-                onCommit={(v) => writeStyle('margin', v)}
-              />
-              <SpacingField
-                label="Gap"
-                value={valueOf('gap')}
-                suggestions={SPACING_TOKENS}
-                overridden={isOverridden('gap')}
-                onCommit={(v) => writeStyle('gap', v)}
-              />
-              <SpacingField
-                label="Radius"
-                value={valueOf('borderRadius')}
-                suggestions={RADIUS_TOKENS}
-                overridden={isOverridden('borderRadius')}
-                onCommit={(v) => writeStyle('borderRadius', v)}
-              />
-            </div>
-
-            <div className="insp-section">
-              <div className="insp-section-head">
-                <span className="eyebrow">Type</span>
-              </div>
-              <SpacingField
-                label="Size"
-                value={valueOf('fontSize')}
-                suggestions={TYPE_TOKENS}
-                overridden={isOverridden('fontSize')}
-                onCommit={(v) => writeStyle('fontSize', v)}
-              />
-              <SelectField
-                label="Weight"
-                value={valueOf('fontWeight') || '400'}
-                options={['300', '400', '500', '600', '700', '800'].map((w) => ({
-                  value: w,
-                  label: w,
-                }))}
-                onChange={(v) => writeStyle('fontWeight', v)}
-              />
-              <SelectField
-                label="Align"
-                value={valueOf('textAlign') || 'start'}
-                options={['start', 'center', 'end'].map((v) => ({ value: v, label: v }))}
-                onChange={(v) => writeStyle('textAlign', v)}
-              />
-            </div>
-
-            <div className="insp-section">
-              <div className="insp-section-head">
-                <span className="eyebrow">Layout & size</span>
-              </div>
-              <div className="insp-row">
-                <SelectField
-                  label="Align"
-                  value={valueOf('align') || 'stretch'}
-                  options={['start', 'center', 'end', 'stretch'].map((v) => ({
-                    value: v,
-                    label: v,
-                  }))}
-                  onChange={(v) => writeStyle('align', v)}
-                />
-                <SelectField
-                  label="Justify"
-                  value={valueOf('justify') || 'start'}
-                  options={['start', 'center', 'end', 'stretch'].map((v) => ({
-                    value: v,
-                    label: v,
-                  }))}
-                  onChange={(v) => writeStyle('justify', v)}
+            {Object.keys(overrides).length > 0 && (
+              <div className="insp-section-head" style={{ paddingBottom: 6 }}>
+                <span className="faint" style={{ fontSize: 10 }}>
+                  {Object.keys(overrides).length} override
+                  {Object.keys(overrides).length === 1 ? '' : 's'} at this width
+                </span>
+                <ClearOverride
+                  label="this width’s overrides"
+                  onClear={() => {
+                    for (const key of Object.keys(overrides)) clearStyle(key);
+                  }}
                 />
               </div>
-              <div className="insp-row">
-                <SpacingField
-                  label="Width"
-                  value={valueOf('width')}
-                  suggestions={['100%', 'auto', 'fit-content']}
-                  overridden={isOverridden('width')}
-                  onCommit={(v) => writeStyle('width', v)}
-                />
-                <SpacingField
-                  label="Max width"
-                  value={valueOf('maxWidth')}
-                  suggestions={['100%', 'none', '720px', '1120px']}
-                  overridden={isOverridden('maxWidth')}
-                  onCommit={(v) => writeStyle('maxWidth', v)}
-                />
-              </div>
-              {node.type === 'grid' && (
-                <NumberField
-                  label="Columns"
-                  value={Number(valueOf('columns')) || 2}
-                  min={1}
-                  max={6}
-                  onCommit={(n) => writeStyle('columns', String(n))}
-                />
-              )}
-              <SpacingField
-                label="Shadow"
-                value={valueOf('boxShadow')}
-                suggestions={SHADOWS}
-                overridden={isOverridden('boxShadow')}
-                onCommit={(v) => writeStyle('boxShadow', v)}
-              />
-              <SpacingField
-                label="Opacity"
-                value={valueOf('opacity')}
-                suggestions={['1', '0.8', '0.6']}
-                overridden={isOverridden('opacity')}
-                onCommit={(v) => writeStyle('opacity', v)}
-              />
-            </div>
-
-            <p className="field-hint">
-              Tokens first — the swatches are the theme, so one edit restyles everything
-              that uses it. A filled dot marks a value overridden at this breakpoint; click
-              it to inherit.
-            </p>
+            )}
+            <StyleTab
+              node={node}
+              tokens={doc.tokens}
+              isRoot={screen.root.id === node.id}
+              breakpoint={breakpoint}
+              valueOf={valueOf}
+              writeStyle={writeStyle}
+              clearStyle={clearStyle}
+              isOverridden={isOverridden}
+            />
           </>
         )}
 
         {tab === 'events' && (
           <>
-            {(
-              [
-                {
-                  name: 'tap',
-                  label: 'When tapped',
-                  hint: 'Buttons, cards, links — every block accepts it.',
-                },
-                {
-                  name: 'change',
-                  label: 'When changed',
-                  hint: 'Inputs, switches, sliders, selects.',
-                },
-                {
-                  name: 'submit',
-                  label: 'When submitted',
-                  hint: 'Forms and their inputs.',
-                },
-              ] as const
-            ).map((ev) => (
+            {eventsFor(node.type).length === 0 && (
+              <div className="insp-section">
+                <p className="field-hint">
+                  This block has no events — buttons, inputs, cards and links do. A{' '}
+                  {info?.label || node.type} is there to be seen, not tapped.
+                </p>
+              </div>
+            )}
+            {EVENT_COPY.filter((ev) => eventsFor(node.type).includes(ev.name)).map((ev) => (
               <div className="insp-section" key={ev.name}>
                 <div className="insp-section-head">
                   <span className="eyebrow">

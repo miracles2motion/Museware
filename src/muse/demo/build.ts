@@ -110,8 +110,7 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
             },
             children: [
               n('row', 'row_hero_actions', {
-                props: { gap: '12px', align: 'center' },
-                styles: { marginTop: 'var(--gap-item)' },
+                styles: { gap: '12px', align: 'center', marginTop: 'var(--gap-item)' },
                 children: [
                   n('button', 'btn_start', {
                     props: { text: 'Start free', variant: 'primary' },
@@ -140,8 +139,9 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
             props: { title: 'Everything the first version needs' },
             children: [
               n('grid', 'grid_feats', {
-                props: { columns: 2, gap: 'var(--gap-item)' },
+                props: { columns: 2 },
                 styles: {
+                  gap: 'var(--gap-item)',
                   responsive: { medium: { columns: 3 }, expanded: { columns: 3 } },
                 },
                 children: [
@@ -177,8 +177,8 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
             ],
           }),
           n('grid', 'grid_stats', {
-            props: { columns: 2, gap: 'var(--gap-item)' },
-            styles: { responsive: { medium: { columns: 3 } } },
+            props: { columns: 2 },
+            styles: { gap: 'var(--gap-item)', responsive: { medium: { columns: 3 } } },
             children: [
               n('stat', 'stat_teams', {
                 props: { label: 'Teams on Lumen', value: '2,184', delta: '+18% MoM' },
@@ -195,7 +195,7 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
             props: { title: 'How it works' },
             children: [
               n('row', 'row_step1', {
-                props: { align: 'start', gap: '12px' },
+                styles: { align: 'start', gap: '12px' },
                 children: [
                   n('badge', 'chip_step1', { props: { text: '01', tone: 'accent' } }),
                   n('text', 'txt_step1', {
@@ -204,7 +204,7 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
                 ],
               }),
               n('row', 'row_step2', {
-                props: { align: 'start', gap: '12px' },
+                styles: { align: 'start', gap: '12px' },
                 children: [
                   n('badge', 'chip_step2', { props: { text: '02', tone: 'accent' } }),
                   n('text', 'txt_step2', {
@@ -213,7 +213,7 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
                 ],
               }),
               n('row', 'row_step3', {
-                props: { align: 'start', gap: '12px' },
+                styles: { align: 'start', gap: '12px' },
                 children: [
                   n('badge', 'chip_step3', { props: { text: '03', tone: 'accent' } }),
                   n('text', 'txt_step3', {
@@ -252,8 +252,7 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
             ],
           }),
           n('row', 'row_footer', {
-            props: { align: 'center', gap: '12px' },
-            styles: { justifyContent: 'space-between' },
+            styles: { align: 'center', gap: '12px', justify: 'space-between' },
             children: [
               n('text', 'txt_copy', { props: { text: '© 2026 Lumen' } }),
               n('link', 'link_top', { props: { text: 'Back to top', to: 'landing' } }),
@@ -272,8 +271,7 @@ function habits(_tokens: DesignTokens): ScreenDoc[] {
     props: { title: 'Home' },
     children: [
       n('row', 'row_home_head', {
-        props: { align: 'center', gap: '12px' },
-        styles: { justifyContent: 'space-between' },
+        styles: { align: 'center', gap: '12px', justify: 'space-between' },
         children: [
           n('col', 'col_greeting', {
             styles: { width: 'auto', gap: '2px' },
@@ -312,7 +310,7 @@ function habits(_tokens: DesignTokens): ScreenDoc[] {
       }),
       n('list', 'list_habits', { props: { dataKey: 'habits' } }),
       n('row', 'row_actions', {
-        props: { gap: '10px' },
+        styles: { gap: '10px' },
         children: [
           n('button', 'btn_add', {
             props: { text: 'Add habit', variant: 'primary' },
@@ -337,7 +335,8 @@ function habits(_tokens: DesignTokens): ScreenDoc[] {
         props: { text: 'Small, consistent, visible. That is the whole trick.' },
       }),
       n('grid', 'grid_stats', {
-        props: { columns: 2, gap: 'var(--gap-item)' },
+        props: { columns: 2 },
+        styles: { gap: 'var(--gap-item)' },
         children: [
           n('stat', 'stat_done', {
             props: { label: 'Completed', value: '26', delta: '+4 vs last week' },
@@ -430,8 +429,8 @@ function dashboard(_tokens: DesignTokens): ScreenDoc[] {
         ],
       }),
       n('grid', 'grid_kpis', {
-        props: { columns: 2, gap: 'var(--gap-item)' },
-        styles: { responsive: { medium: { columns: 4 } } },
+        props: { columns: 2 },
+        styles: { gap: 'var(--gap-item)', responsive: { medium: { columns: 4 } } },
         children: [
           n('stat', 'stat_mrr', {
             props: { label: 'MRR', value: '$48.2k', delta: '+8.4%' },
@@ -452,8 +451,8 @@ function dashboard(_tokens: DesignTokens): ScreenDoc[] {
         ],
       }),
       n('grid', 'grid_mid', {
-        props: { columns: 2, gap: 'var(--gap-item)' },
-        styles: { responsive: { medium: { columns: 2 } } },
+        props: { columns: 2 },
+        styles: { gap: 'var(--gap-item)', responsive: { medium: { columns: 2 } } },
         children: [
           n('card', 'card_orders', {
             props: { title: 'Recent orders' },
@@ -473,7 +472,7 @@ function dashboard(_tokens: DesignTokens): ScreenDoc[] {
         ],
       }),
       n('row', 'row_actions', {
-        props: { gap: '10px' },
+        styles: { gap: '10px' },
         children: [
           n('button', 'btn_export', {
             props: { text: 'Export report', variant: 'primary' },
@@ -589,8 +588,9 @@ function shop(tokens: DesignTokens): ScreenDoc[] {
             props: { title: 'This week’s shelf' },
             children: [
               n('grid', 'grid_shop', {
-                props: { columns: 2, gap: 'var(--gap-item)' },
+                props: { columns: 2 },
                 styles: {
+                  gap: 'var(--gap-item)',
                   responsive: { medium: { columns: 4 }, expanded: { columns: 4 } },
                 },
                 children: [

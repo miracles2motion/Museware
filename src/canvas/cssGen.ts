@@ -1,48 +1,16 @@
-import type { ComponentNode, ProjectDoc, StyleSet } from '../types/tree';
+import type { ComponentNode, ProjectDoc } from '../types/tree';
+import { isContainerType } from '../types/library';
 import { walk } from '../ops/treeUtils';
+import { styleDeclarations, styleDeclarationsFor } from '../types/styleDict';
 
-const UNITLESS = new Set([
-  'fontWeight',
-  'opacity',
-  'lineHeight',
-  'zIndex',
-  'flex',
-  'order',
-  'letterSpacing-',
-]);
-
-const skipStyle = new Set(['responsive', 'columns', 'align', 'justify']);
-
-const camelToKebab = (key: string) => key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-
-function cssValue(key: string, value: unknown): string {
-  if (typeof value === 'number') {
-    return UNITLESS.has(key) || key === 'letterSpacing' ? String(value) : `${value}px`;
-  }
-  const v = String(value).trim();
-  if (v === 'match') return '100%';
-  if (v === 'hug') return 'fit-content';
-  return v;
-}
-
-function userDeclarations(styles: StyleSet): string[] {
-  const out: string[] = [];
-  for (const [k, v] of Object.entries(styles)) {
-    if (skipStyle.has(k) || v === undefined || v === null || v === '') continue;
-    if (k === 'align') {
-      out.push(`align-self:${v === 'start' ? 'flex-start' : v === 'end' ? 'flex-end' : v}`);
-      continue;
-    }
-    if (k === 'justify') {
-      out.push(
-        `justify-content:${v === 'start' ? 'flex-start' : v === 'end' ? 'flex-end' : v}`,
-      );
-      continue;
-    }
-    if (typeof v === 'object') continue;
-    out.push(`${camelToKebab(k)}:${cssValue(k, v)}`);
-  }
-  return out;
+/**
+ * Every declaration a node's own styles produce. The dictionary owns the
+ * meaning of each key (align → align-items, selfAlign → align-self,
+ * grow → flex-grow, match/hug → 100%/fit-content); anything it does not
+ * name falls through as plain CSS.
+ */
+function userDeclarations(styles: ComponentNode['styles']): string[] {
+  return styleDeclarations(styles);
 }
 
 function toneVars(tone: string): { bg: string; fg: string } {
@@ -62,18 +30,18 @@ function toneVars(tone: string): { bg: string; fg: string } {
 function baseDeclarations(node: ComponentNode): string[] {
   const p = node.props as Record<string, unknown>;
   const d: string[] = ['box-sizing:border-box', 'min-width:0'];
-  const gap = typeof p.gap === 'string' ? p.gap : undefined;
-  const align = typeof p.align === 'string' ? p.align : undefined;
-  const alignCss =
-    align === 'start' ? 'flex-start' : align === 'end' ? 'flex-end' : align || 'stretch';
   switch (node.type) {
     case 'screen':
-      d.push('display:flex', 'flex-direction:column', 'width:100%', 'min-height:100%');
+      d.push(
+        'display:flex',
+        `flex-direction:${p.layout === 'flex-row' ? 'row' : 'column'}`,
+        'width:100%',
+        'min-height:100%',
+      );
       break;
     case 'row':
-      d.push('display:flex', 'flex-direction:row', `align-items:${alignCss}`);
-      d.push(`flex-wrap:${p.wrap === false ? 'nowrap' : 'wrap'}`);
-      if (gap) d.push(`gap:${gap}`);
+      d.push('display:flex', 'flex-direction:row', 'align-items:stretch');
+      d.push('flex-wrap:wrap');
       break;
     case 'col':
     case 'card':
@@ -81,8 +49,7 @@ function baseDeclarations(node: ComponentNode): string[] {
     case 'form':
     case 'tabs':
       d.push('display:flex', 'flex-direction:column');
-      if (node.type !== 'card') d.push(`align-items:${alignCss}`);
-      if (gap) d.push(`gap:${gap}`);
+      if (node.type !== 'card') d.push('align-items:stretch');
       if (node.type === 'tabs') d.push('gap:var(--gap-item)');
       break;
     case 'grid': {
@@ -91,7 +58,7 @@ function baseDeclarations(node: ComponentNode): string[] {
         Math.min(6, Number(p.columns) || Number(node.styles.columns) || 2),
       );
       d.push('display:grid', `grid-template-columns:repeat(${cols}, minmax(0, 1fr))`);
-      d.push(`gap:${gap || 'var(--gap-item)'}`);
+      d.push('gap:var(--gap-item)');
       break;
     }
     case 'hero':
@@ -382,6 +349,32 @@ function baseDeclarations(node: ComponentNode): string[] {
   return d;
 }
 
+/**
+ * MIGRATION WINDOW. Before the dictionary, a Row or Column kept its gap, align
+ * and wrap in PROPS. Saved projects and the demo engine still do, so those
+ * values are honoured — but only where styles do not already speak, and only
+ * for containers. Delete this once migrateLayoutV2 has run on every doc.
+ */
+function legacyLayoutDeclarations(node: ComponentNode): string[] {
+  if (!isContainerType(node.type)) return [];
+  const p = node.props as Record<string, unknown>;
+  const out: string[] = [];
+  if (node.styles.gap === undefined && typeof p.gap === 'string' && p.gap) {
+    out.push(`gap:${p.gap}`);
+  }
+  if (node.styles.align === undefined && typeof p.align === 'string' && p.align) {
+    out.push(...styleDeclarationsFor('align', p.align));
+  }
+  if (
+    node.styles.wrap === undefined &&
+    node.type === 'row' &&
+    typeof p.wrap === 'boolean'
+  ) {
+    out.push(`flex-wrap:${p.wrap ? 'wrap' : 'nowrap'}`);
+  }
+  return out;
+}
+
 function renderRule(selector: string, decls: string[]): string {
   if (!decls.length) return '';
   return `${selector}{${decls.join(';')}}`;
@@ -395,7 +388,7 @@ function hoverExtra(node: ComponentNode): string {
   const sel = `.${nodeClass(node.id)}`;
   switch (node.type) {
     case 'button':
-      return `${sel}:hover{filter:brightness(0.96)}${sel}:active{transform:translateY(1px)}${sel}:focus-visible{outline:2px solid var(--openui-border-accent);outline-offset:2px}`;
+      return `${sel}:hover{filter:brightness(0.96)}${sel}:active{transform:translateY(1px)}${sel}:focus-visible{outline:2px solid var(--openui-border-accent);outline-offset:2px}${sel}[data-disabled='true']{opacity:.5;cursor:not-allowed}${sel}[data-disabled='true']:hover{filter:none}`;
     case 'link':
       return `${sel}:hover{text-decoration:underline}`;
     case 'fab':
@@ -449,7 +442,11 @@ export function generateCss(doc: ProjectDoc): string {
   ];
   for (const screen of doc.screens) {
     walk(screen.root, (node) => {
-      const decls = [...baseDeclarations(node), ...userDeclarations(node.styles)];
+      const decls = [
+        ...baseDeclarations(node),
+        ...legacyLayoutDeclarations(node),
+        ...userDeclarations(node.styles),
+      ];
       const columns = node.styles.columns;
       if (node.type === 'grid' && typeof columns === 'number' && !node.props.columns) {
         decls.push(`grid-template-columns:repeat(${columns}, minmax(0, 1fr))`);
@@ -500,7 +497,11 @@ export const UTILITY_CSS = `.mw-row-item{display:flex;align-items:center;gap:12p
 .mw-chart-bar{flex:1;background:var(--openui-accent);border-radius:6px 6px 2px 2px;min-height:4px;opacity:.92}
 .mw-hero-img{width:100%;height:180px;object-fit:cover;border-radius:calc(var(--radius-card) - 4px);display:block}
 .mw-fill-img{width:100%;height:100%;object-fit:cover;display:block}
-.mw-empty{font-size:12px;color:var(--openui-text-tertiary);padding:10px 0}`;
+.mw-empty{font-size:12px;color:var(--openui-text-tertiary);padding:10px 0}
+.mw-slider{width:100%;accent-color:var(--openui-accent)}
+.mw-slider-field{display:flex;flex-direction:column;gap:6px;width:100%}
+.mw-list-divided .mw-row-item{border:none;border-radius:0;border-bottom:1px solid var(--openui-border-default);background:transparent;padding-inline:0}
+.mw-list-divided .mw-row-item:last-child{border-bottom:none}`;
 
 export function generateFullCss(doc: ProjectDoc): string {
   return `${generateCss(doc)}\n${UTILITY_CSS}`;

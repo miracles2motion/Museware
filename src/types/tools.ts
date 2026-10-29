@@ -20,14 +20,47 @@ export const idSchema = z
 export const styleValue = z.union([z.string().max(240), z.number()]);
 
 export type RawStyles = Record<string, unknown>;
+
+const alignEnum = z.enum(['start', 'center', 'end', 'stretch']);
+const spaceBox = z.object({
+  top: styleValue.optional(),
+  right: styleValue.optional(),
+  bottom: styleValue.optional(),
+  left: styleValue.optional(),
+});
+
+/**
+ * The style keys the dictionary names, validated by name. Everything else still
+ * passes through: raw CSS (marginTop, fontFamily) is the escape hatch, and old
+ * documents must keep loading.
+ *
+ * `responsive` stays recursive — the runtime can afford depth; only the WIRE
+ * mirror must stay shallow (see wire.ts). This schema is never sent to the
+ * model.
+ */
 export const styleSchema: z.ZodType<RawStyles> = z.lazy(() =>
   z
     .object({
+      align: alignEnum.optional(),
+      selfAlign: alignEnum.optional(),
+      justify: z.enum(['start', 'center', 'end', 'space-between']).optional(),
+      wrap: z.boolean().optional(),
+      grow: z.union([z.literal(0), z.literal(1)]).optional(),
+      gap: styleValue.optional(),
+      padding: z.union([styleValue, spaceBox]).optional(),
+      margin: z.union([styleValue, spaceBox]).optional(),
+      width: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      height: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      minWidth: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      maxWidth: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      minHeight: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      maxHeight: z.union([z.enum(['match', 'hug']), styleValue]).optional(),
+      overflow: z.enum(['visible', 'hidden', 'auto']).optional(),
       responsive: z
         .object({ medium: styleSchema.optional(), expanded: styleSchema.optional() })
         .optional(),
     })
-    .passthrough(),
+    .catchall(z.unknown()),
 ) as unknown as z.ZodType<RawStyles>;
 
 const navigateAction = z.object({
