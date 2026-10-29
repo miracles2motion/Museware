@@ -13,7 +13,9 @@ import {
   defaultPropsFor,
   defaultStylesFor,
   isContainerType,
+  spec,
 } from '../types/library';
+import { styleValueIssue } from '../types/styleDict';
 import { ID_PATTERN, collectIds, generateId, suggestIds } from './ids';
 import { knownTokenNames } from '../design/materialize';
 import { countNodes, maxDepth, walk } from './treeUtils';
@@ -65,6 +67,21 @@ export function normalizeStyles(raw: unknown): StyleSet {
     }
     if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
       out[k] = v;
+      continue;
+    }
+    /*
+     * padding/margin may be a box of four sides (the agent writes these; the
+     * inspector writes one value). Every other object is not a style.
+     */
+    if ((k === 'padding' || k === 'margin') && v && typeof v === 'object') {
+      const box: Record<string, string | number> = {};
+      for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+        const sideValue = (v as Record<string, unknown>)[side];
+        if (typeof sideValue === 'string' || typeof sideValue === 'number') {
+          box[side] = sideValue;
+        }
+      }
+      if (Object.keys(box).length) out[k] = box;
     }
   }
   return out;
@@ -165,13 +182,20 @@ export function tokenRefIssue(
 ): string | null {
   const known = knownTokenNames(tokens);
   const strings: unknown[] = [];
+  const collect = (value: unknown) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      for (const inner of Object.values(value as Record<string, unknown>)) strings.push(inner);
+      return;
+    }
+    strings.push(value);
+  };
   for (const [k, v] of Object.entries(styles)) {
     if (k === 'responsive') continue;
-    strings.push(v);
+    collect(v);
   }
   for (const block of [styles.responsive?.medium, styles.responsive?.expanded]) {
     if (!block) continue;
-    for (const v of Object.values(block)) strings.push(v);
+    for (const v of Object.values(block)) collect(v);
   }
   for (const value of strings) {
     if (typeof value !== 'string') continue;
@@ -184,8 +208,137 @@ export function tokenRefIssue(
   return null;
 }
 
+/** Cheap shape check of one prop against its property sheet. */
+function propIssues(n: ComponentNode, requireAll: boolean): OpError[] {
+  const component = spec(n.type);
+  if (!component) return [];
+  const errors: OpError[] = [];
+  for (const def of component.props) {
+    const raw = n.props[def.key];
+    const value = raw === undefined || raw === null ? undefined : raw;
+
+    if (value === undefined) {
+      if (requireAll && def.required) {
+        errors.push(
+          error(
+            'E_BAD_OP',
+            `${n.id} (${n.type}) needs a ${def.key}`,
+            `${def.label}: ${def.hint}`,
+          ),
+        );
+      }
+      continue;
+    }
+
+    const empty =
+      (typeof value === 'string' && !value.trim()) ||
+      (Array.isArray(value) && value.length === 0);
+    if (requireAll && def.required && empty) {
+      errors.push(
+        error('E_BAD_OP', `${n.id} (${n.type}) has an empty ${def.key}`, def.hint),
+      );
+      continue;
+    }
+
+    if (def.kind === 'select' || def.kind === 'tone') {
+      const allowed = def.options || [];
+      // Options are labels; a numeric option ('Level 2') may arrive as 2.
+      const asText = typeof value === 'number' ? String(value) : value;
+      if (typeof asText !== 'string' || !allowed.includes(asText)) {
+        errors.push(
+          error(
+            'E_BAD_OP',
+            `${n.id}: ${def.key} "${String(value)}" is not allowed`,
+            `${def.key} must be one of: ${allowed.join(', ')}`,
+          ),
+        );
+      }
+      continue;
+    }
+    if (def.kind === 'number') {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        errors.push(
+          error('E_BAD_OP', `${n.id}: ${def.key} must be a number`, def.hint),
+        );
+      } else if (
+        (def.min !== undefined && value < def.min) ||
+        (def.max !== undefined && value > def.max)
+      ) {
+        errors.push(
+          error(
+            'E_BAD_OP',
+            `${n.id}: ${def.key} is ${value}, outside ${def.min}–${def.max}`,
+            def.hint,
+          ),
+        );
+      }
+      continue;
+    }
+    if (def.kind === 'toggle') {
+      if (typeof value !== 'boolean') {
+        errors.push(
+          error('E_BAD_OP', `${n.id}: ${def.key} is true or false`, def.hint),
+        );
+      }
+      continue;
+    }
+    if (def.kind === 'screen') {
+      // A link may point at a screen that a later batch creates, so the shape
+      // is checked and the target is resolved at run time (it says so if it is
+      // missing). Blocking here would refuse a half-built import.
+      if (typeof value !== 'string') {
+        errors.push(error('E_BAD_OP', `${n.id}: ${def.key} must be a screen id`, def.hint));
+      }
+      continue;
+    }
+    if (def.kind === 'text' || def.kind === 'longtext' || def.kind === 'data') {
+      const ok =
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        (Array.isArray(value) && value.every((v) => typeof v === 'string'));
+      if (!ok) {
+        errors.push(
+          error('E_BAD_OP', `${n.id}: ${def.key} must be text`, def.hint),
+        );
+      }
+    }
+  }
+  return errors;
+}
+
+/** A style key the dictionary names must hold a value it can compile. */
+function styleIssues(n: ComponentNode): OpError[] {
+  const errors: OpError[] = [];
+  const check = (block: Record<string, unknown>, where: string) => {
+    for (const [key, value] of Object.entries(block)) {
+      if (key === 'responsive' || value === undefined) continue;
+      if (key === 'responsive') continue;
+      const issue = styleValueIssue(key, value);
+      if (issue) {
+        errors.push(
+          error(
+            'E_BAD_OP',
+            `${n.id}${where}: ${issue}`,
+            'align/selfAlign: start|center|end|stretch · justify: start|center|end|space-between · grow: 0|1 · width/height: match|hug|length',
+          ),
+        );
+      }
+    }
+  };
+  check(n.styles as Record<string, unknown>, '');
+  const medium = n.styles.responsive?.medium;
+  const expanded = n.styles.responsive?.expanded;
+  if (medium) check(medium as Record<string, unknown>, ' (medium)');
+  if (expanded) check(expanded as Record<string, unknown>, ' (expanded)');
+  return errors;
+}
+
 /** Field-level checks shared by new subtrees and setProps edits. */
-export function fieldIssues(n: ComponentNode, doc: ProjectDoc): OpError[] {
+export function fieldIssues(
+  n: ComponentNode,
+  doc: ProjectDoc,
+  opts: { requireProps?: boolean } = {},
+): OpError[] {
   const errors: OpError[] = [];
   if (!isContainerType(n.type) && (n.children || []).length > 0) {
     errors.push(error('E_NOT_CONTAINER', `${n.id} (${n.type}) cannot hold children`));
@@ -223,6 +376,22 @@ export function fieldIssues(n: ComponentNode, doc: ProjectDoc): OpError[] {
     const issue = actionDepthIssue(n.events?.[evName]);
     if (issue) errors.push(error('E_BAD_OP', `${n.id}: ${issue}`));
   }
+  errors.push(...propIssues(n, Boolean(opts.requireProps)));
+  // A range whose ends are crossed renders as a slider that cannot move.
+  if (
+    typeof n.props.min === 'number' &&
+    typeof n.props.max === 'number' &&
+    n.props.min > n.props.max
+  ) {
+    errors.push(
+      error(
+        'E_BAD_OP',
+        `${n.id}: min is ${n.props.min} but max is ${n.props.max}`,
+        'min must be the smaller number',
+      ),
+    );
+  }
+  errors.push(...styleIssues(n));
   const tokenIssue = tokenRefIssue(n.styles, doc.tokens);
   if (tokenIssue) {
     errors.push(
@@ -242,6 +411,7 @@ export function inspectSubtree(
   doc: ProjectDoc,
   existingIds: Set<string>,
   path = 'root',
+  opts: { requireProps?: boolean } = {},
 ): OpError[] {
   const errors: OpError[] = [];
   const seen = new Set<string>();
@@ -270,7 +440,7 @@ export function inspectSubtree(
         ),
       );
     }
-    errors.push(...fieldIssues(n, doc));
+    errors.push(...fieldIssues(n, doc, opts));
   });
   return errors;
 }

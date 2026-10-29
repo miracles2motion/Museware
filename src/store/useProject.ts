@@ -28,6 +28,7 @@ export function createProject(name = 'Untitled project'): ProjectDoc {
     rail: [],
     kind: 'web',
     customComponents: [],
+    layoutVersion: 2,
     updatedAt: Date.now(),
   };
 }

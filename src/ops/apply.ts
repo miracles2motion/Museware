@@ -153,7 +153,7 @@ function applyOne(
       // ids first — otherwise every add would report its own ids as taken.
       const existing = new Set(taken);
       const node = hydrateNode(raw, taken);
-      const sub = inspectSubtree(node, doc, existing, op.parentId);
+      const sub = inspectSubtree(node, doc, existing, op.parentId, { requireProps: true });
       if (sub.length) return sub.map((e) => ({ ...e, opIndex: index }));
       const parentDepth = depthOf(doc, op.parentId);
       if (parentDepth + maxDepth(node) - 1 > MAX_DEPTH) {
@@ -368,7 +368,7 @@ function applyOne(
         { ...rawScreen.root, id: rawScreen.root.id || `${rawScreen.id}_root` },
         taken,
       );
-      const sub = inspectSubtree(root, doc, existing, rawScreen.id);
+      const sub = inspectSubtree(root, doc, existing, rawScreen.id, { requireProps: true });
       if (sub.length) return sub.map((e) => ({ ...e, opIndex: index }));
       const screen: ScreenDoc = {
         id: rawScreen.id,

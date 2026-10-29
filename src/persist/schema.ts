@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { nodeSchema, styleSchema } from '../types/tools';
 import type { ProjectDoc } from '../types/tree';
 import { MUSEWARE_DEFAULT_THEME, cloneTheme } from '../design/starter';
+import { migrateLayoutV2 } from './migrate';
 
 const styleSet = styleSchema;
 
@@ -105,7 +106,14 @@ export { styleSet, actionSchemaLoose };
 
 /** Import a project doc, merging import-safe defaults for anything missing. */
 export function parseProjectDoc(input: unknown): ProjectDoc {
-  const parsed = projectSchema.parse(input) as unknown as ProjectDoc;
+  /*
+   * Migrate the RAW json before zod sees it: a v1 document may hold a style
+   * value the dictionary now rejects (justify:'stretch'), and refusing to open
+   * somebody's project to teach them a rule is the wrong trade. Migration
+   * rewrites it to something valid and version-stamped, so this is a no-op on
+   * the second load.
+   */
+  const parsed = projectSchema.parse(migrateLayoutV2(input)) as unknown as ProjectDoc;
   const doc: ProjectDoc = {
     ...parsed,
     tokens: {
@@ -124,5 +132,6 @@ export function parseProjectDoc(input: unknown): ProjectDoc {
   };
   if (!doc.screens.length) doc.screens = [];
   if (doc.screens.length && !doc.screens.some((s) => s.entry)) doc.screens[0].entry = true;
+  doc.layoutVersion = Math.max(2, doc.layoutVersion || 2);
   return doc;
 }
