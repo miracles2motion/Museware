@@ -189,6 +189,11 @@ export default function App() {
         return;
       }
       if (typing) return;
+      if (mod && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        useUi.getState().toggleInspector();
+        return;
+      }
       if (e.key === '1') useUi.getState().setBreakpoint('compact');
       if (e.key === '2') useUi.getState().setBreakpoint('medium');
       if (e.key === '3') useUi.getState().setBreakpoint('expanded');

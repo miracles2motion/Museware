@@ -40,6 +40,8 @@ afterEach(() => {
     breakpoint: 'compact',
     toasts: [],
     propertiesOpen: false,
+    inspectorCollapsed: false,
+    inspectorWide: false,
   });
 });
 
@@ -220,6 +222,62 @@ describe('the shell actually renders', () => {
     expect(inside.getByText(/Settings & models/)).toBeTruthy();
     expect(inside.getByText(/Export the app/)).toBeTruthy();
     expect(inside.getByText(/Compact 390/)).toBeTruthy();
+  });
+
+  it('the inspector panel minimizes to an edge tab and widens on demand', async () => {
+    await boot();
+    let rootId = '';
+    act(() => {
+      useUi.getState().setRoute('editor');
+      const doc = useProject.getState().doc;
+      useProject.getState().applyBatch(addScreenBatch(doc, 'Home'), { source: 'user' });
+      const created = useProject.getState().doc.screens[0];
+      useUi.getState().setActiveScreen(created.id);
+      useUi.getState().select(created.root.id);
+      rootId = created.root.id;
+    });
+
+    const workspace = document.querySelector('.workspace') as HTMLElement;
+    expect(workspace.getAttribute('data-inspector')).toBe('open');
+    expect(document.querySelector('.inspector-peek')).toBeNull();
+
+    // Minimize: the panel leaves, the selection and the artboard stay.
+    fireEvent.click(screen.getByLabelText('Minimize the panel'));
+    expect(useUi.getState().propertiesOpen).toBe(false);
+    expect(useUi.getState().inspectorCollapsed).toBe(true);
+    expect(workspace.getAttribute('data-inspector')).toBe('closed');
+    expect(document.querySelector('.inspector')?.getAttribute('data-open')).toBe('false');
+    expect(useUi.getState().selectedId).toBe(rootId);
+
+    // Selecting a node must not fight the user's minimize…
+    act(() => {
+      useUi.getState().select(null);
+      useUi.getState().select(rootId);
+    });
+    expect(useUi.getState().propertiesOpen).toBe(false);
+
+    // …and the edge tab is the way back.
+    const peek = document.querySelector('.inspector-peek') as HTMLElement;
+    expect(peek).toBeTruthy();
+    fireEvent.click(peek);
+    expect(useUi.getState().propertiesOpen).toBe(true);
+    expect(workspace.getAttribute('data-inspector')).toBe('open');
+
+    // Maximize hands the panel the wide column.
+    fireEvent.click(screen.getByLabelText('Widen the panel'));
+    expect(useUi.getState().inspectorWide).toBe(true);
+    expect(workspace.getAttribute('data-inspector')).toBe('wide');
+    expect(
+      screen.getByLabelText('Restore the panel width').getAttribute('aria-pressed'),
+    ).toBe('true');
+    fireEvent.click(screen.getByLabelText('Restore the panel width'));
+    expect(workspace.getAttribute('data-inspector')).toBe('open');
+
+    // The keyboard does the same thing.
+    fireEvent.keyDown(window, { key: 'i', ctrlKey: true });
+    expect(useUi.getState().propertiesOpen).toBe(false);
+    fireEvent.keyDown(window, { key: 'i', ctrlKey: true });
+    expect(useUi.getState().propertiesOpen).toBe(true);
   });
 
   it('run mode executes the tree and Escape leaves it', async () => {

@@ -2,7 +2,10 @@ import { useState } from 'react';
 import {
   Copy,
   Layers as LayersIcon,
+  Maximize2,
+  Minimize2,
   Paintbrush,
+  PanelRightClose,
   Save,
   Sparkles,
   Trash2,
@@ -63,6 +66,40 @@ const BP_LABEL: Record<Breakpoint, string> = {
   expanded: 'expanded ≥1024',
 };
 
+/**
+ * The panel owns two buttons: minimize (get out of the way of the artboard,
+ * leave an edge tab behind) and maximize (widen the panel when an event
+ * editor needs the room). Both live in every inspector head.
+ */
+function PanelControls() {
+  const wide = useUi((s) => s.inspectorWide);
+  const setWide = useUi((s) => s.setInspectorWide);
+  const minimize = useUi((s) => s.minimizeInspector);
+  return (
+    <>
+      <button
+        type="button"
+        className="icon-btn icon-btn-sm inspector-max"
+        aria-label={wide ? 'Restore the panel width' : 'Widen the panel'}
+        aria-pressed={wide}
+        title={wide ? 'Restore the panel width' : 'Widen the panel'}
+        onClick={() => setWide(!wide)}
+      >
+        {wide ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+      </button>
+      <button
+        type="button"
+        className="icon-btn icon-btn-sm inspector-min"
+        aria-label="Minimize the panel"
+        title="Minimize the panel (⌘/Ctrl + I)"
+        onClick={minimize}
+      >
+        <PanelRightClose size={13} />
+      </button>
+    </>
+  );
+}
+
 export function Inspector() {
   const doc = useProject((s) => s.doc);
   const applyBatch = useProject((s) => s.applyBatch);
@@ -94,7 +131,17 @@ export function Inspector() {
   if (!screen) {
     return (
       <aside className="inspector" data-open={propertiesOpen}>
-        <div className="panel-body">
+        <div className="inspector-head">
+          <div className="node-title">
+            <Icon name="grid" size={14} />
+            <div>
+              <strong>Inspector</strong>
+              <span className="mono">nothing selected</span>
+            </div>
+          </div>
+          <PanelControls />
+        </div>
+        <div className="inspector-body">
           <p className="field-hint">
             Nothing to inspect yet. Create a screen, then pick a node.
           </p>
@@ -176,6 +223,7 @@ export function Inspector() {
         >
           <Copy size={12} />
         </button>
+        <PanelControls />
         <button
           type="button"
           className="icon-btn icon-btn-sm inspector-close"
@@ -863,6 +911,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
           </div>
         </div>
         {screen.entry && <span className="chip chip-static">entry</span>}
+        <PanelControls />
         <button
           type="button"
           className="icon-btn icon-btn-sm inspector-close"
