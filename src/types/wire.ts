@@ -54,3 +54,11 @@ export const editCanvasWire = z.object({
 
 /** `read_canvas` takes nothing: an explicit empty object, not `passthrough`. */
 export const readCanvasWire = z.object({});
+
+/** Shallow image target mirror, validated again by the runtime tool schema. */
+export const illustrateImagesWire = z.object({
+  targets: z
+    .array(z.object({ id: z.string(), prompt: z.string().optional() }))
+    .min(1)
+    .max(6),
+});

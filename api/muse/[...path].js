@@ -421,6 +421,13 @@ async function handleMuse(req, res, env) {
         houseKeyDetail: house.detail || null,
         budget: ledger2.state,
         live: cfg.live,
+        buildImages: Math.max(
+          0,
+          Math.min(
+            30,
+            Number.isFinite(Number(env.MUSE_BUILD_IMAGES)) && env.MUSE_BUILD_IMAGES !== void 0 && env.MUSE_BUILD_IMAGES.trim() !== "" ? Math.floor(Number(env.MUSE_BUILD_IMAGES)) : 3
+          )
+        ),
         baseUrl: cfg.baseUrl,
         reasoning: cfg.reasoning,
         models: {

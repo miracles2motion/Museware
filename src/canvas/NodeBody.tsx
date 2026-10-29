@@ -144,7 +144,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
   const bind = asText(p.bindKey);
   const value = bind && runtime ? runtime.state[bind] : undefined;
   const sizeIcon = Number(p.size) || 20;
-  const imageSrc = asText(p.src);
+  const imageSrc = asText(p.src || p.image);
   const textAlign =
     typeof node.styles.textAlign === 'string'
       ? (node.styles.textAlign as CSSProperties['textAlign'])
@@ -770,6 +770,14 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'card':
       return (
         <div className={cls} {...tapProps}>
+          {imageSrc && (
+            <img
+              className="mw-hero-img"
+              src={imageSrc}
+              alt={asText(p.title, 'Card image')}
+              draggable={false}
+            />
+          )}
           {Boolean(p.title) && (
             <div
               style={{ fontSize: 15, fontWeight: 700, color: 'var(--openui-text-primary)' }}

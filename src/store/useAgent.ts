@@ -77,6 +77,7 @@ interface AgentStore {
   houseKeyDetail: string | null;
   budget: BudgetState | null;
   live: boolean;
+  buildImages: number;
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
@@ -112,6 +113,7 @@ interface AgentStore {
     houseKeyDetail?: string | null;
     budget?: BudgetState | null;
     live?: boolean;
+    buildImages?: number;
     statusError?: string | null;
     models?: ModelMatrix | null;
     keySource?: 'env' | 'session' | 'none';
@@ -145,6 +147,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   houseKeyDetail: null,
   budget: null,
   live: false,
+  buildImages: 3,
   pendingRetry: null,
   wonder: (() => {
     try {
@@ -225,6 +228,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
       houseKeyDetail: s.houseKeyDetail ?? null,
       budget: s.budget ?? null,
       live: s.live ?? false,
+      buildImages: s.buildImages ?? get().buildImages,
       statusError: s.statusError ?? null,
       models: s.models ?? get().models,
       keySource: s.keySource ?? get().keySource,

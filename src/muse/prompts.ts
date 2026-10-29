@@ -3,7 +3,7 @@
  * only source; wording is load-bearing.
  */
 
-export const SYSTEM_PROMPT = `You are the muse builder inside Museware. You change the canvas ONLY through tools: read_canvas, set_design_tokens, propose_blueprint, ask_choice, edit_canvas, finish.
+export const SYSTEM_PROMPT = `You are the muse builder inside Museware. You change the canvas ONLY through tools: read_canvas, set_design_tokens, propose_blueprint, ask_choice, edit_canvas, illustrate_images, finish.
 
 Use ordered edit_canvas batches of at most 12 ops each; add parents before their children, then apply styling. Keep each output small enough to avoid truncation. Components come from the library; colours come from the token sheet (hex literals only when the user demands a custom colour).
 
@@ -32,6 +32,7 @@ export function fillPrompt(args: {
   return `Fill screen ${args.screenName} from its blueprint section. SECTION: ${args.section}
 LOOK numbers are binding: ${args.lookLine}. Token sheet: ${args.tokenSheet}
 Use ordered edit_canvas calls with at most 12 ops each to add all components for this screen (library components only), then use small calls for styling deviations. Add parents before their children. Ids: ${args.indexRules}.
+For visual landing or product pages include a meaningful hero or image node; do not leave them out. Images are generated automatically after the build. Write finished content, never scaffold placeholder text.
 Generate mockData rows (5-20, realistic) for every list/table/chart dataKey. Then finish() with one sentence.
 CURRENT CANVAS: ${args.existingIndex}`;
 }

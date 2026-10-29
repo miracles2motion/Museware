@@ -3,11 +3,11 @@
  * from the UI's point of view: tap → card leaves → one-line receipt → action.
  */
 import type { RailEntry } from '../types/tree';
+import { findNodeInDoc } from '../ops/treeUtils';
 import { useProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
 import { useUi } from '../store/useUi';
-import { generateImage } from './client';
-import { imageBrief } from './prompts';
+import { illustrateTarget } from './imagery';
 import {
   adjustBlueprint,
   approveBlueprint,
@@ -15,8 +15,7 @@ import {
   runFillQueue,
   stopAgent,
 } from './loop';
-import { demoAddImageToHero, demoAnswerChoice, startDemoBuild } from './demo/agent';
-import { findNodeInDoc } from '../ops/treeUtils';
+import { demoAnswerChoice, startDemoBuild } from './demo/agent';
 import { setSessionKey } from './sessionKey';
 
 function system(text: string) {
@@ -328,76 +327,16 @@ export async function retryTurn(cardId: string, text: string): Promise<void> {
  * §6.1 image role: muse-image illustrates the node you point at, and the asset
  * lands in the project tree (props.image), so it survives reload and export.
  */
-export async function illustrate(
-  nodeId: string,
-  brief = 'a clean editorial illustration, no text, no logos',
-): Promise<void> {
-  const doc = useProject.getState().doc;
-  const hit = findNodeInDoc(doc, nodeId);
-  if (!hit) {
-    useUi.getState().toast('Pick a node first.', 'warn');
-    return;
-  }
-  const node = hit.node;
-  if (node.type !== 'hero' && node.type !== 'image' && node.type !== 'card') {
-    useUi.getState().toast('Images go on a hero, an image or a card.', 'warn');
-    return;
-  }
-  const light = doc.tokens.openuiTheme.light_colors || {};
-  const palette = [
-    light.openui_accent,
-    light.openui_secondary,
-    light.openui_accent_subtle,
-    light.openui_bg,
-    light.openui_text_primary,
-  ].filter(Boolean) as string[];
-
-  if (useAgent.getState().demoMode) {
-    if (node.type === 'hero') {
-      await demoAddImageToHero(`node-${Date.now() % 99999}`);
-      useUi.getState().toast('Illustrated from your palette (local).', 'ok');
-    } else {
-      useUi
-        .getState()
-        .toast('Images need a muse key — the local engine has no image model.', 'warn');
-    }
-    return;
-  }
-
-  const wide = node.type === 'hero';
-  const size = wide ? '1200x640' : '1024x1024';
+export async function illustrate(nodeId: string, brief?: string): Promise<void> {
   useAgent.getState().setLive('Generating an image…');
   try {
-    const src = await generateImage(
-      imageBrief(
-        brief,
-        palette[3] || 'transparent',
-        palette,
-        wide ? 1200 : 1024,
-        wide ? 640 : 1024,
-      ),
-      size,
-    );
-    const res = useProject
-      .getState()
-      .applyBatch([{ op: 'setProps', id: node.id, props: { image: src } }], {
-        source: 'agent',
-      });
-    if (res.errors.length) throw new Error(res.errors[0].message);
-    system(
-      `🖼 muse-image illustrated ${node.id} — a real asset, persisted with the project and carried into the export.`,
-    );
-  } catch (err) {
+    const result = await illustrateTarget({ id: nodeId, prompt: brief });
     useUi
       .getState()
       .toast(
-        `Image generation failed: ${err instanceof Error ? err.message : String(err)}`,
-        'danger',
+        result.ok ? 'Image generated and saved.' : `Image not generated: ${result.message}`,
+        result.ok ? 'ok' : 'warn',
       );
-    if (node.type === 'hero') {
-      await demoAddImageToHero(`node-${Date.now() % 99999}`);
-      system('Fell back to a palette placeholder so the canvas never breaks.');
-    }
   } finally {
     useAgent.getState().setLive(null);
   }

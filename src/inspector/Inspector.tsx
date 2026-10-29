@@ -259,6 +259,18 @@ export function Inspector() {
                 >
                   <Sparkles size={12} /> Illustrate with muse-image
                 </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  onClick={() =>
+                    void illustrate(
+                      node.id,
+                      `A fresh visual variation for ${node.name || node.type}, variation ${Date.now()}`,
+                    )
+                  }
+                >
+                  <Sparkles size={12} /> Regenerate image
+                </button>
                 <p className="field-hint">
                   The asset is written into this node, so it survives reload, undo and the
                   export. Costs one image from your key.

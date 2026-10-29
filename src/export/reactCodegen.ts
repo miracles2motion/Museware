@@ -75,8 +75,8 @@ function renderLeaf(
     case 'icon':
       return `${pad}<span className={${str(cls)}}><Icon name=${str(iconName(node))} size={${Number(p.size) || 20}} /></span>`;
     case 'image':
-      return p.src
-        ? `${pad}<img className={${str(cls)}} src=${str(p.src)} alt=${str(p.alt || '')} style={{ width: '100%', objectFit: ${str(p.fit || 'cover')} }} />`
+      return p.src || p.image
+        ? `${pad}<img className={${str(cls)}} src=${str(p.src || p.image)} alt=${str(p.alt || '')} style={{ width: '100%', objectFit: ${str(p.fit || 'cover')} }} />`
         : `${pad}<div className={${str(cls)}} />`;
     case 'avatar':
       return `${pad}<span className={${str(cls)}} style={{ width: ${Number(p.size) || 44}, height: ${Number(p.size) || 44}, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>${jsxText(p.initials)}</span>`;
@@ -204,7 +204,7 @@ ${pad}</div>`;
     }
     case 'hero':
       return `${pad}<div className={${str(cls)}}>
-${p.image ? `${pad}  <img className="mw-hero-img" src=${str(p.image)} alt=${str(p.title || '')} />` : ''}
+${p.image || p.src ? `${pad}  <img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} />` : ''}
 ${pad}  <h1 className="hero-title">${jsxText(p.title)}</h1>
 ${pad}  <p className="hero-sub">${jsxText(p.subtitle)}</p>
 ${pad}  ${renderChildren(node, indent + 1, screens)}
@@ -250,8 +250,12 @@ function renderNode(
       const title = p.title
         ? `<div style={{ fontSize: ${node.type === 'card' ? 15 : 16}, fontWeight: 700, color: 'var(--openui-text-primary)' }}>${jsxText(p.title)}</div>`
         : '';
+      const image =
+        node.type === 'card' && (p.image || p.src)
+          ? `<img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || 'Card image')} />`
+          : '';
       return wrap(
-        `<${tag} className={${str(cls)}}${tap ? ` onClick={() => ${tap}}` : ''}>\n${title}\n${children}\n${pad}</${tag}>`,
+        `<${tag} className={${str(cls)}}${tap ? ` onClick={() => ${tap}}` : ''}>\n${image}\n${title}\n${children}\n${pad}</${tag}>`,
       );
     }
     case 'tabs': {

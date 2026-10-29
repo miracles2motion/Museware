@@ -1,5 +1,5 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { editCanvasWire, readCanvasWire } from '../types/wire';
+import { editCanvasWire, readCanvasWire, illustrateImagesWire } from '../types/wire';
 import { TOOL_NAMES, toolSchemas, type ToolName } from '../types/tools';
 import { useAgent } from '../store/useAgent';
 import { useProject } from '../store/useProject';
@@ -28,6 +28,7 @@ import {
 import type { Action, OpError, ProjectDoc } from '../types/tree';
 import { entryScreen } from '../ops/treeUtils';
 import { lintScreen, type LintFinding } from './qualityLint';
+import { autoIllustrate, illustrateTargets, type ImageTarget } from './imagery';
 
 const TURN_CALL_CAP = 24;
 const MAX_RESULT = 8000;
@@ -52,6 +53,8 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'styles keys: gap, align(start|center|end|stretch = align children), justify(start|center|end|space-between = distribute), wrap, grow(1 = fill leftover space), selfAlign, padding, width/height ("match"|"hug"|length), background, color, fontSize, fontWeight, textAlign, borderRadius, boxShadow, opacity. ' +
     'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}. ' +
     'Long batches: split them into several edit_canvas calls of at most 12 ops each. An oversized call can be cut off mid-JSON and dropped without being applied.',
+  illustrate_images:
+    'Generate images for up to six existing hero, image or card nodes: targets [{id, prompt?}]. One image per target, with palette-aware prompts.',
   finish: 'End the turn with a two-sentence user-facing summary.',
 };
 
@@ -69,6 +72,7 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
 function wireSchema(name: ToolName) {
   if (name === 'edit_canvas') return editCanvasWire;
   if (name === 'read_canvas') return readCanvasWire;
+  if (name === 'illustrate_images') return illustrateImagesWire;
   return toolSchemas[name];
 }
 
@@ -767,6 +771,14 @@ async function runTool(
       return { text: `ok: ${res.summary} (${a.ops.length} ops applied).` };
     }
 
+    case 'illustrate_images': {
+      const { targets } = args as { targets: ImageTarget[] };
+      const results = await illustrateTargets(targets, { signal: controller?.signal });
+      return {
+        text: results.map((r) => `${r.id}: ${r.ok ? 'applied' : r.message}`).join('\n'),
+      };
+    }
+
     case 'finish': {
       const a = args as { summary: string };
       addAgent(a.summary);
@@ -1113,8 +1125,19 @@ export async function runAgentTurn(
     }
     if (result.changed && !result.choiceAsked && !opts.skipVerify) {
       const doc = useProject.getState().doc;
-      const ids = doc.screens.map((s) => s.id);
-      await verifyGate(userText, doc, ids);
+      const ids = doc.screens
+        .filter((screen) => {
+          const old = before.screens.find((item) => item.id === screen.id);
+          return !old || JSON.stringify(old) !== JSON.stringify(screen);
+        })
+        .map((screen) => screen.id);
+      await autoIllustrate(
+        ids,
+        userText,
+        useAgent.getState().buildImages,
+        controller.signal,
+      );
+      await verifyGate(userText, useProject.getState().doc, ids);
     }
     if (!result.finished && !result.choiceAsked && !result.stopped) {
       addAgent("That's where this turn landed. Look it over, or tell me the next move.");
@@ -1176,6 +1199,10 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     parts: targets.map((s) => ({ id: s.id, label: s.name, state: 'queued' as const })),
   });
 
+  const beforeScreens = new Map(
+    doc.screens.map((screen) => [screen.id, structuredClone(screen)]),
+  );
+  const completed = new Set<string>();
   try {
     for (let i = 0; i < targets.length; i += 1) {
       if (controller.signal.aborted) break;
@@ -1250,7 +1277,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           role: 'builder',
           effort: options.mode === 'fast' ? 'low' : 'medium',
         });
-        useProject.getState().rememberScreenBuild(card.id, target.id, existing ?? null);
+        completed.add(target.id);
         useAgent.getState().patchPart(target.id, { state: 'done' });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -1275,16 +1302,28 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
 
     if (!stopped) {
       const latest = useProject.getState().doc;
-      await verifyGate(
-        blueprint.slice(0, 240),
-        latest,
-        latest.screens.map((s) => s.id),
+      await autoIllustrate(
+        [...completed],
+        blueprint,
+        useAgent.getState().buildImages,
+        controller.signal,
       );
+      await verifyGate(blueprint.slice(0, 240), useProject.getState().doc, [...completed]);
+      for (const id of completed)
+        useProject
+          .getState()
+          .rememberScreenBuild(card.id, id, beforeScreens.get(id) ?? null);
       const count = latest.screens.length;
       addAgent(
-        `${count} screen${count === 1 ? '' : 's'} ready — your tokens, real components, and it runs. Hit ▶ Run.`,
+        useAgent.getState().verification === 'pass'
+          ? `${count} screen${count === 1 ? '' : 's'} ready — your tokens, real components, and it runs. Hit ▶ Run.`
+          : `${count} screen${count === 1 ? '' : 's'} built, but not verified. See the quality notes above before relying on the result.`,
       );
     } else {
+      for (const id of completed)
+        useProject
+          .getState()
+          .rememberScreenBuild(card.id, id, beforeScreens.get(id) ?? null);
       addSystem('Stopped — finished screens stay, the queue clears.');
     }
   } catch (err) {

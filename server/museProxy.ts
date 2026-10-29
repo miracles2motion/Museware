@@ -24,6 +24,7 @@ export interface MuseEnv {
   MUSE_ARCHITECT_MODEL?: string;
   MUSE_CONTRIBUTOR_MODEL?: string;
   MUSE_IMAGE_MODEL?: string;
+  MUSE_BUILD_IMAGES?: string;
   MUSE_SAM_MODEL?: string;
   MUSE_VOICE_MODEL?: string;
   MUSE_REASONING?: string;
@@ -539,6 +540,17 @@ export async function handleMuse(
         houseKeyDetail: house.detail || null,
         budget: ledger.state,
         live: cfg.live,
+        buildImages: Math.max(
+          0,
+          Math.min(
+            30,
+            Number.isFinite(Number(env.MUSE_BUILD_IMAGES)) &&
+              env.MUSE_BUILD_IMAGES !== undefined &&
+              env.MUSE_BUILD_IMAGES.trim() !== ''
+              ? Math.floor(Number(env.MUSE_BUILD_IMAGES))
+              : 3,
+          ),
+        ),
         baseUrl: cfg.baseUrl,
         reasoning: cfg.reasoning,
         models: {

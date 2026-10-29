@@ -235,6 +235,12 @@ export const toolSchemas = {
       .min(2)
       .max(4),
   }),
+  illustrate_images: z.object({
+    targets: z
+      .array(z.object({ id: idSchema, prompt: z.string().max(700).optional() }))
+      .min(1)
+      .max(6),
+  }),
   edit_canvas: z.object({
     screen_id: z.string().max(31).optional(),
     ops: z.array(opSchema).min(1).max(40),
@@ -250,6 +256,7 @@ export const TOOL_NAMES: ToolName[] = [
   'propose_blueprint',
   'ask_choice',
   'edit_canvas',
+  'illustrate_images',
   'finish',
 ];
 

@@ -70,6 +70,7 @@ export interface ServerStatus {
   houseKeyDetail?: string | null;
   budget?: BudgetState;
   live?: boolean;
+  buildImages?: number;
   baseUrl: string;
   reasoning: boolean;
   models: {
@@ -722,21 +723,19 @@ async function mediaCall<T>(
     status = 'failed';
     throw error;
   } finally {
-    useAgent
-      .getState()
-      .addReceipt({
-        role,
-        model,
-        promptChars,
-        toolNames: [],
-        latencyMs: Date.now() - start,
-        status,
-        ...(agent.keySource === 'none'
-          ? {}
-          : {
-              key: agent.keySource === 'session' ? ('user' as const) : ('house' as const),
-            }),
-      });
+    useAgent.getState().addReceipt({
+      role,
+      model,
+      promptChars,
+      toolNames: [],
+      latencyMs: Date.now() - start,
+      status,
+      ...(agent.keySource === 'none'
+        ? {}
+        : {
+            key: agent.keySource === 'session' ? ('user' as const) : ('house' as const),
+          }),
+    });
   }
 }
 

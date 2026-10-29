@@ -66,6 +66,7 @@ export default function App() {
           houseKeyDetail: status.houseKeyDetail ?? null,
           budget: status.budget ?? null,
           live: Boolean(status.live),
+          buildImages: status.buildImages,
           models: status.models,
           keySource: userKey ? 'session' : status.source,
           statusError: null,
