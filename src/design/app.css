@@ -904,6 +904,14 @@ a {
   min-height: 0;
 }
 
+/* Reserves the scaled size of the frame so the canvas scrolls and centres
+   correctly, whatever the display scale. */
+.frame-fit {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0 auto;
+}
+
 .device-frame {
   border-radius: var(--mw-frame-radius);
   border: 1px solid var(--mw-border-strong);
@@ -2615,10 +2623,6 @@ button.how-card .field-hint {
     z-index: var(--mw-z-popover);
   }
 
-  .device-frame[data-bp='expanded'] {
-    width: 1024px;
-  }
-
   .rail {
     position: absolute;
     right: 0;
@@ -2735,18 +2739,8 @@ button.how-card .field-hint {
     place-items: start center;
   }
 
-  .device-frame[data-bp='compact'] {
-    width: 100%;
-    min-width: 320px;
-    height: 100%;
-  }
-
-  .device-frame[data-bp='medium'],
-  .device-frame[data-bp='expanded'] {
-    width: 100%;
-    height: 100%;
-  }
-
+  /* Every breakpoint keeps the width it claims; .frame-fit shrinks the
+     display. Forcing 100% here is what made the switcher look dead. */
   .device-frame {
     border-radius: 14px;
   }
@@ -3133,12 +3127,9 @@ button.how-card .field-hint {
     min-height: 0;
   }
 
-  /* The artboard IS the screen on a phone. No 390px card floating in a void. */
+  /* The artboard keeps its breakpoint width; .frame-fit shrinks the DISPLAY,
+     so compact, medium and expanded all look like the size they claim. */
   .device-frame[data-bp] {
-    width: 100% !important;
-    min-width: 0;
-    height: 100%;
-    min-height: 0;
     border-radius: 12px;
   }
 
@@ -3466,4 +3457,21 @@ button.how-card .field-hint {
   .workspace[data-inspector='wide'] .inspector[data-open='true'] {
     height: min(84vh, 720px);
   }
+}
+
+/* Selection, hover and drop chrome is drawn INSIDE the scaled frame, so its
+   borders would shrink to nothing next to a 30% desktop preview. Divide by the
+   fit scale to keep them one screen pixel. */
+.hover-outline {
+  border-width: calc(1px / var(--mw-fit, 1));
+}
+
+.selection-outline,
+.drop-inside {
+  border-width: calc(2px / var(--mw-fit, 1));
+}
+
+.drop-line {
+  height: calc(2px / var(--mw-fit, 1));
+  margin-bottom: calc(-1px / var(--mw-fit, 1));
 }

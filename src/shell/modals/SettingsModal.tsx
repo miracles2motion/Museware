@@ -407,6 +407,23 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
       <div className="insp-section">
         <div className="insp-section-head">
+          <span className="eyebrow">Screen sizes</span>
+        </div>
+        <p className="field-hint">
+          One responsive screen, previewed at three widths: compact 390, medium 768,
+          expanded 1280. The canvas always lays the frame out at its true width and shrinks
+          only what you see, so a 1280 layout on a phone is a real miniature rather than a
+          different design — the chrome shows the scale.
+        </p>
+        <p className="field-hint">
+          Phones go down to 320 px, and that is the floor. Watch screens are out of scope,
+          not silently broken: a wrist UI is a different paradigm — glances, no scrolling —
+          and Wear OS has no browser to run an exported PWA in.
+        </p>
+      </div>
+
+      <div className="insp-section">
+        <div className="insp-section-head">
           <span className="eyebrow">This browser</span>
         </div>
         <p className="field-hint">
