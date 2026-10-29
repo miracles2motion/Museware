@@ -29,7 +29,7 @@ function miniScreens(): ScreenDoc[] {
         props: { text: 'Four deliveries left, two invoices paid, one batch on the drum.' },
       }),
       n('row', 'mini_row', {
-        props: { gap: '8px', align: 'center' },
+        styles: { gap: '8px', align: 'center' },
         children: [
           n('button', 'mini_cta', {
             props: { text: 'Start free', variant: 'primary' },
@@ -81,7 +81,7 @@ function batchFor(rootId: string) {
       children: [
         {
           type: 'row',
-          props: { gap: '10px', align: 'center', wrap: false },
+          styles: { gap: '10px', align: 'center', wrap: false },
           children: [
             { type: 'avatar', props: { initials, size: 32 } },
             { type: 'heading', props: { text: name, level: 3 } },
@@ -104,7 +104,7 @@ function batchFor(rootId: string) {
       parentId: rootId,
       node: {
         type: 'row',
-        props: { gap: '8px', align: 'center' },
+        styles: { gap: '8px', align: 'center' },
         children: [
           { type: 'badge', props: { text: 'On track' } },
           { type: 'badge', props: { text: '2 late' } },
@@ -159,7 +159,7 @@ function presetScreen(id: string, name: string): ScreenDoc {
         props: { text: 'Kenya Nyeri, washed, 250g. Roasted Tuesday.' },
       }),
       n('row', `${id}_row`, {
-        props: { gap: '8px', align: 'center' },
+        styles: { gap: '8px', align: 'center' },
         children: [
           n('button', `${id}_b1`, {
             props: { text: 'Order', variant: 'primary' },

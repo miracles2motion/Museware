@@ -49,12 +49,24 @@ export type LeafType = (typeof LEAF_TYPES)[number];
 export type ComponentType = ContainerType | LeafType;
 
 export type Align = 'start' | 'center' | 'end' | 'stretch';
+export type Justify = 'start' | 'center' | 'end' | 'space-between';
+/** Sketchware's sizing words: match the parent, hug the content, or a length. */
+export type SizeWord = 'match' | 'hug';
 
 export type StyleValue = string | number;
 
+/** Per-side space, for the agent. The inspector writes one value. */
+export interface SpaceBox {
+  top?: StyleValue;
+  right?: StyleValue;
+  bottom?: StyleValue;
+  left?: StyleValue;
+  [k: string]: StyleValue | undefined;
+}
+
 export interface StyleSet {
-  padding?: StyleValue;
-  margin?: StyleValue;
+  padding?: StyleValue | SpaceBox;
+  margin?: StyleValue | SpaceBox;
   gap?: StyleValue;
   background?: StyleValue;
   color?: StyleValue;
@@ -70,10 +82,21 @@ export interface StyleSet {
   height?: StyleValue;
   minWidth?: StyleValue;
   maxWidth?: StyleValue;
+  minHeight?: StyleValue;
+  maxHeight?: StyleValue;
+  /** Container: align children on the cross axis (align-items). */
   align?: Align;
-  justify?: Align;
+  /** Container: distribute children on the main axis (justify-content). */
+  justify?: Justify;
+  /** Container: wrap to new lines (flex-wrap). */
+  wrap?: boolean;
+  /** Child: align myself across the parent's cross axis (align-self). */
+  selfAlign?: Align;
+  /** Child: soak up leftover main-axis space (flex-grow). 0 or 1. */
+  grow?: number;
   columns?: number;
   opacity?: StyleValue;
+  overflow?: string;
   textAlign?: string;
   responsive?: ResponsiveStyles;
   [k: string]: unknown;
@@ -171,6 +194,8 @@ export interface OpEntry {
 }
 
 export interface ProjectDoc {
+  /** 2 = styles own layout (see persist/migrate.ts). Absent means v1. */
+  layoutVersion?: number;
   format: 'museware/1';
   name: string;
   screens: ScreenDoc[];
