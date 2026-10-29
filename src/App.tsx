@@ -6,6 +6,7 @@ import { loadProject, saveProjectSoon } from './persist/save';
 import { parseProjectDoc } from './persist/schema';
 import { fetchStatus } from './muse/client';
 import { offerKey } from './muse/loop';
+import { resolveStaleKeyCards } from './muse/cards';
 import { diagnose, houseKeySentence } from './muse/connection';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
@@ -77,6 +78,16 @@ export default function App() {
         } else if (!usable) {
           // One sentence, naming the actual cause — never a guess.
           offerKey(houseKeySentence(status.houseKey, status.houseKeyDetail), '');
+        } else if (userKey) {
+          resolveStaleKeyCards(
+            'Your key is set for this tab — picking up where we left off.',
+          );
+        } else {
+          // The key works, so any key card left over from an earlier failure is
+          // an accusation that is no longer true. Take it off the screen.
+          resolveStaleKeyCards(
+            'The shared key answers Meta — any earlier key error is cleared.',
+          );
         }
       } catch (err) {
         // The proxy is unreachable (plain `vite` with no middleware, a static

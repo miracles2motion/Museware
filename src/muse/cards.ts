@@ -219,6 +219,35 @@ export function dismissKey(cardId: string, useDemo: boolean): void {
   system('No key — the canvas still works by hand. Add one any time in Settings.');
 }
 
+/**
+ * On boot, a key that turns out to be healthy must not leave yesterday's
+ * accusation in the rail. Any pending key card is marked answered, once.
+ * Returns true when something was cleared.
+ */
+export function resolveStaleKeyCards(text: string): boolean {
+  const rail = useProject.getState().doc.rail;
+  const pending = rail.filter(
+    (entry) =>
+      entry.role === 'card' && entry.card?.kind === 'key' && entry.card.state === 'pending',
+  );
+  if (!pending.length) return false;
+  for (const entry of pending) markCard(entry.id, 'answered');
+  useAgent.getState().setPendingRetry(null);
+  system(text);
+  return true;
+}
+
+/**
+ * The key was never the problem — re-check it and take the card away instead of
+ * leaving an accusation on screen. Used by the card's own "Re-check" action.
+ */
+export function clearKeyCard(cardId: string, text: string): void {
+  markCard(cardId, 'answered');
+  useAgent.getState().setPendingRetry(null);
+  useAgent.getState().setError(null);
+  system(text);
+}
+
 export async function retryTurn(cardId: string, text: string): Promise<void> {
   markCard(cardId, 'answered');
   if (!text.trim()) return;

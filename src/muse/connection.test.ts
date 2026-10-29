@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MuseError, describeFailure, fetchStatus, type HouseKeyState } from './client';
+import {
+  MuseError,
+  describeFailure,
+  errorFromResponse,
+  fetchStatus,
+  type HouseKeyState,
+} from './client';
 import { diagnose, houseKeyLabel, houseKeySentence } from './connection';
 import { recreateFromScreenshot } from './screenshot';
 import { useProject } from '../store/useProject';
@@ -272,5 +278,38 @@ describe('a 500 says what the server said', () => {
 
   it('does not choke on a JSON body that will not parse', () => {
     expect(describeFailure('{"detail": broken')).toBe('{"detail": broken');
+  });
+});
+
+describe('a non-key failure is never dressed up as a key failure', () => {
+  it('a 400 from Meta keeps its status and its own sentence', async () => {
+    const res = new Response(
+      JSON.stringify({
+        error: 'upstream',
+        status: 400,
+        detail: '{"error":{"message":"tools are not supported for this model"}}',
+        metaSaid: '{"error":{"message":"tools are not supported for this model"}}',
+      }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    );
+    const err = await errorFromResponse(res);
+    expect(err.code).toBe('upstream');
+    expect(err.status).toBe(400);
+    // Not a key verdict, and the human sentence survives.
+    expect(err.code).not.toBe('house_key_rejected');
+    expect(err.message).toContain('tools are not supported');
+  });
+
+  it('reads a nested Meta error object, not just a string', () => {
+    expect(describeFailure('{"error":{"message":"model not found"}}')).toBe(
+      'model not found',
+    );
+  });
+
+  it('diagnose() calls a 400 the request’s fault, not the key’s', () => {
+    const d = diagnose(new MuseError('upstream', 'tools are not supported', 400));
+    expect(d.kind).toBe('other');
+    expect(d.offerKey).toBe(false);
+    expect(d.text).not.toMatch(/key/i);
   });
 });

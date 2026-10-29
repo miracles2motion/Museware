@@ -415,3 +415,70 @@ describe('the boot path cannot be held hostage', () => {
     expect(String(json.houseKeyDetail)).toMatch(/did not answer/i);
   }, 12000);
 });
+
+describe('only a key fault is reported as a key fault', () => {
+  it('maps key statuses and refuses to guess on anything else', async () => {
+    const { houseStateFromStatus, isKeyFault } = await import('./museProxy');
+    expect(houseStateFromStatus(401)).toBe('rejected');
+    expect(houseStateFromStatus(403)).toBe('rejected');
+    expect(houseStateFromStatus(402)).toBe('exhausted');
+    expect(houseStateFromStatus(429)).toBe('rate_limited');
+    // A malformed request or an unknown model says nothing about the key.
+    for (const status of [400, 404, 409, 422, 500, 502]) {
+      expect(houseStateFromStatus(status)).toBeNull();
+      expect(isKeyFault(status)).toBe(false);
+    }
+  });
+
+  it('passes a 400 through with Meta’s own words instead of blaming the key', async () => {
+    env.MUSE_API_KEY = 'good-house-key';
+    upstream.status = 400;
+    upstream.body = '{"error":{"message":"tools are not supported for this model"}}';
+    upstream.contentType = 'application/json';
+    const res = await chat();
+    expect(res.status).toBe(400);
+    const body = JSON.parse(res.text) as Record<string, unknown>;
+    expect(body.error).toBe('upstream');
+    expect(body.error).not.toBe('HOUSE_KEY_REJECTED');
+    expect(String(body.detail)).toContain('tools are not supported');
+    expect(String(body.metaSaid)).toContain('tools are not supported');
+  });
+
+  it('a bad request does not poison the key verdict', async () => {
+    env.MUSE_API_KEY = 'good-house-key';
+    upstream.status = 400;
+    upstream.body = '{"error":"bad payload"}';
+    upstream.contentType = 'application/json';
+    await chat(); // the request fails…
+    upstream.status = 200;
+    upstream.body = '{"ok":true}';
+    const { json } = await status();
+    expect(json.houseKey).toBe('ok'); // …and the key is still known good
+  });
+
+  it('an unknown model (404) is not a rejected key either', async () => {
+    env.MUSE_API_KEY = 'good-house-key';
+    upstream.status = 404;
+    upstream.body = '{"error":{"message":"model not found"}}';
+    upstream.contentType = 'application/json';
+    const res = await chat();
+    expect(res.status).toBe(404);
+    expect(JSON.parse(res.text).error).toBe('upstream');
+  });
+
+  it('?force=1 re-checks instead of trusting a cached verdict', async () => {
+    env.MUSE_API_KEY = 'house-key';
+    upstream.status = 200;
+    upstream.body = '{"ok":true}';
+    upstream.contentType = 'application/json';
+    await status(); // caches 'ok'
+    const cached = upstream.calls.length;
+
+    upstream.status = 401;
+    upstream.body = '{"error":"invalid api key"}';
+    const forced = await fetch(`${baseUrl}/api/muse/status?force=1`);
+    const json = (await forced.json()) as Record<string, unknown>;
+    expect(upstream.calls.length).toBe(cached + 1);
+    expect(json.houseKey).toBe('rejected');
+  });
+});
