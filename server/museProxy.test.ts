@@ -20,6 +20,8 @@ interface UpstreamState {
   body: string;
   contentType: string;
   calls: Array<{ key: string; body: Record<string, unknown> }>;
+  /** Accept the request and never answer — a hung upstream. */
+  hang: boolean;
 }
 
 const upstream: UpstreamState = {
@@ -27,6 +29,7 @@ const upstream: UpstreamState = {
   body: '',
   contentType: 'application/json',
   calls: [],
+  hang: false,
 };
 let upServer: Server;
 let proxyServer: Server;
@@ -60,6 +63,7 @@ beforeAll(async () => {
         body = { raw };
       }
       upstream.calls.push({ key: String(req.headers.authorization || ''), body });
+      if (upstream.hang) return; // never answer
       res.statusCode = upstream.status;
       res.setHeader('Content-Type', upstream.contentType);
       res.end(upstream.body);
@@ -91,6 +95,7 @@ beforeEach(() => {
   upstream.body = SSE_OK;
   upstream.contentType = 'text/event-stream';
   upstream.calls = [];
+  upstream.hang = false;
   resetHouseState();
   resetBudget(null);
   env = {
@@ -225,7 +230,11 @@ describe('house key failure is typed, user key failure is verbatim', () => {
     upstream.body = '{"error":"quota"}';
     const res = await chat();
     expect(res.status).toBe(402);
-    const body = JSON.parse(res.text) as { error: string; detail: string; houseKey: string };
+    const body = JSON.parse(res.text) as {
+      error: string;
+      detail: string;
+      houseKey: string;
+    };
     expect(body.error).toBe('HOUSE_KEY_RATE_LIMITED');
     expect(body.houseKey).toBe('rate_limited');
     expect(body.detail).toMatch(/rate-limiting/i);
@@ -372,4 +381,37 @@ describe('POST /keytest proves a key without spending a turn', () => {
     expect(json.houseKey).toBe('rejected');
     expect(String(json.houseKeyDetail)).toContain('forbidden');
   });
+});
+
+describe('the boot path cannot be held hostage', () => {
+  it('/health answers without a key and without touching Meta', async () => {
+    const res = await fetch(`${baseUrl}/api/muse/health`);
+    const json = (await res.json()) as Record<string, unknown>;
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.hasHouseKey).toBe(false);
+    // No upstream call: a liveness check must not spend anything.
+    expect(upstream.calls.length).toBe(0);
+  });
+
+  it('/health never reveals the key, only whether one exists', async () => {
+    env.MUSE_API_KEY = 'super-secret-house-key';
+    const res = await fetch(`${baseUrl}/api/muse/health`);
+    const text = await res.text();
+    expect(text).toContain('"hasHouseKey":true');
+    expect(text).not.toContain('super-secret-house-key');
+  });
+
+  it('/status answers honestly when Meta accepts the request and never replies', async () => {
+    env.MUSE_API_KEY = 'house-key';
+    upstream.hang = true;
+    const started = Date.now();
+    const { status: code, json } = await status();
+    const elapsed = Date.now() - started;
+    expect(code).toBe(200);
+    // The probe gives up on its own instead of being killed by the platform.
+    expect(elapsed).toBeLessThan(6000);
+    expect(json.houseKey).toBe('unverified');
+    expect(String(json.houseKeyDetail)).toMatch(/did not answer/i);
+  }, 12000);
 });

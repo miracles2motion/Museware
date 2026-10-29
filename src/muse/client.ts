@@ -128,6 +128,42 @@ export function estimateCents(model: string, usage: Usage): number {
   return Math.round(dollars * 10_000) / 100;
 }
 
+/**
+ * Pull the most useful sentence out of an error body. JSON with `detail` or
+ * `error`, or HTML (a rewrite), or nothing at all — each says something
+ * different and none of them should be swallowed.
+ */
+export function describeFailure(raw: string): string {
+  const text = raw.trim();
+  if (!text) return '';
+  if (text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const json = JSON.parse(text) as {
+        detail?: unknown;
+        hint?: unknown;
+        error?: unknown;
+        message?: unknown;
+      };
+      const detail =
+        typeof json.detail === 'string'
+          ? json.detail
+          : typeof json.error === 'string'
+            ? json.error
+            : typeof json.message === 'string'
+              ? json.message
+              : '';
+      const hint = typeof json.hint === 'string' ? json.hint : '';
+      return [detail, hint].filter(Boolean).join(' — ').slice(0, 300);
+    } catch {
+      return text.slice(0, 200);
+    }
+  }
+  if (/^<!doctype html/i.test(text) || /^<html/i.test(text)) {
+    return 'it answered with HTML instead of JSON, so /api/* is being rewritten to the app shell';
+  }
+  return text.replace(/\s+/g, ' ').slice(0, 200);
+}
+
 function headers(): HeadersInit {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
   const key = getSessionKey();
@@ -203,10 +239,17 @@ export async function fetchStatus(): Promise<ServerStatus> {
   }
   const type = res.headers.get('content-type') || '';
   if (!res.ok) {
+    // Read the body: when the proxy crashes it returns {error, detail, hint},
+    // and "the proxy answered 500" with no reason is exactly the kind of
+    // unhelpful sentence this product is supposed to avoid.
+    const raw = await res.text().catch(() => '');
+    const said = describeFailure(raw);
     const hint =
       res.status === 404
         ? 'the API function is not deployed on this domain'
-        : `the proxy answered ${res.status}`;
+        : res.status >= 500
+          ? `the proxy crashed (HTTP ${res.status})${said ? `: ${said}` : ''}`
+          : `the proxy answered ${res.status}${said ? `: ${said}` : ''}`;
     throw new MuseError('upstream', `GET /api/muse/status failed: ${hint}`, res.status);
   }
   if (!type.includes('json')) {
@@ -424,6 +467,51 @@ function handleChunk(
   }
 }
 
+/**
+ * Turn any non-OK response into the SAME typed error the chat path produces.
+ * Before this, only chat understood the server's typed errors; /segment and
+ * friends threw a generic 'upstream', so the UI had to guess the cause from
+ * the status code — which is how a missing key got reported as a crash.
+ */
+export async function errorFromResponse(res: Response): Promise<MuseError> {
+  const raw = await res.text().catch(() => '');
+  const info = parseErrorBody(raw);
+  const detail = (info.detail || describeFailure(raw) || '').slice(0, 800);
+  switch (info.error) {
+    case 'no_key':
+      return new MuseError('no_key', 'No muse key on this server.', res.status, detail);
+    case 'BUDGET_EXHAUSTED':
+    case 'HOUSE_KEY_EXHAUSTED':
+      return new MuseError('house_key_exhausted', detail, res.status, detail);
+    case 'HOUSE_KEY_REJECTED':
+      return new MuseError('house_key_rejected', detail, res.status, detail);
+    case 'HOUSE_KEY_RATE_LIMITED':
+      return new MuseError('house_key_rate_limited', detail, res.status, detail);
+    case 'unauthorized':
+      return new MuseError('unauthorized', detail, res.status, detail);
+    case 'rate_limited':
+      return new MuseError('rate_limited', detail, res.status, detail);
+    case 'proxy':
+      return new MuseError(
+        'upstream',
+        `The proxy crashed (HTTP ${res.status})${detail ? `: ${detail}` : ''}`,
+        res.status,
+        detail,
+      );
+    default:
+      return new MuseError(
+        res.status === 401
+          ? 'unauthorized'
+          : res.status === 429
+            ? 'rate_limited'
+            : 'upstream',
+        detail || `muse returned ${res.status}`,
+        res.status,
+        detail,
+      );
+  }
+}
+
 function parseErrorBody(raw: string): { error?: string; detail?: string } {
   try {
     const json = JSON.parse(raw) as { error?: unknown; detail?: unknown };
@@ -605,14 +693,7 @@ export async function generateImage(prompt: string, size = '1024x1024'): Promise
     headers: headers(),
     body: JSON.stringify({ prompt, size }),
   });
-  if (!res.ok) {
-    const info = parseErrorBody(await res.text().catch(() => ''));
-    throw new MuseError(
-      'upstream',
-      info.detail || `image generation failed (${res.status})`,
-      res.status,
-    );
-  }
+  if (!res.ok) throw await errorFromResponse(res);
   const json = (await res.json()) as {
     data?: Array<{ b64_json?: string; url?: string }>;
     images?: Array<{ b64_json?: string; url?: string }>;
@@ -629,14 +710,7 @@ export async function segmentImage(image: string): Promise<unknown> {
     headers: headers(),
     body: JSON.stringify({ image }),
   });
-  if (!res.ok) {
-    const info = parseErrorBody(await res.text().catch(() => ''));
-    throw new MuseError(
-      'upstream',
-      info.detail || `segmentation failed (${res.status})`,
-      res.status,
-    );
-  }
+  if (!res.ok) throw await errorFromResponse(res);
   return res.json();
 }
 
@@ -646,14 +720,7 @@ export async function transcribe(audioBase64: string, mime: string): Promise<str
     headers: headers(),
     body: JSON.stringify({ audio: audioBase64, mime }),
   });
-  if (!res.ok) {
-    const info = parseErrorBody(await res.text().catch(() => ''));
-    throw new MuseError(
-      'upstream',
-      info.detail || `transcription failed (${res.status})`,
-      res.status,
-    );
-  }
+  if (!res.ok) throw await errorFromResponse(res);
   const json = (await res.json()) as { text?: string };
   return json.text || '';
 }

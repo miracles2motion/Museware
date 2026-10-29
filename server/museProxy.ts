@@ -64,6 +64,40 @@ function apiRoot(baseUrl: string) {
   return /\/v\d+(\.\d+)?$/.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
 }
 
+/**
+ * Cap how long a check may take. `/status` runs on every boot, so a hung
+ * upstream used to hold the request until the platform killed it — which the
+ * browser can only report as "the proxy answered 500".
+ */
+function withDeadline(
+  signal: AbortSignal | undefined,
+  ms: number,
+): { signal: AbortSignal; done: () => void; timedOut: () => boolean } {
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort(new Error(`no answer within ${ms}ms`));
+  }, ms);
+  timer.unref?.();
+  const onAbort = () => ctrl.abort(signal?.reason);
+  if (signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  return {
+    signal: ctrl.signal,
+    timedOut: () => timedOut,
+    done: () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    },
+  };
+}
+
+/** The probe is a health check, not a model call: it must not take 60 s. */
+const PROBE_DEADLINE_MS = 4000;
+
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   const text = JSON.stringify(body);
   res.statusCode = status;
@@ -173,7 +207,7 @@ export async function houseKeyState(
   const fresh = Date.now() - houseProbe.at < HOUSE_TTL_MS;
   if (!opts.force && fresh && houseProbe.state !== 'absent') return houseProbe;
 
-  const started = Date.now();
+  const guard = withDeadline(opts.signal, PROBE_DEADLINE_MS);
   try {
     const r = await fetch(`${apiRoot(cfg.baseUrl)}/chat/completions`, {
       method: 'POST',
@@ -188,7 +222,7 @@ export async function houseKeyState(
         max_tokens: 1,
         stream: false,
       }),
-      signal: opts.signal,
+      signal: guard.signal,
     });
     if (r.ok) {
       await r.text();
@@ -212,11 +246,15 @@ export async function houseKeyState(
     houseProbe = {
       state: keep ? previous : 'unverified',
       at: Date.now(),
-      detail: `could not reach Meta from the server to check the key: ${
-        err instanceof Error ? err.message : String(err)
-      }`,
-      status: started ? houseProbe.status : undefined,
+      detail: guard.timedOut()
+        ? `Meta did not answer within ${PROBE_DEADLINE_MS / 1000}s, so the key could not be checked`
+        : `could not reach Meta from the server to check the key: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+      status: guard.timedOut() ? undefined : houseProbe.status,
     };
+  } finally {
+    guard.done();
   }
   return houseProbe;
 }
@@ -423,8 +461,39 @@ export async function handleMuse(
       : null;
 
   try {
+    // The cheapest possible liveness check: no key, no upstream call, no
+    // secrets — only booleans. When /status is suspect, this says whether the
+    // function is deployed and running at all.
+    if (route === '/health' && req.method === 'GET') {
+      return sendJson(res, 200, {
+        ok: true,
+        route,
+        runtime: typeof process !== 'undefined' ? process.version : 'unknown',
+        uptimeMs:
+          typeof process !== 'undefined'
+            ? Math.round(process.uptime() * 1000)
+            : undefined,
+        hasHouseKey: Boolean((env.MUSE_API_KEY || '').trim()),
+        keySource: source,
+        baseUrl: cfg.baseUrl,
+      });
+    }
+
     if (route === '/status' && req.method === 'GET') {
-      const house = await houseKeyState(env, { signal: abort.signal });
+      // A probe may not be allowed to break the boot path: if it throws for a
+      // reason we did not foresee, the status still answers, honestly.
+      let house: HouseProbe;
+      try {
+        house = await houseKeyState(env, { signal: abort.signal });
+      } catch (err) {
+        house = {
+          state: 'unverified',
+          at: Date.now(),
+          detail: `the key check itself failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        };
+      }
       const usable =
         source === 'user' ||
         (source === 'house' && (house.state === 'ok' || house.state === 'unverified'));
@@ -678,10 +747,17 @@ export async function handleMuse(
 
     return sendJson(res, 404, { error: 'not_found', route });
   } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    // Logged as well as returned: Vercel's runtime logs are where the stack
+    // lives, and a visitor should never have to read a stack to learn that the
+    // server crashed.
+    console.error(`[muse] ${req.method} ${route} failed:`, err);
     if (!res.headersSent) {
       sendJson(res, 500, {
         error: 'proxy',
-        detail: err instanceof Error ? err.message : String(err),
+        route,
+        detail,
+        hint: 'The proxy itself failed, not your key. The Vercel runtime logs for this function hold the stack trace.',
       });
     } else {
       res.end();
