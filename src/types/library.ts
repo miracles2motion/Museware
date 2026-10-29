@@ -179,10 +179,17 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { columns: 2 },
     styles: { width: '100%', columns: 2, gap: 'var(--gap-item)' },
     props: [
-      p('columns', 'Columns', 'number', 'Content', 'How many even columns the grid lays out.', {
-        min: 2,
-        max: 6,
-      }),
+      p(
+        'columns',
+        'Columns',
+        'number',
+        'Content',
+        'How many even columns the grid lays out.',
+        {
+          min: 2,
+          max: 6,
+        },
+      ),
     ],
   },
   {
@@ -249,9 +256,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     hint: 'A titled group of blocks, with more space around it than inside.',
     defaultProps: { title: 'Section' },
     styles: { gap: 'var(--gap-item)' },
-    props: [
-      p('title', 'Title', 'text', 'Content', 'Optional label above the group.'),
-    ],
+    props: [p('title', 'Title', 'text', 'Content', 'Optional label above the group.')],
   },
   {
     type: 'form',
@@ -281,7 +286,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     hint: 'One child per tab panel. Click a tab on the canvas to switch panels.',
     defaultProps: { items: ['One', 'Two'] },
     props: [
-      p('items', 'Tabs', 'data', 'Content', 'Tab labels, comma separated. One child per label.'),
+      p(
+        'items',
+        'Tabs',
+        'data',
+        'Content',
+        'Tab labels, comma separated. One child per label.',
+      ),
     ],
   },
   {
@@ -307,9 +318,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     icon: 'edit',
     hint: 'Body copy. Line breaks are kept.',
     defaultProps: { text: 'Body text that says something useful.' },
-    props: [
-      p('text', 'Text', 'longtext', 'Content', 'The paragraph.', { required: true }),
-    ],
+    props: [p('text', 'Text', 'longtext', 'Content', 'The paragraph.', { required: true })],
   },
   {
     type: 'label',
@@ -331,9 +340,16 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { text: 'New', tone: 'accent' },
     props: [
       p('text', 'Text', 'text', 'Content', 'The word inside the chip.'),
-      p('tone', 'Tone', 'tone', 'Content', 'Colour meaning: accent, success, danger or neutral.', {
-        options: ['accent', 'success', 'danger', 'neutral'],
-      }),
+      p(
+        'tone',
+        'Tone',
+        'tone',
+        'Content',
+        'Colour meaning: accent, success, danger or neutral.',
+        {
+          options: ['accent', 'success', 'danger', 'neutral'],
+        },
+      ),
     ],
   },
   {
@@ -371,10 +387,23 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     styles: { width: '100%', borderRadius: 'var(--radius-card)' },
     props: [
       p('src', 'Source', 'data', 'Content', 'A picture URL. Blank shows typographic art.'),
-      p('alt', 'Alt text', 'text', 'Advanced', 'Read out by screen readers, and shown if the image fails.'),
-      p('fit', 'Fit', 'select', 'Content', 'Cover crops to fill; contain shows the whole picture.', {
-        options: ['cover', 'contain'],
-      }),
+      p(
+        'alt',
+        'Alt text',
+        'text',
+        'Advanced',
+        'Read out by screen readers, and shown if the image fails.',
+      ),
+      p(
+        'fit',
+        'Fit',
+        'select',
+        'Content',
+        'Cover crops to fill; contain shows the whole picture.',
+        {
+          options: ['cover', 'contain'],
+        },
+      ),
     ],
   },
   {
@@ -387,7 +416,9 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { src: '', initials: 'MA', size: 44 },
     props: [
       p('src', 'Source', 'data', 'Content', 'A picture URL. Blank shows the initials.'),
-      p('initials', 'Initials', 'text', 'Content', 'One or two letters.', { required: true }),
+      p('initials', 'Initials', 'text', 'Content', 'One or two letters.', {
+        required: true,
+      }),
       p('size', 'Size', 'number', 'Content', 'Pixels, 16 to 96.', { min: 16, max: 96 }),
     ],
   },
@@ -466,11 +497,30 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     hint: 'One-line text field, bound to a state key.',
     defaultProps: { placeholder: 'Type here', bindKey: 'text', inputType: 'text' },
     props: [
-      p('placeholder', 'Placeholder', 'text', 'Content', 'Grey text shown while the field is empty.'),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value. No code.'),
-      p('inputType', 'Input type', 'select', 'Behavior', 'What the field accepts and how it masks it.', {
-        options: ['text', 'number', 'password', 'phone'],
-      }),
+      p(
+        'placeholder',
+        'Placeholder',
+        'text',
+        'Content',
+        'Grey text shown while the field is empty.',
+      ),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value. No code.',
+      ),
+      p(
+        'inputType',
+        'Input type',
+        'select',
+        'Behavior',
+        'What the field accepts and how it masks it.',
+        {
+          options: ['text', 'number', 'password', 'phone'],
+        },
+      ),
     ],
   },
   {
@@ -482,8 +532,20 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     hint: 'Multi-line field for longer answers.',
     defaultProps: { placeholder: 'Say more', bindKey: 'notes', rows: 4 },
     props: [
-      p('placeholder', 'Placeholder', 'text', 'Content', 'Grey text shown while the field is empty.'),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value.'),
+      p(
+        'placeholder',
+        'Placeholder',
+        'text',
+        'Content',
+        'Grey text shown while the field is empty.',
+      ),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value.',
+      ),
       p('rows', 'Rows', 'number', 'Content', 'How tall the box starts, in lines.', {
         min: 2,
         max: 10,
@@ -502,7 +564,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
       p('options', 'Options', 'data', 'Content', 'The choices, comma separated.', {
         required: true,
       }),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value.'),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value.',
+      ),
     ],
   },
   {
@@ -515,7 +583,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { label: 'Remember me', bindKey: 'remember' },
     props: [
       p('label', 'Label', 'text', 'Content', 'The text beside the box.'),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value.'),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value.',
+      ),
     ],
   },
   {
@@ -528,7 +602,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { label: 'Notifications', bindKey: 'notifications' },
     props: [
       p('label', 'Label', 'text', 'Content', 'The text beside the switch.'),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value.'),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value.',
+      ),
     ],
   },
   {
@@ -544,7 +624,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
       p('min', 'Min', 'number', 'Behavior', 'The lowest value.'),
       p('max', 'Max', 'number', 'Behavior', 'The highest value.'),
       p('step', 'Step', 'number', 'Behavior', 'How far one drag moves the value.'),
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this run-mode value.'),
+      p(
+        'bindKey',
+        'State key',
+        'bind',
+        'Behavior',
+        'Reads and writes this run-mode value.',
+      ),
     ],
   },
   {
@@ -555,9 +641,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     icon: 'calendar',
     hint: 'A date field bound to a state key.',
     defaultProps: { bindKey: 'date' },
-    props: [
-      p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this date.'),
-    ],
+    props: [p('bindKey', 'State key', 'bind', 'Behavior', 'Reads and writes this date.')],
   },
   {
     type: 'navbar',
@@ -777,3 +861,14 @@ export function eventsFor(type: ComponentType | string): EventName[] {
 export function hasEvents(type: ComponentType | string): boolean {
   return eventsFor(type).length > 0;
 }
+
+/** Default content used by the palette scaffold, never finished editorial copy. */
+export const SCAFFOLD_STRINGS = new Set(
+  COMPONENT_SPECS.flatMap((item) =>
+    ['text', 'title', 'subtitle', 'label', 'placeholder']
+      .map((key) => item.defaultProps[key])
+      .filter(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0,
+      ),
+  ),
+);

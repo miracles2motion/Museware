@@ -36,10 +36,16 @@ Generate mockData rows (5-20, realistic) for every list/table/chart dataKey. The
 CURRENT CANVAS: ${args.existingIndex}`;
 }
 
-export function reviewerPrompt(task: string, outline: string): string {
+export function reviewerPrompt(
+  task: string,
+  outline: string,
+  findings = 'No lint findings.',
+): string {
   return `A builder was asked: ${task}
 It produced:
 ${outline}
+DETERMINISTIC LINT FINDINGS:
+${findings}
 Answer exactly PASS, or PROBLEMS: a numbered list. Visual quality counts: cramped/default-padded layouts, ignored LOOK numbers, off-palette colours are PROBLEMS, not PASS.`;
 }
 

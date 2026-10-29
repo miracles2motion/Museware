@@ -27,6 +27,7 @@ import {
 } from './prompts';
 import type { Action, OpError, ProjectDoc } from '../types/tree';
 import { entryScreen } from '../ops/treeUtils';
+import { lintScreen, type LintFinding } from './qualityLint';
 
 const TURN_CALL_CAP = 24;
 const MAX_RESULT = 8000;
@@ -780,6 +781,7 @@ async function runTool(
 async function reviewer(
   task: string,
   outline: string,
+  findings: string,
 ): Promise<{ verdict: 'pass' | 'problems' | 'error'; notes: string }> {
   const models = useAgent.getState().models;
   try {
@@ -792,7 +794,7 @@ async function reviewer(
           role: 'system',
           content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
         },
-        { role: 'user', content: reviewerPrompt(task, outline) },
+        { role: 'user', content: reviewerPrompt(task, outline, findings) },
       ],
       signal: controller?.signal,
       maxTokens: 700,
@@ -810,32 +812,98 @@ async function reviewer(
   }
 }
 
-async function verifyGate(
+function findingsFor(doc: ProjectDoc, screenIds: string[]): LintFinding[] {
+  return doc.screens
+    .filter((screen) => screenIds.includes(screen.id))
+    .flatMap((screen) => lintScreen(screen, doc.tokens));
+}
+
+function formatFindings(findings: LintFinding[]): string {
+  return findings.length
+    ? findings.map((f) => `[${f.severity}] ${f.nodeId}: ${f.message}`).join('\n')
+    : 'No lint findings.';
+}
+
+export async function verifyGate(
   task: string,
   doc: ProjectDoc,
   screenIds: string[],
 ): Promise<void> {
   useAgent.getState().setVerification('running');
+  let findings = findingsFor(doc, screenIds);
+  const blocking = findings.filter((f) => f.severity === 'block');
+  if (blocking.length) {
+    useAgent.getState().setVerification('problems', formatFindings(blocking));
+    addSystem(
+      `Quality lint found ${blocking.length} blocking issue(s); attempting one targeted repair.\n${formatFindings(blocking)}`,
+    );
+    useAgent.getState().setLive('Repairing quality issues…');
+    const affected = [
+      ...new Set(
+        doc.screens
+          .filter((s) => lintScreen(s, doc.tokens).some((f) => f.severity === 'block'))
+          .map((s) => s.id),
+      ),
+    ];
+    try {
+      await executeToolLoop({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Use small edit_canvas batches then finish.',
+          },
+          {
+            role: 'user',
+            content: `FINDINGS:\n${formatFindings(blocking)}\nAFFECTED OUTLINE:\n${canvasOutline(doc, affected)}`,
+          },
+        ],
+        maxCalls: 8,
+        role: 'builder',
+        effort: 'high',
+      });
+    } catch (err) {
+      addSystem(
+        `Quality repair failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    doc = useProject.getState().doc;
+    findings = findingsFor(doc, screenIds);
+  }
+  const remaining = findings.filter((f) => f.severity === 'block');
+  if (remaining.length) {
+    const notes = formatFindings(findings);
+    useAgent.getState().setVerification('problems', notes);
+    addSystem(`Not verified — quality lint still found blocking issues:\n${notes}`);
+    return;
+  }
   const outline = canvasOutline(doc, screenIds);
-  const first = await reviewer(task, outline);
+  const first = await reviewer(task, outline, formatFindings(findings));
   if (first.verdict === 'pass') {
-    useAgent.getState().setVerification('pass');
-    addSystem('✓ Verified — reviewer said PASS');
+    useAgent
+      .getState()
+      .setVerification('pass', findings.length ? formatFindings(findings) : null);
+    addSystem(
+      `✓ Verified — lint passed and reviewer said PASS${findings.length ? ` (warnings:\n${formatFindings(findings)})` : ''}`,
+    );
     return;
   }
   if (first.verdict === 'error') {
-    useAgent.getState().setVerification('unverified', first.notes);
+    useAgent
+      .getState()
+      .setVerification(
+        'unverified',
+        `${first.notes || 'Reviewer failed.'}\n${formatFindings(findings)}`,
+      );
     addSystem(
-      `Unverified — the reviewer call failed (${first.notes || 'no detail'}), so the build ships with that label.`,
+      `Unverified — lint passed, but reviewer failed (${first.notes || 'no detail'}).\n${formatFindings(findings)}`,
     );
     return;
   }
   addSystem('Reviewer saw problems — one rebuild round.');
-  useAgent.getState().setLive('Fixing what the reviewer flagged…');
-  const repairMessages = contextMessages(doc, rebuildNote(first.notes));
   try {
     await executeToolLoop({
-      messages: repairMessages,
+      messages: contextMessages(doc, rebuildNote(first.notes)),
       maxCalls: 8,
       role: 'builder',
       effort: 'high',
@@ -844,27 +912,40 @@ async function verifyGate(
     addSystem(`Rebuild call failed: ${err instanceof Error ? err.message : String(err)}`);
   }
   const after = useProject.getState().doc;
-  const second = await reviewer(task, canvasOutline(after, screenIds));
+  findings = findingsFor(after, screenIds);
+  if (findings.some((f) => f.severity === 'block')) {
+    useAgent.getState().setVerification('problems', formatFindings(findings));
+    addSystem(
+      `Not verified — rebuild introduced blocking quality issues:\n${formatFindings(findings)}`,
+    );
+    return;
+  }
+  const second = await reviewer(
+    task,
+    canvasOutline(after, screenIds),
+    formatFindings(findings),
+  );
+  const state =
+    second.verdict === 'pass'
+      ? 'pass'
+      : second.verdict === 'error'
+        ? 'unverified'
+        : 'problems';
   useAgent
     .getState()
     .setVerification(
-      second.verdict === 'pass'
-        ? 'pass'
-        : second.verdict === 'error'
-          ? 'unverified'
-          : 'problems',
-      second.notes,
+      state,
+      [second.notes, findings.length ? formatFindings(findings) : '']
+        .filter(Boolean)
+        .join('\n') || null,
     );
-  if (second.verdict === 'pass') {
-    addSystem('✓ Rebuild verified — PASS');
-  } else if (second.verdict === 'error') {
-    addSystem(
-      `Unverified — the reviewer call failed (${second.notes || 'no detail'}), so the build ships with that label.`,
-    );
-  } else {
-    addSystem("Shipped with the reviewer's remaining notes below (honest > perfect).");
-    useAgent.getState().setError(second.notes || 'Reviewer still saw problems.');
-  }
+  addSystem(
+    state === 'pass'
+      ? '✓ Rebuild verified — PASS'
+      : state === 'unverified'
+        ? `Unverified — reviewer failed (${second.notes || 'no detail'}).`
+        : `Not verified — reviewer still saw problems: ${second.notes}`,
+  );
 }
 
 /**
