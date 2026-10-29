@@ -74,7 +74,8 @@ Add a key in Settings (or `.env`) and the pinned muse models take over.
 
 ```bash
 npm run dev          # editor + the muse gate as Vite middleware
-npm run build        # tsc --noEmit && vite build && build-api
+npm run build        # tsc --noEmit && vite build (what Vercel runs)
+npm run build:all    # the app plus the function artifact
 npm run build-api    # bundle the deployed function into api/muse/[...path].js
 npm run check:api    # boot that bundle in a clean Node process, hit 3 routes
 npm run typecheck    # tsc --noEmit
@@ -192,7 +193,8 @@ Three gates keep this honest, and all three run in CI:
 | `npm run check:api`       | the built file **boots in a clean Node process** and answers `/health`, `/status` and `/keytest` with JSON |
 
 After changing anything in `server/`, run `npm run build-api` and commit the
-result.
+result. The platform build does **not** generate it: it is checked in, and
+`check:api:fresh` fails the moment it drifts from the source.
 
 ### "the proxy answered 500"
 

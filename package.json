@@ -6,7 +6,7 @@
   "description": "Museware — the canvas where the muse builds with you.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/build-api.mjs",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
@@ -19,7 +19,8 @@
     "check": "npm run typecheck && npm run lint && npm run check:tokens && npm test && npm run check:api:fresh && npm run build-api && npm run check:api",
     "build-api": "node scripts/build-api.mjs",
     "check:api": "node scripts/check-api.mjs",
-    "check:api:fresh": "node scripts/build-api.mjs --check"
+    "check:api:fresh": "node scripts/build-api.mjs --check",
+    "build:all": "npm run build && npm run build-api"
   },
   "dependencies": {
     "@dnd-kit/core": "6.1.0",
@@ -54,8 +55,5 @@
     "vite": "5.4.21",
     "vite-node": "2.1.9",
     "vitest": "2.1.9"
-  },
-  "engines": {
-    "node": "20.x"
   }
 }
