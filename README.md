@@ -33,7 +33,7 @@ Add a key in Settings (or `.env`) and the pinned muse models take over.
    fails validation, none of them land.
 4. **Blueprint before pixels.** The architect plans screens, ids, LOOK numbers
    and wiring; the approval card renders real thumbnails of the plan.
-5. **Verify before show.** A reviewer pass checks compact *and* expanded
+5. **Verify before show.** A reviewer pass checks compact _and_ expanded
    outlines. If it finds problems, the turn says so — it is allowed to fail.
 6. **A constrained vocabulary.** 30 components, 51 icon names, 12 colour keys.
    The agent cannot invent a widget, a token, or an icon.
@@ -55,20 +55,20 @@ Add a key in Settings (or `.env`) and the pinned muse models take over.
 
 ## What is in the box
 
-| Path | What it does |
-|---|---|
-| `src/types/` | The tree, tokens, the 30-component library, zod op + tool schemas |
-| `src/ops/` | Ids, tree utils, hydration/validation, the all-or-nothing applier |
-| `src/design/` | Museware's own three-tier token sheet, presets, CSS materialisation |
-| `src/canvas/` | Generated CSS per node, the 30-type renderer, drag/drop, the canvas |
-| `src/inspector/` | Schema-driven props, token-first styles, breakpoint overrides, actions |
-| `src/rail/` | The agent rail: messages, six card kinds, composer, stop |
-| `src/muse/` | Prompt pack, context builders, HTTP/SSE client, agent loop, cards, local engine |
-| `src/export/` | React + Vite codegen, zip, PWA manifest + service worker |
-| `src/persist/` | zod project schema, IndexedDB save/load, import/export |
-| `src/preview/` | Run mode: navigation, state, toasts, WHEN/THEN execution |
-| `server/museProxy.ts` | The **only** place the key is read (Vite middleware in dev) |
-| `api/muse/[...path].ts` | Production: one serverless file running the same handler |
+| Path                    | What it does                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `src/types/`            | The tree, tokens, the 30-component library, zod op + tool schemas               |
+| `src/ops/`              | Ids, tree utils, hydration/validation, the all-or-nothing applier               |
+| `src/design/`           | Museware's own three-tier token sheet, presets, CSS materialisation             |
+| `src/canvas/`           | Generated CSS per node, the 30-type renderer, drag/drop, the canvas             |
+| `src/inspector/`        | Schema-driven props, token-first styles, breakpoint overrides, actions          |
+| `src/rail/`             | The agent rail: messages, six card kinds, composer, stop                        |
+| `src/muse/`             | Prompt pack, context builders, HTTP/SSE client, agent loop, cards, local engine |
+| `src/export/`           | React + Vite codegen, zip, PWA manifest + service worker                        |
+| `src/persist/`          | zod project schema, IndexedDB save/load, import/export                          |
+| `src/preview/`          | Run mode: navigation, state, toasts, WHEN/THEN execution                        |
+| `server/museProxy.ts`   | The **only** place the key is read (Vite middleware in dev)                     |
+| `api/muse/[...path].ts` | Production: one serverless file running the same handler                        |
 
 ## Commands
 
@@ -113,22 +113,54 @@ vercel --prod     # production
 `vercel.json` points at `dist` and gives `api/muse/[...path].ts` 60 s. Set these
 in the project's environment (never in the repo):
 
-| Variable | What it does |
-|---|---|
-| `MUSE_API_KEY` | The house key. Without it `/status` reports `houseKey: "absent"` and the app asks visitors for their own. |
+| Variable         | What it does                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `MUSE_API_KEY`   | The house key. Without it `/status` reports `houseKey: "absent"` and the app asks visitors for their own.                 |
 | `MUSE_DAILY_CAP` | USD per UTC day, house key only. 80% warns, 100% hard-stops with `BUDGET_EXHAUSTED`. Visitors' own keys are never capped. |
-| `MUSE_LIVE` | `1` on the real deployment so `/status` reports `live: true`. CI and local dev leave it unset. |
-| `MUSE_BASE_URL` | `https://api.meta.ai` — `/v1` is appended once, never twice. |
-| `MUSE_REASONING` | `1` to send reasoning effort on the chat surface. |
+| `MUSE_LIVE`      | `1` on the real deployment so `/status` reports `live: true`. CI and local dev leave it unset.                            |
+| `MUSE_BASE_URL`  | `https://api.meta.ai` — `/v1` is appended once, never twice.                                                              |
+| `MUSE_REASONING` | `1` to send reasoning effort on the chat surface.                                                                         |
 
-What happens when the house key runs out, in order: the proxy answers
-`402 HOUSE_KEY_EXHAUSTED` (or `BUDGET_EXHAUSTED` at the cap), the rail parks the
-turn on a **key card**, the card asks for a key and retries the exact prompt you
-typed with your key. The demo engine is never entered automatically — it is a
+What happens when the house key cannot be used, in order: the proxy answers
+`402` with a typed `HOUSE_KEY_EXHAUSTED` (no credit), `HOUSE_KEY_REJECTED` (the
+key itself was refused) or `HOUSE_KEY_RATE_LIMITED` (throttled) — or
+`BUDGET_EXHAUSTED` when the daily cap is hit — the rail parks the turn on a
+**key card** that names which of the four it was, and the card asks for a key and
+retries the exact prompt you typed with your key. The demo engine is never entered automatically — it is a
 switch in Settings and the path CI uses.
 
 A visitor's key lives in `sessionStorage` and travels as `x-muse-key`; it never
 touches the bundle, the logs or the export.
+
+### The key is set but the app says it isn't — diagnose it in four steps
+
+Vercel bakes environment variables into a deployment at build time, so **adding
+`MUSE_API_KEY` does not change the build that is already serving traffic**. That
+one fact causes most "I added the key and it still doesn't work" reports.
+
+1. **Read the server's own verdict.** Open `/api/muse/status` on the exact domain
+   you are using. JSON means the function is deployed; HTML or a 404 means it is
+   not, and no key will fix that.
+2. **Read `houseKey` in that JSON.** It is one of:
+
+   | `houseKey`     | Meaning                                             | Fix                                                                               |
+   | -------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
+   | `absent`       | `MUSE_API_KEY` is not visible to this running build | Add it for **Production**, then **Redeploy** (untick "use existing build cache")  |
+   | `rejected`     | Meta refused the key (401/403)                      | The value is wrong, revoked, or quoted. `houseKeyDetail` holds Meta's exact words |
+   | `exhausted`    | Valid key, no credit/budget (402)                   | Top up, or raise `MUSE_DAILY_CAP`                                                 |
+   | `rate_limited` | Throttled right now (429)                           | Wait; a visitor's own key is not throttled                                        |
+   | `unverified`   | Key present, Meta unreachable from the server       | A network problem, not a key problem                                              |
+   | `ok`           | The server key works                                | Your failure is elsewhere                                                         |
+
+3. **Check the environment scope.** A variable ticked only for _Preview_ or
+   _Development_ is not in the production build. Tick **Production** (or all).
+4. **Clear a stale pasted key.** A key pasted in Settings rides as `x-muse-key`
+   and **overrides the server's key** for that tab. Settings → _Remove my key_.
+
+Settings also has **Test this key** and **Test the server key**: each makes one
+real 1-token call through `/api/muse/keytest` and prints Meta's actual status and
+body, so a typo (401) can be told apart from an empty wallet (402) without
+guessing. The app never says "out of budget" for a key that was rejected.
 
 ## Design system
 

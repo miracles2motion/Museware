@@ -41,7 +41,17 @@ export interface ModelRole {
   effort: string | null;
 }
 
-export type HouseKeyState = 'ok' | 'exhausted' | 'absent';
+/**
+ * Mirror of the server's honest vocabulary. A rejected key and an empty
+ * wallet are different sentences, so they are different states.
+ */
+export type HouseKeyState =
+  | 'ok'
+  | 'exhausted'
+  | 'rejected'
+  | 'rate_limited'
+  | 'unverified'
+  | 'absent';
 
 export interface BudgetState {
   capUsd: number | null;
@@ -75,6 +85,8 @@ export interface ServerStatus {
 export type MuseErrorCode =
   | 'no_key'
   | 'house_key_exhausted'
+  | 'house_key_rejected'
+  | 'house_key_rate_limited'
   | 'rate_limited'
   | 'unauthorized'
   | 'network'
@@ -237,6 +249,52 @@ export async function probeModel(model: string): Promise<{
       ok: false,
       ms: 0,
       detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+export interface KeyTest {
+  ok: boolean;
+  status: number;
+  state?: HouseKeyState;
+  source?: 'user' | 'house' | 'none';
+  model?: string;
+  ms?: number;
+  /** Meta's own words when it refused — never paraphrased. */
+  detail?: string;
+}
+
+/**
+ * Prove a key before trusting it: one 1-token call through the proxy with the
+ * key under test. Returns Meta's real status and body, so a typo can be told
+ * apart from a budget problem instead of being guessed at.
+ */
+export async function testKey(key?: string): Promise<KeyTest> {
+  const candidate = (key ?? '').trim() || getSessionKey();
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (candidate) h['x-muse-key'] = candidate;
+  try {
+    const res = await fetch('/api/muse/keytest', {
+      method: 'POST',
+      headers: h,
+      body: JSON.stringify({ key: candidate || undefined }),
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        detail: `The proxy answered ${res.status} instead of a verdict — /api/muse/keytest is not deployed.`,
+      };
+    }
+    return (await res.json()) as KeyTest;
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      detail:
+        err instanceof Error
+          ? `The request never left the browser: ${err.message}`
+          : String(err),
     };
   }
 }
@@ -447,12 +505,24 @@ export async function chatStream(opts: ChatOptions): Promise<ChatResult> {
           info.detail,
         );
       }
-      // The shared key is dead or out of budget. Never retry, never fall back
-      // to the demo engine: ask the visitor for their own key.
-      if (info.error === 'HOUSE_KEY_EXHAUSTED' || info.error === 'BUDGET_EXHAUSTED') {
+      // The shared key cannot be used. Never retry, never fall back to the demo
+      // engine: ask the visitor for their own key — but keep WHICH failure it
+      // was, so the card can say "rejected" instead of "out of budget".
+      if (
+        info.error === 'HOUSE_KEY_EXHAUSTED' ||
+        info.error === 'BUDGET_EXHAUSTED' ||
+        info.error === 'HOUSE_KEY_REJECTED' ||
+        info.error === 'HOUSE_KEY_RATE_LIMITED'
+      ) {
+        const code: MuseErrorCode =
+          info.error === 'HOUSE_KEY_REJECTED'
+            ? 'house_key_rejected'
+            : info.error === 'HOUSE_KEY_RATE_LIMITED'
+              ? 'house_key_rate_limited'
+              : 'house_key_exhausted';
         throw new MuseError(
-          'house_key_exhausted',
-          info.detail || 'The shared key is out of budget.',
+          code,
+          info.detail || 'The shared key cannot be used right now.',
           res.status,
           info.detail,
         );

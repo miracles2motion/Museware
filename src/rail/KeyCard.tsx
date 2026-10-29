@@ -4,6 +4,7 @@ import type { RailEntry } from '../types/tree';
 import { useAgent } from '../store/useAgent';
 import { useUi } from '../store/useUi';
 import { dismissKey, submitKey } from '../muse/cards';
+import { houseKeyLabel, houseKeySentence } from '../muse/connection';
 
 /**
  * The key card (§2b of the deploy plan). It exists for exactly one moment:
@@ -17,6 +18,7 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const houseKey = useAgent((s) => s.houseKey);
+  const houseKeyDetail = useAgent((s) => s.houseKeyDetail);
   const setModal = useUi((s) => s.setModal);
 
   const submit = async () => {
@@ -35,14 +37,10 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
         <span className="spread">
           <KeyRound size={14} /> <strong>Add your Meta API key</strong>
         </span>
-        <span className="railcard-sub mono">
-          {houseKey === 'absent' ? 'no house key' : 'house key spent'}
-        </span>
+        <span className="railcard-sub mono">{houseKeyLabel(houseKey)}</span>
       </div>
       <p className="prose-agent" style={{ fontSize: 12.5 }}>
-        {houseKey === 'absent'
-          ? 'This server has no shared key configured, so the muse models are switched off.'
-          : 'The shared demo key is out of budget for today. Your own key keeps the muse models running for you.'}
+        {houseKeySentence(houseKey, houseKeyDetail)}
       </p>
       {data.reason && data.reason !== '' && (
         <p className="field-hint" style={{ marginTop: -2 }}>

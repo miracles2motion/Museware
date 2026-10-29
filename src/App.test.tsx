@@ -160,6 +160,52 @@ describe('the shell actually renders', () => {
     expect(frame().getAttribute('data-bp')).toBe('compact');
   });
 
+  it('settings names a rejected key as rejected, and can test a key for real', async () => {
+    // A proxy that answers /status honestly and /keytest with a 401 verdict.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (String(url).includes('/keytest')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                ok: false,
+                status: 401,
+                state: 'rejected',
+                source: 'house',
+                detail: '{"error":"invalid api key"}',
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.reject(new Error('offline in tests'));
+      }),
+    );
+
+    await boot();
+    act(() => {
+      useAgent.setState({
+        houseKey: 'rejected',
+        houseKeyDetail: '{"error":"invalid api key"}',
+        configured: false,
+        demoMode: false,
+      });
+      useUi.getState().setModal('settingsOpen', true);
+    });
+
+    expect(screen.getByText(/rejected by Meta|Meta rejected/i)).toBeTruthy();
+    // The old lie: a refused key described as an empty wallet.
+    expect(screen.queryByText(/out of budget today/i)).toBeNull();
+
+    fireEvent.click(screen.getByText('Test the server key'));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(screen.getByText(/Meta did not accept it \(HTTP 401\)/)).toBeTruthy();
+    expect(screen.getByText(/invalid api key/)).toBeTruthy();
+  });
+
   it('settings says plainly that watch screens are out of scope', async () => {
     await boot();
     act(() => {

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MuseError, fetchStatus } from './client';
-import { diagnose } from './connection';
+import { MuseError, fetchStatus, type HouseKeyState } from './client';
+import { diagnose, houseKeyLabel, houseKeySentence } from './connection';
 import { recreateFromScreenshot } from './screenshot';
 import { useProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
@@ -164,5 +164,58 @@ describe('a dropped screenshot reports the true reason', () => {
     expect(system).toMatch(/local engine/i);
     expect(system).toMatch(/no vision/i);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('the shared key is described by what actually happened', () => {
+  const cases: Array<[string, HouseKeyState, RegExp]> = [
+    ['absent', 'absent', /MUSE_API_KEY is not set/],
+    ['rejected', 'rejected', /rejected/i],
+    ['exhausted', 'exhausted', /out of budget/i],
+    ['rate_limited', 'rate_limited', /rate-limiting/i],
+    ['unverified', 'unverified', /could not be checked/i],
+  ];
+
+  for (const [name, state, expected] of cases) {
+    it(`says the right thing about a ${name} key`, () => {
+      const sentence = houseKeySentence(state, null);
+      expect(sentence).toMatch(expected);
+      // The redeploy trap only belongs on the "absent" message.
+      if (state !== 'absent') expect(sentence).not.toMatch(/redeploy/i);
+    });
+  }
+
+  it("appends Meta's own words instead of paraphrasing them", () => {
+    const sentence = houseKeySentence('rejected', '{"error":"invalid api key"}');
+    expect(sentence).toContain('invalid api key');
+  });
+
+  it('never calls a rejected key "out of budget"', () => {
+    expect(houseKeySentence('rejected', null)).not.toMatch(/out of budget/i);
+    expect(houseKeySentence('rate_limited', null)).not.toMatch(/out of budget/i);
+  });
+
+  it('gives every state a short chip label', () => {
+    expect(houseKeyLabel('absent')).toBe('no house key');
+    expect(houseKeyLabel('rejected')).toBe('key rejected');
+    expect(houseKeyLabel('exhausted')).toBe('out of budget');
+    expect(houseKeyLabel('rate_limited')).toBe('rate limited');
+    expect(houseKeyLabel('unverified')).toBe('key unchecked');
+    expect(houseKeyLabel('ok')).toBe('house key ready');
+  });
+
+  it('maps the two new server codes to honest diagnoses that still offer a key', () => {
+    const rejected = diagnose(
+      new MuseError('house_key_rejected', 'refused', 402, 'invalid api key'),
+    );
+    expect(rejected.kind).toBe('rejected');
+    expect(rejected.offerKey).toBe(true);
+    expect(rejected.text).toMatch(/rejected by Meta/i);
+    expect(rejected.text).not.toMatch(/out of budget/i);
+
+    const throttled = diagnose(new MuseError('house_key_rate_limited', 'slow down', 402));
+    expect(throttled.kind).toBe('rate_limited');
+    expect(throttled.offerKey).toBe(true);
+    expect(throttled.text).toMatch(/rate-limiting/i);
   });
 });
