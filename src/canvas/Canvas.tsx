@@ -532,6 +532,10 @@ export function Canvas() {
                     cursor: 'grab',
                     zIndex: 4,
                   }}
+                  // A handle is a handle: grabbing it must not clear the
+                  // selection on the way back up, or the row you were about to
+                  // move disappears from the panel as you pick it up.
+                  onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     useDrag.getState().begin({
