@@ -263,6 +263,32 @@ zero references. Two rules keep it honest:
 `src/types/wire.test.ts` fails the build on any `$ref`, on a closed style or
 props map, and on a size blow-up — the three ways this bug comes back.
 
+### The public pages and the phone shell
+
+The landing page and the gallery are built from the same tokens as the editor and
+are held to a house style: one ground, one ink, one accent, no gradients, no
+glows, no eyebrow labels, no icon cards, no monospace outside a real code block.
+The hero, the batch section and the preset comparison each render a **real
+canvas** — the same nodes the editor produces — instead of a picture of an app:
+
+- the hero screen and the op batch are built by `applyOps` at module load, so the
+  section can print the exact JSON that produced the screen beside it;
+- the two preset previews are the same five nodes under two token sets, which is
+  the only honest way to show what a preset does. Because both carry their own
+  `materializeCss`, tokens are scoped to their preview (`CanvasStyle scope`), not
+  poured onto `:root`;
+- a preview taller than its frame is cut by a mask fade, never by a hard edge
+  through a card.
+
+The phone shell is its own composition, not the desktop bar squeezed:
+
+- one action in the top bar (the true "start" action) and everything else behind
+  one overflow button, because two primaries at two sizes is a bug;
+- a five-item tab bar with a 48px hit area, a filled accent pill for the active
+  item, and tokens for every part of it;
+- the muse rail is a docked row over the tab bar when closed and a sheet when
+  open, never a floating card over the canvas.
+
 ## Design system
 
 Museware's own chrome uses its own three-tier token architecture

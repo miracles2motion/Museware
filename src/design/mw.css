@@ -126,6 +126,10 @@
   --mw-on-danger: var(--mw-neutral-0);
   --mw-accent: var(--mw-indigo-500);
   --mw-accent-2: var(--mw-violet-500);
+  /* Press and hover states of the one accent, so no control has to lean on a
+     filter or a gradient to say "this is a button". */
+  --mw-accent-hover: var(--mw-indigo-400);
+  --mw-accent-press: var(--mw-indigo-600);
   --mw-accent-subtle: rgba(109, 92, 255, 0.16);
   --mw-accent-soft: rgba(109, 92, 255, 0.28);
   --mw-ok: var(--mw-green-400);
@@ -138,6 +142,10 @@
   --mw-active: rgba(232, 234, 240, 0.1);
   --mw-focus-ring: rgba(109, 92, 255, 0.6);
   --mw-canvas-bg: #0a0c11;
+  /* A phone or app preview is dark in both themes: the screen inside it is
+     rendered with the design's own dark tokens, so its frame must not turn
+     white around it. */
+  --mw-preview-bg: #0a0c11;
   --mw-dot: rgba(255, 255, 255, 0.07);
   --mw-canvas-bg-light: var(--mw-neutral-100);
   --mw-grid-light: rgba(14, 16, 21, 0.06);
@@ -146,9 +154,13 @@
   --mw-shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.25);
   --mw-shadow-e2: 0 8px 24px rgba(0, 0, 0, 0.35);
   --mw-shadow-e3: 0 24px 64px rgba(0, 0, 0, 0.45);
-  --mw-glow: 0 0 0 1px rgba(109, 92, 255, 0.35), 0 12px 32px rgba(109, 92, 255, 0.18);
-
-  --mw-gradient: linear-gradient(135deg, var(--mw-accent), var(--mw-accent-2));
+  /* Page furniture for the public landing and gallery: one pair of margins at
+     every width, and the type steps that carry the composition. */
+  --mw-page-margin: clamp(16px, 2.6vw, 44px);
+  --mw-page-max: 1560px;
+  --mw-display: clamp(38px, 6.4vw, 86px);
+  --mw-statement: clamp(22px, 2.4vw, 34px);
+  --mw-lead: clamp(16px, 1.15vw, 19px);
 
   /* Type roles */
   --mw-type-display: 700 var(--mw-fs-28) / 1.15 var(--mw-font-ui);
@@ -240,6 +252,8 @@
   --mw-on-danger: var(--mw-neutral-0);
   --mw-accent: var(--mw-indigo-600);
   --mw-accent-2: var(--mw-violet-600);
+  --mw-accent-hover: var(--mw-indigo-500);
+  --mw-accent-press: var(--mw-indigo-700);
   --mw-accent-subtle: rgba(91, 73, 245, 0.1);
   --mw-accent-soft: rgba(91, 73, 245, 0.2);
   --mw-ok: var(--mw-green-600);
@@ -252,12 +266,12 @@
   --mw-active: rgba(14, 16, 21, 0.09);
   --mw-focus-ring: rgba(91, 73, 245, 0.55);
   --mw-canvas-bg: var(--mw-neutral-100);
+  --mw-preview-bg: #0a0c11;
   --mw-dot: rgba(14, 16, 21, 0.08);
   --mw-scrim: rgba(14, 16, 21, 0.4);
   --mw-shadow-e1: 0 1px 2px rgba(14, 16, 21, 0.08);
   --mw-shadow-e2: 0 8px 24px rgba(14, 16, 21, 0.12);
   --mw-shadow-e3: 0 24px 64px rgba(14, 16, 21, 0.18);
-  --mw-glow: 0 0 0 1px rgba(91, 73, 245, 0.25), 0 12px 32px rgba(91, 73, 245, 0.12);
   --mw-scroll-thumb: var(--mw-neutral-300);
   --mw-scroll-thumb-hover: var(--mw-neutral-400);
   --mw-scroll-thumb-active: var(--mw-neutral-500);

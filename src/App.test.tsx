@@ -60,6 +60,48 @@ describe('the shell actually renders', () => {
     expect(screen.getAllByText(/Start building/).length).toBeGreaterThan(0);
   });
 
+  it('shows the landing page as one page: title, one action, no eyebrow', async () => {
+    await boot();
+    expect(document.querySelector('.hero-copy')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(
+      /Describe it\.\s*Watch it build\./,
+    );
+    // One primary action on the first screen, and the real canvas beside it.
+    const primary = document.querySelectorAll('.lp-hero .btn-accent');
+    expect(primary.length).toBe(1);
+    expect(document.querySelector('.lp-device .mw-app')).toBeTruthy();
+  });
+
+  it('renders the op batch the engine really applied, and the screen it built', async () => {
+    await boot();
+    const code = document.querySelector('.lp-code');
+    expect(code?.textContent).toMatch(/"op": "add"/);
+    // The batch screen is the engine's own render, not a picture.
+    expect(document.querySelector('.lp-batch-frame .mw-app')).toBeTruthy();
+    expect(screen.getByText('One batch, one undo.')).toBeTruthy();
+  });
+
+  it('gives every preview its own token scope, so no preview overwrites the next', async () => {
+    await boot();
+    const sheets = Array.from(document.querySelectorAll('style[data-museware-css]'));
+    // the hero, the op-batch screen, and one per preset
+    expect(sheets.length).toBe(4);
+    for (const sheet of sheets) {
+      // A scoped sheet starts with its selector, never with :root — otherwise
+      // the last stylesheet to load would repaint every other preview.
+      expect(sheet.textContent?.trimStart().startsWith(':root')).toBe(false);
+      expect(sheet.textContent).toMatch(/\[data-preview=/);
+    }
+  });
+
+  it('opens the phone menu as a sheet, and Escape closes it', async () => {
+    await boot();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(document.querySelector('.lp-sheet')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(document.querySelector('.lp-sheet')).toBeNull();
+  });
+
   it('the hero mini-canvas accepts real nodes before you sign up for anything', async () => {
     await boot();
     const addButton = screen.getAllByText('+ Button')[0];

@@ -6,10 +6,10 @@ import { materializeCss } from '../design/materialize';
 import { useResolvedCanvasTheme } from '../design/theme';
 import { RuntimeContext, type RuntimeApi } from '../preview/runtime';
 
-export function CanvasStyle({ doc }: { doc: ProjectDoc }) {
+export function CanvasStyle({ doc, scope }: { doc: ProjectDoc; scope?: string }) {
   const css = useMemo(
-    () => `${materializeCss(doc.tokens)}\n${generateFullCss(doc)}`,
-    [doc],
+    () => `${materializeCss(doc.tokens, scope)}\n${generateFullCss(doc)}`,
+    [doc, scope],
   );
   return <style data-museware-css>{css}</style>;
 }

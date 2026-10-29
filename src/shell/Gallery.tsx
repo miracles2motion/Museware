@@ -1,10 +1,47 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useProject, createProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { Button } from '../components/ui';
 import { TEMPLATES, buildScreensFor, type DemoTemplate } from '../muse/demo/build';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
+import type { ProjectDoc, ScreenDoc } from '../types/tree';
+
+/** The template's first screen, cropped into whatever the card gives it. */
+function Preview({
+  doc,
+  screen,
+  width,
+}: {
+  doc: ProjectDoc;
+  screen: ScreenDoc;
+  width: number;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.2);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(Math.min(w / width, 1));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [width]);
+  return (
+    <div className="gl-preview" ref={ref}>
+      <div style={{ width, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+        <CanvasStyle doc={doc} scope={`[data-gl="${screen.id}"]`} />
+        <div data-theme="dark" data-gl={screen.id}>
+          <NodeView doc={doc} screen={screen} mode="edit" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TemplateCard({
   template,
@@ -18,7 +55,7 @@ function TemplateCard({
     () => buildScreensFor(template, doc.tokens),
     [template, doc.tokens],
   );
-  const previewDoc = useMemo(
+  const previewDoc = useMemo<ProjectDoc>(
     () => ({
       ...createProject(template.projectName),
       tokens: doc.tokens,
@@ -27,53 +64,31 @@ function TemplateCard({
     }),
     [doc.tokens, screens, template.kind, template.projectName],
   );
-  const frameWidth = template.kind === 'web' ? 1280 : 390;
-  const frameHeight = template.kind === 'web' ? 760 : 820;
+  const width = template.kind === 'web' ? 1280 : 390;
   const first = screens[0];
 
   return (
-    <div
-      className="gallery-cell"
-      style={{ display: 'block', padding: 0, overflow: 'hidden' }}
-    >
-      <CanvasStyle doc={previewDoc} />
-      <div
-        style={{
-          height: 190,
-          background: 'var(--mw-surface-2)',
-          overflow: 'hidden',
-          position: 'relative',
-          borderBottom: '1px solid var(--mw-border)',
-        }}
-      >
-        <div
-          style={{
-            width: frameWidth,
-            height: frameHeight,
-            transform: `scale(${template.kind === 'web' ? 0.22 : 0.32})`,
-            transformOrigin: 'top left',
-            position: 'absolute',
-            left: template.kind === 'web' ? 0 : '50%',
-            marginLeft: template.kind === 'web' ? 0 : -frameWidth * 0.16,
-            top: 0,
-            pointerEvents: 'none',
-          }}
-        >
-          {first && <NodeView doc={previewDoc} screen={first} mode="edit" />}
-        </div>
+    <article className="gl-card">
+      <div className="gl-stage">
+        {first && <Preview doc={previewDoc} screen={first} width={width} />}
       </div>
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <strong style={{ fontSize: 14 }}>{template.projectName}</strong>
-        <span className="field-hint">
-          {template.label} · {template.kind === 'web' ? 'web · 1280' : 'app · 390'} ·{' '}
-          {screens.length} screen{screens.length === 1 ? '' : 's'} ·{' '}
-          {screens.map((s) => s.name).join(', ')}
-        </span>
-        <Button size="sm" variant="secondary" onClick={onOpen}>
-          Open in the editor <ArrowRight size={12} />
+      <div className="gl-meta">
+        <h3>{template.projectName}</h3>
+        <p className="gl-facts">
+          {template.label} · {template.kind === 'web' ? 'web, 1280 wide' : 'app, 390 wide'}{' '}
+          · {screens.length} screen{screens.length === 1 ? '' : 's'}
+        </p>
+        <p className="gl-screens">
+          {screens
+            .map((s) => s.name)
+            .slice(0, 4)
+            .join(' · ')}
+        </p>
+        <Button variant="secondary" onClick={onOpen}>
+          Open in the editor <ArrowRight size={14} />
         </Button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -114,33 +129,44 @@ export function Gallery() {
 
   return (
     <div className="gallery-wrap">
-      <div className="gallery-head">
-        <span className="brand" style={{ cursor: 'default' }}>
-          <span className="brand-mark">
-            <Sparkles size={14} />
-          </span>
-          <span className="brand-word">
-            museware<em>.</em>
-          </span>
-        </span>
-        <span className="eyebrow" style={{ marginLeft: 12 }}>
-          four real starting points
-        </span>
-        <span style={{ flex: 1 }} />
-        <Button size="sm" variant="ghost" onClick={() => setRoute('landing')}>
-          Back
-        </Button>
-        <Button size="sm" variant="primary" onClick={() => setRoute('editor')}>
-          The editor <ArrowRight size={12} />
-        </Button>
-      </div>
-      <section className="gallery-section">
-        <h2 className="title">Built from the same vocabulary</h2>
-        <p className="field-hint">
-          Each of these is 30 components, token styles and action chips — no images of apps.
-          Open one and drag anything.
+      <header className="lp-nav gl-nav">
+        <a
+          className="lp-brand"
+          href="#/"
+          onClick={(e) => {
+            e.preventDefault();
+            setRoute('landing');
+          }}
+        >
+          <Sparkles size={16} className="lp-brand-mark" />
+          {'museware'}
+          <span className="lp-brand-dot">.</span>
+        </a>
+        <nav className="lp-links" aria-label="Main">
+          <a
+            href="#/"
+            onClick={(e) => {
+              e.preventDefault();
+              setRoute('landing');
+            }}
+          >
+            Back
+          </a>
+        </nav>
+        <div className="lp-nav-actions">
+          <Button variant="accent" onClick={() => setRoute('editor')}>
+            Open the editor <ArrowRight size={14} />
+          </Button>
+        </div>
+      </header>
+
+      <section className="gl-section">
+        <h1 className="gl-title">Four real starting points</h1>
+        <p className="lp-sub">
+          Each one is built from the same thirty components, token styles and action chips —
+          no images of apps. Open one and drag anything; every op is undoable.
         </p>
-        <div className="gallery-row">
+        <div className="gl-grid">
           {TEMPLATES.map((template) => (
             <TemplateCard
               key={template.id}
@@ -150,6 +176,26 @@ export function Gallery() {
           ))}
         </div>
       </section>
+
+      <footer className="lp-footer">
+        <span>museware — presets, not templates</span>
+        <span className="lp-footer-right">
+          <button
+            type="button"
+            className="lp-footer-link"
+            onClick={() => setRoute('landing')}
+          >
+            Back to start
+          </button>
+          <button
+            type="button"
+            className="lp-footer-link"
+            onClick={() => setRoute('editor')}
+          >
+            Editor
+          </button>
+        </span>
+      </footer>
     </div>
   );
 }

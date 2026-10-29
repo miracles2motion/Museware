@@ -246,20 +246,7 @@ export function Canvas() {
     return (
       <div className="canvas-area">
         <div className="canvas-empty">
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 14,
-              display: 'grid',
-              placeItems: 'center',
-              background: 'var(--mw-gradient)',
-              boxShadow: 'var(--mw-glow)',
-              color: 'var(--mw-on-accent)',
-            }}
-          >
-            <Sparkles size={22} />
-          </div>
+          <Sparkles size={30} color="var(--mw-accent)" strokeWidth={1.5} />
           <h2>Describe the app, or start with a block.</h2>
           <p>Every change — yours or muse’s — is the same undoable op on the same tree.</p>
           <div className="empty-chips">
@@ -340,12 +327,16 @@ export function Canvas() {
             <span className="faint mono"> · {Math.round(fit.k * 100)}%</span>
           )}
         </button>
-        <Button size="sm" variant="ghost" onClick={() => setRunMode(true, screen.id)}>
-          ▶ Run
-        </Button>
-        <Button size="sm" variant="ghost" onClick={addScreen}>
-          <Plus size={13} /> Screen
-        </Button>
+        {/* On a phone the tab bar already owns Run and the overflow menu owns
+            Add screen, so these two would be the same action twice in 56px. */}
+        <span className="topbar-desktop" style={{ display: 'contents' }}>
+          <Button size="sm" variant="ghost" onClick={() => setRunMode(true, screen.id)}>
+            ▶ Run
+          </Button>
+          <Button size="sm" variant="ghost" onClick={addScreen}>
+            <Plus size={13} /> Screen
+          </Button>
+        </span>
       </div>
 
       <div
