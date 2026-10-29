@@ -1,17 +1,19 @@
 /**
- * Production: the entire server side of Museware is this one serverless file.
- * It is the same `handleMuse` the dev server mounts as Vite middleware, so
- * there is exactly one implementation of the key handling, the model matrix
- * and the SSE pipe. `process.env` is the only place the key can live; nothing
- * here (or in the client) ever serialises it.
+ * The one place the deployment's request handling is wired up.
  *
- * Vercel/Netlify Node runtime: rewrite `/api/muse/(.*)` to this file.
- * The catch-all keeps the sub-path (`/status`, `/health`, `/chat`, `/probe`,
- * `/keytest`, `/images`, `/segment`, `/transcribe`), which is how `handleMuse`
- * routes.
+ * It lives OUTSIDE `api/` on purpose. Vercel's builder compiles the file it
+ * finds in `api/`, but a relative import of a `.ts` file from another folder is
+ * exactly the kind of cross-directory reference that can survive the build and
+ * then fail at invocation with a bare `FUNCTION_INVOCATION_FAILED` — a 500 that
+ * blames nothing and explains nothing.
+ *
+ * Instead `scripts/build-api.mjs` bundles this file (and everything it needs)
+ * into `api/muse/[...path].js` before Vercel looks for functions. The emitted
+ * function has no relative imports at all: it can only fail if our own code
+ * throws, which the handler then reports in JSON.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { handleMuse, type MuseEnv } from '../../server/museProxy';
+import { handleMuse, type MuseEnv } from './museProxy';
 
 export default async function handler(
   req: IncomingMessage,

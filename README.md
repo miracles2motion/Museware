@@ -68,13 +68,15 @@ Add a key in Settings (or `.env`) and the pinned muse models take over.
 | `src/persist/`          | zod project schema, IndexedDB save/load, import/export                          |
 | `src/preview/`          | Run mode: navigation, state, toasts, WHEN/THEN execution                        |
 | `server/museProxy.ts`   | The **only** place the key is read (Vite middleware in dev)                     |
-| `api/muse/[...path].ts` | Production: one serverless file running the same handler                        |
+| `api/muse/[...path].js` | Production: one self-contained serverless file (built by `npm run build-api`)   |
 
 ## Commands
 
 ```bash
 npm run dev          # editor + the muse gate as Vite middleware
-npm run build        # tsc --noEmit && vite build
+npm run build        # tsc --noEmit && vite build && build-api
+npm run build-api    # bundle the deployed function into api/muse/[...path].js
+npm run check:api    # boot that bundle in a clean Node process, hit 3 routes
 npm run typecheck    # tsc --noEmit
 npm test             # vitest: op model, blueprint parse, demo trace, shell smoke,
                      # the proxy over real HTTP, the key card, wonder routing
@@ -84,7 +86,9 @@ npm run check:export # export a demo app, then typecheck + build it for real
 ```
 
 CI (`.github/workflows/ci.yml`) runs exactly these steps with **no key set**:
-`check` → `build` → `check:dist` → `check:export`. The suite never calls a real
+`check` → `build` → `check:dist` → `check:export`. `check` includes the API
+artifact gates, so a function that would fail to load on Vercel fails here
+first — in CI, with a stack, instead of at a visitor's cold start. The suite never calls a real
 model — the proxy tests run against a fake upstream on ephemeral ports, and the
 engine tests run the local engine.
 
@@ -110,7 +114,7 @@ vercel            # preview
 vercel --prod     # production
 ```
 
-`vercel.json` points at `dist` and gives `api/muse/[...path].ts` 60 s. Set these
+`vercel.json` points at `dist` and gives `api/muse/[...path].js` 60 s. Set these
 in the project's environment (never in the repo):
 
 | Variable         | What it does                                                                                                              |
@@ -164,6 +168,31 @@ Settings also has **Test this key** and **Test the server key**: each makes one
 real 1-token call through `/api/muse/keytest` and prints Meta's actual status and
 body, so a typo (401) can be told apart from an empty wallet (402) without
 guessing. The app never says "out of budget" for a key that was rejected.
+
+### The deployed function is a built artifact
+
+`api/muse/[...path].js` is **generated and committed**. It is a bundle of
+`server/vercelEntry.ts` (which imports `server/museProxy.ts` and
+`server/museBudget.ts`), produced by `npm run build-api` with esbuild.
+
+This is not decoration. The entry used to be
+`api/muse/[...path].ts` importing `../../server/museProxy`, and on Vercel that
+module was not present in the function's directory at runtime. The result was
+not a helpful error but `FUNCTION_INVOCATION_FAILED` at module load — an opaque
+500 at cold start, with no route, no detail and no clue. A relative import
+across directories cannot break the deployment if the bundle has no imports at
+all, which is why `scripts/build-api.mjs` fails the build if any survive.
+
+Three gates keep this honest, and all three run in CI:
+
+| Command                   | What it proves                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `npm run check:api:fresh` | the committed bundle matches `server/` — a stale artifact fails before it ships                            |
+| `npm run build-api`       | rebuild it                                                                                                 |
+| `npm run check:api`       | the built file **boots in a clean Node process** and answers `/health`, `/status` and `/keytest` with JSON |
+
+After changing anything in `server/`, run `npm run build-api` and commit the
+result.
 
 ### "the proxy answered 500"
 
