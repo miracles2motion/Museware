@@ -192,6 +192,30 @@ describe('a Heading gets type fields, not container fields', () => {
   });
 });
 
+describe('the screen can turn its own scrolling off', () => {
+  /*
+   * The property sheet defaults `scroll` to true and the CSS engine treats an
+   * ABSENT flag as scrolling, so a project saved before the toggle existed must
+   * show it ON — otherwise the panel says "Scrolls off" about a screen that
+   * scrolls, which is the same class of lie as a dead control.
+   */
+  it('shows Scrolls on for a screen whose document has no flag at all', () => {
+    seed('screen_1_root');
+    render(<Inspector />);
+    openTab('Props');
+    const toggle = screen.getByLabelText('Scrolls') as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+  });
+
+  it('turning it off writes a real setProps op', () => {
+    seed('screen_1_root');
+    render(<Inspector />);
+    openTab('Props');
+    fireEvent.click(screen.getByLabelText('Scrolls'));
+    expect(useProject.getState().doc.screens[0].root.props.scroll).toBe(false);
+  });
+});
+
 describe('the events tab tells the truth', () => {
   it('a Divider says it has no events, once', () => {
     seed('div_a');

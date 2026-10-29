@@ -169,6 +169,44 @@ describe('the screen layout prop is real', () => {
   });
 });
 
+describe('the screen owns its height when it scrolls', () => {
+  /*
+   * height:'match' compiles to 100%, and a percentage height against an
+   * INDEFINITE parent silently falls back to auto — which is exactly why
+   * match worked on width and did nothing on height.
+   */
+  it('a scrolling screen is exactly the frame and scrolls inside it', () => {
+    const rule = ruleFor(cssOf(node('s1', 'screen', {}, { scroll: true })), 's1');
+    expect(rule).toContain('height:100%');
+    expect(rule).toContain('overflow-y:auto');
+    expect(rule).not.toContain('min-height:100%');
+  });
+
+  it('a non-scrolling screen grows with the page instead', () => {
+    const rule = ruleFor(cssOf(node('s2', 'screen', {}, { scroll: false })), 's2');
+    expect(rule).toContain('min-height:100%');
+    // ';' keeps min-height:100% from counting as a height:100% hit.
+    expect(rule).not.toContain(';height:100%');
+    expect(rule).not.toContain('overflow-y:auto');
+  });
+
+  it('treats an absent flag as scrolling — the documented default', () => {
+    const rule = ruleFor(cssOf(node('s3', 'screen')), 's3');
+    expect(rule).toContain('height:100%');
+    expect(rule).toContain('overflow-y:auto');
+  });
+});
+
+describe('height match fills the screen a scrolling screen owns', () => {
+  it('compiles a match child to a full percentage of that definite height', () => {
+    const rule = ruleFor(
+      cssOf(node('col_a', 'col', { height: 'match' }, undefined, [])),
+      'col_a',
+    );
+    expect(rule).toContain('height:100%');
+  });
+});
+
 describe('unknown keys stay useful', () => {
   it('passes raw CSS through untouched', () => {
     const rule = ruleFor(cssOf(node('card_a', 'card', { marginTop: '9px' })), 'card_a');

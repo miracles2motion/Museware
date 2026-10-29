@@ -226,7 +226,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
   {
     key: 'height',
     label: 'Height',
-    hint: 'Match fills the parent, Hug fits the content, Fixed is an exact length.',
+    hint: 'Match fills a parent with a set height — a screen with Scrolls on qualifies. Hug fits the content. Fixed is an exact length.',
     kind: 'size',
     group: 'Size',
     scope: 'every',

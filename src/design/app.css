@@ -996,8 +996,14 @@ a {
   background: var(--openui-bg);
 }
 
+/*
+ * A definite height for the app wrapper is what makes height:'match' work at
+ * all: percentage heights need a set parent height, and min-height is not one.
+ * Scoped to the canvas viewport and the run frame, so the landing-page previews
+ * (which crop to their own box) keep their auto height.
+ */
 .frame-viewport .mw-app {
-  min-height: 100%;
+  height: 100%;
 }
 
 .canvas-empty {
@@ -2032,6 +2038,21 @@ a {
 
 .run-frame[data-kind='web'] {
   max-width: 1280px;
+}
+
+/*
+ * Run mode needs the same definite-height chain as the canvas, or the fix works
+ * while designing and vanishes while running. An app is the phone model — the
+ * frame IS the viewport, so it gets an exact height and the screen scrolls
+ * inside it. A web project keeps an auto height: the page grows and the stage
+ * scrolls, which is what a website does.
+ */
+.run-frame[data-kind='app'] {
+  height: 100%;
+}
+
+.run-frame .mw-app {
+  height: 100%;
 }
 
 .url-confirm {

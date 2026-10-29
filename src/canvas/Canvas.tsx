@@ -162,14 +162,20 @@ export function Canvas() {
     };
     refresh();
     const vp = viewportRef.current;
-    vp?.addEventListener('scroll', refresh, { passive: true });
+    /*
+     * Capture, because a scrolling SCREEN scrolls inside itself, not inside
+     * the viewport — an overlay pinned to a node would go stale the moment the
+     * content moved. Scroll does not bubble, but it is still delivered on the
+     * way down, so a capturing listener hears every descendant.
+     */
+    vp?.addEventListener('scroll', refresh, { passive: true, capture: true });
     window.addEventListener('resize', refresh);
     const observer = vp ? new ResizeObserver(refresh) : null;
     const app = vp?.querySelector('.mw-app');
     if (observer && app) observer.observe(app);
     return () => {
       cancelAnimationFrame(raf);
-      vp?.removeEventListener('scroll', refresh);
+      vp?.removeEventListener('scroll', refresh, { capture: true });
       window.removeEventListener('resize', refresh);
       observer?.disconnect();
     };

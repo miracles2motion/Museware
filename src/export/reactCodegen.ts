@@ -479,7 +479,7 @@ if ('serviceWorker' in navigator) {
   files['src/tokens.css'] =
     `${materializeCss(doc.tokens)}\n:root{color-scheme:light dark}\n[data-theme="dark"],html.dark{color-scheme:dark}\n`;
   files['src/nodes.css'] =
-    `/* Generated from the Museware tree — do not hand-edit. */\n.mw-app{min-height:100vh;margin:0 auto;width:100%;max-width:${doc.kind === 'web' ? '1280px' : '480px'};background:var(--openui-bg);color:var(--openui-text-primary);container-type:inline-size;container-name:mw;font-family:var(--font-body)}\n${generateFullCss(doc)}\n`;
+    `/* Generated from the Museware tree — do not hand-edit. */\n.mw-app{${doc.kind === 'web' ? 'min-height:100vh' : 'height:100vh;overflow-y:auto'};margin:0 auto;width:100%;max-width:${doc.kind === 'web' ? '1280px' : '480px'};background:var(--openui-bg);color:var(--openui-text-primary);container-type:inline-size;container-name:mw;font-family:var(--font-body)}\n${generateFullCss(doc)}\n`;
   files['src/app.css'] =
     `.hero-title{font-family:var(--font-heading);font-size:clamp(24px,4cqw + 14px,40px);font-weight:700;line-height:1.12;letter-spacing:-0.02em;margin:0;color:inherit}\n.hero-sub{font-size:15px;line-height:1.55;margin:0;opacity:.9;max-width:560px}\n.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--openui-elevated);color:var(--openui-text-primary);border:1px solid var(--openui-border-default);border-radius:12px;padding:10px 16px;font-size:13px;box-shadow:0 12px 32px rgba(0,0,0,.22);z-index:50}\nbody{margin:0}\n`;
 

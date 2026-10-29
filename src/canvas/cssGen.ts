@@ -36,8 +36,24 @@ function baseDeclarations(node: ComponentNode): string[] {
         'display:flex',
         `flex-direction:${p.layout === 'flex-row' ? 'row' : 'column'}`,
         'width:100%',
-        'min-height:100%',
       );
+      /*
+       * A scrolling screen OWNS its height: exactly the frame, content
+       * scrolls inside it. min-height alone is INDEFINITE, and a percentage
+       * height against an indefinite parent falls back to auto — that is why
+       * height:'match' on a child silently did nothing while width:'match'
+       * worked (widths chain off definite widths).
+       *
+       * Undefined counts as scrolling, which is the documented default, so a
+       * project saved before the toggle existed keeps the phone model. Scrolls
+       * off is the web-page model: the screen grows and the page scrolls
+       * instead — and its children cannot height:match, by design.
+       */
+      if (p.scroll !== false && p.scroll !== 'false') {
+        d.push('height:100%', 'overflow-y:auto');
+      } else {
+        d.push('min-height:100%');
+      }
       break;
     case 'row':
       d.push('display:flex', 'flex-direction:row', 'align-items:stretch');

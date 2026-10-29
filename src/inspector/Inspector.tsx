@@ -300,7 +300,14 @@ export function Inspector() {
               </div>
               {(info?.props || []).map((def) => {
                 const raw = node.props[def.key];
-                const value = raw === undefined || raw === null ? '' : raw;
+                /*
+                 * A prop the document does not carry behaves as the sheet's
+                 * DEFAULT, not as empty — an older project has no `scroll`
+                 * prop, and showing the toggle off while the screen scrolls
+                 * would be the panel lying about the canvas.
+                 */
+                const value =
+                  raw === undefined || raw === null ? (def.defaultValue ?? '') : raw;
                 if (def.kind === 'actions') {
                   return (
                     <p className="field-hint" key={def.key}>

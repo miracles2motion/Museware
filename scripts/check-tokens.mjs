@@ -7,6 +7,10 @@
  *   2. Every ink-on-surface pair in both themes clears WCAG AA (4.5:1), and
  *      the accent's paired text clears it too. The table in the spec is the
  *      sketch; this script is the truth.
+ *   3. The definite-height chain survives. height:'match' compiles to 100%,
+ *      and a percentage height against an INDEFINITE parent quietly falls back
+ *      to auto — which is how match worked on width and did nothing on height
+ *      for three passes without a single failing test.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -230,6 +234,40 @@ for (const [themeName, map] of [
   }
 }
 
+// ---- 3. the definite-height chain (height: match) -------------------------
+/*
+ * Three boxes have to agree before match-parent means anything:
+ *   .frame-viewport / .run-frame  →  a SET height
+ *   .mw-app                       →  100% of it (not min-height — that is not a height)
+ *   screen (cssGen)               →  height:100% + overflow-y:auto when it scrolls
+ * Break any link and the child's 100% resolves to auto again, silently.
+ */
+const HEIGHT_CHAIN = [
+  ['.frame-viewport .mw-app', 'the canvas app wrapper'],
+  ['.run-frame .mw-app', 'the run-mode app wrapper'],
+  ['.run-frame[data-kind=\'app\']', 'the run-mode app frame'],
+];
+
+/** A real `height: 100%` declaration — min-height is NOT one. */
+function hasExactHeight(block) {
+  return block
+    .split(';')
+    .map((decl) => decl.replace(/\/\*[\s\S]*?\*\//g, '').trim())
+    .some((decl) => /^height\s*:\s*100%$/.test(decl));
+}
+
+for (const [selector, what] of HEIGHT_CHAIN) {
+  const block = ruleFor(selector);
+  if (block === null) {
+    problems.push(`${CSS_FILE}: ${selector} is missing — ${what} has no definite height`);
+  } else if (!hasExactHeight(block)) {
+    problems.push(
+      `${CSS_FILE}: ${selector} must be height: 100% — ${what} with an auto/min height is ` +
+        "indefinite, so a child's height: match resolves to auto and does nothing",
+    );
+  }
+}
+
 if (problems.length) {
   console.error(`✖ token check failed (${problems.length})`);
   for (const problem of problems) console.error(`  · ${problem}`);
@@ -244,3 +282,4 @@ console.log(
 console.log(
   `✓ contrast: ${report.length} pairs pass AA; tightest is ${worst[1]} on ${worst[2]} (${worst[0]}) at ${worst[3].toFixed(2)}:1`,
 );
+console.log(`✓ height chain: ${HEIGHT_CHAIN.length} wrappers keep height: match definable`);

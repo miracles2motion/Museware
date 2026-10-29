@@ -121,7 +121,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     container: true,
     icon: 'grid',
     hint: 'The page itself. Its children stack top-to-bottom unless Layout says otherwise.',
-    defaultProps: { layout: 'flex-col' },
+    defaultProps: { layout: 'flex-col', scroll: true },
     styles: {
       padding: 'var(--pad-screen)',
       background: 'var(--openui-bg)',
@@ -136,6 +136,14 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'Content',
         'Vertical stacks like a Column; horizontal lays its sections out in a Row.',
         { options: ['flex-col', 'flex-row'] },
+      ),
+      p(
+        'scroll',
+        'Scrolls',
+        'toggle',
+        'Behavior',
+        'On: the screen is exactly the frame and scrolls inside it, so a child can Height: Match it. Off: the screen grows with its content and the page scrolls — the web-page model, but nothing inside can fill the screen.',
+        { defaultValue: true },
       ),
     ],
   },
