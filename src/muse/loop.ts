@@ -1,4 +1,5 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { editCanvasWire, readCanvasWire } from '../types/wire';
 import { TOOL_NAMES, toolSchemas, type ToolName } from '../types/tools';
 import { useAgent } from '../store/useAgent';
 import { useProject } from '../store/useProject';
@@ -39,16 +40,80 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   ask_choice:
     'Ask the user to pick 1 of 2–4 whole directions. Each option has a label and up to 4 hex swatches. The card leaves on tap.',
   edit_canvas:
-    'Apply a batch of ops to the canvas. ALL adds for a screen in ONE call, then ONE styling call. All-or-nothing; ≤40 ops.',
+    'Apply a batch of ops to the canvas. ALL adds for a screen in ONE call, then ONE styling call. All-or-nothing; ≤40 ops. ' +
+    'Nest at most 3 levels inside one add node; deeper structure is more add ops with parentId in the same call. ' +
+    'Events ride on setProps: {events:{tap:[{type:"navigate",to:"home"}]}} — types navigate, setState, toggle, toast, openUrl, when.',
   finish: 'End the turn with a two-sentence user-facing summary.',
 };
 
-const TOOL_DEFS = TOOL_NAMES.map((name) => ({
+/**
+ * The wire schema for a tool. `edit_canvas` and `read_canvas` use bounded
+ * mirrors from `src/types/wire.ts`, because the truthful schemas in
+ * `src/types/tools.ts` are recursive and Meta answers a recursive schema with
+ * `400 Recursive JSON schemas are not currently supported` — which killed every
+ * turn before the first token.
+ */
+function wireSchema(name: ToolName) {
+  if (name === 'edit_canvas') return editCanvasWire;
+  if (name === 'read_canvas') return readCanvasWire;
+  return toolSchemas[name];
+}
+
+/**
+ * Cosmetic but load-bearing clean-up of the emitted JSON Schema:
+ *
+ * - `additionalProperties: {}` (what `z.record(z.unknown())` becomes) means
+ *   "anything", and `true` says the same thing in a form every validator
+ *   accepts.
+ * - an empty `required` list carries no information and is dropped, because a
+ *   schema nobody can read is a schema the model guesses at.
+ *
+ * Emptied containers are removed bottom-up, so a parent never keeps a key that
+ * points at nothing.
+ */
+function tighten(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(tighten);
+  if (!node || typeof node !== 'object') return node;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    const next = tighten(value);
+    // An empty `properties` stays: a no-argument tool still reads as an object.
+    if (key === 'required' && Array.isArray(next) && next.length === 0) continue;
+    if (key === 'additionalProperties' && next && typeof next === 'object') {
+      if (Object.keys(next as object).length === 0) {
+        out[key] = true;
+        continue;
+      }
+    }
+    out[key] = next;
+  }
+  return out;
+}
+
+/**
+ * `$refStrategy: 'none'` inlines every sub-schema. Without it zod hoists any
+ * schema object used twice (a node appears in `add`, `addScreen` and
+ * `saveComponent`) into `definitions` and points at it with `$ref` — and Meta
+ * answers a `$ref` with 400 "Recursive JSON schemas are not currently
+ * supported", which killed every turn before the first token.
+ */
+export function toolParameters(name: ToolName): Record<string, unknown> {
+  const raw = zodToJsonSchema(wireSchema(name), {
+    target: 'openApi3',
+    $refStrategy: 'none',
+  }) as Record<string, unknown>;
+  // Belt and braces: never send a reference to anywhere.
+  delete raw.$schema;
+  delete raw.definitions;
+  return tighten(raw) as Record<string, unknown>;
+}
+
+export const TOOL_DEFS = TOOL_NAMES.map((name) => ({
   type: 'function' as const,
   function: {
     name,
     description: TOOL_DESCRIPTIONS[name],
-    parameters: zodToJsonSchema(toolSchemas[name], { target: 'openApi3' }),
+    parameters: toolParameters(name),
   },
 }));
 

@@ -232,6 +232,37 @@ If `/health` is fine and `/status` 500s, the `detail` on screen names the failin
 route. If `/health` also 500s, the function failed to load — check the build log
 and the Functions tab for `api/muse/[...path]`.
 
+### The tool schemas are not the validators
+
+`src/types/tools.ts` describes the canvas truthfully, and a canvas is a tree: a
+node has children, a style can carry responsive overrides, a `when` action can
+carry more actions. That is right for validation and fatal for the _wire_
+schema, because Meta answers a `$ref` with
+
+```
+400 {"message":"Recursive JSON schemas are not currently supported"}
+```
+
+and refuses the whole turn before the first token. The request looks like a key
+failure from the outside, so this one cost a deploy.
+
+`src/types/wire.ts` therefore holds bounded mirrors — nesting stops after three
+levels inside one `add`, actions are not described at all (they travel through
+`setProps`, §4.2) — and `toolParameters()` emits them with
+`$refStrategy: 'none'`. The result is ~19 kB of schema for all six tools with
+zero references. Two rules keep it honest:
+
+- **the validators stay authoritative.** `src/ops/apply.ts` still parses every
+  op with `opSchema`; the wire schema is guidance the model reads, never the
+  gate. Anything the wire omits (deeper trees) is written as further ops in the
+  same batch.
+- **never close a schema the canvas needs open.** A style map emits
+  `additionalProperties: <scalar>`, props emit `true`; a `false` there would
+  make `background` or a `tap` handler unwritable under constrained decoding.
+
+`src/types/wire.test.ts` fails the build on any `$ref`, on a closed style or
+props map, and on a size blow-up — the three ways this bug comes back.
+
 ## Design system
 
 Museware's own chrome uses its own three-tier token architecture
