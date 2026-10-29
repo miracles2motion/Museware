@@ -57,6 +57,26 @@ for (const file of files) {
     problems.push(`${rel(file)}: contains the dev server address`);
 }
 
+// The deployed serverless bundle ships too, so it gets the same secret scan.
+// It legitimately contains the variable NAME (it reads process.env), never a
+// value — the patterns above only match assigned literals.
+const API_BUNDLE = join(process.cwd(), 'api', 'muse', '[...path].js');
+if (!existsSync(API_BUNDLE)) {
+  problems.push(
+    'api/muse/[...path].js is missing — the deployed function is a built artifact (npm run build-api)',
+  );
+} else {
+  const text = readFileSync(API_BUNDLE, 'utf8');
+  for (const [pattern, label] of SECRET_PATTERNS) {
+    if (pattern.test(text)) problems.push(`api/muse/[...path].js: contains ${label}`);
+  }
+  for (const [, path] of text.matchAll(/(?:from|require\()\s*['"](\.[^'"]+)['"]/g)) {
+    problems.push(
+      `api/muse/[...path].js: relative import ${path} — the function must be self-contained`,
+    );
+  }
+}
+
 // The proxy path must still be present (that is how the app talks to the key).
 const js = files
   .filter((f) => f.endsWith('.js'))
