@@ -6,7 +6,7 @@ import { loadProject, saveProjectSoon } from './persist/save';
 import { parseProjectDoc } from './persist/schema';
 import { fetchStatus } from './muse/client';
 import { offerKey } from './muse/loop';
-import { diagnose } from './muse/connection';
+import { diagnose, houseKeySentence } from './muse/connection';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
 import { Landing } from './shell/Landing';
@@ -52,7 +52,10 @@ export default function App() {
         // absent house key (ask for yours — never fake it with the local engine),
         // or a dev machine with no key at all, where the local engine is the
         // documented offline path and CI's only path.
-        const houseOk = status.houseKey === 'ok';
+        // ok and unverified are both usable: unverified means the key is set
+        // but we could not reach Meta to check it, so we let the real call
+        // report its own failure instead of blocking on a guess.
+        const houseOk = status.houseKey === 'ok' || status.houseKey === 'unverified';
         const usable = Boolean(userKey || (houseOk && status.configured));
         const devNoKey = !usable && import.meta.env.DEV;
         useAgent.getState().setStatus({
@@ -72,12 +75,8 @@ export default function App() {
             text: 'No key on this machine — local engine on. Add one in Settings for the real models.',
           });
         } else if (!usable) {
-          offerKey(
-            status.houseKey === 'exhausted'
-              ? 'The shared demo key is out of budget for today.'
-              : 'This deployment has no shared key configured.',
-            '',
-          );
+          // One sentence, naming the actual cause — never a guess.
+          offerKey(houseKeySentence(status.houseKey, status.houseKeyDetail), '');
         }
       } catch (err) {
         // The proxy is unreachable (plain `vite` with no middleware, a static

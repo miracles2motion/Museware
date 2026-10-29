@@ -4,7 +4,8 @@ import { Modal, Button } from '../../components/ui';
 import { useProject, createProject } from '../../store/useProject';
 import { useUi } from '../../store/useUi';
 import { useAgent } from '../../store/useAgent';
-import { fetchStatus } from '../../muse/client';
+import { fetchStatus, testKey, type KeyTest } from '../../muse/client';
+import { houseKeyLabel, houseKeySentence } from '../../muse/connection';
 import { probeTextRoles } from '../../muse/probe';
 import { getSessionKey, setSessionKey, hasSessionKey } from '../../muse/sessionKey';
 import { wipeProject, readThemeFile } from '../../persist/save';
@@ -34,15 +35,25 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const contributorMode = useAgent((s) => s.contributorMode);
   const [key, setKey] = useState(getSessionKey());
   const [reveal, setReveal] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [verdict, setVerdict] = useState<KeyTest | null>(null);
+  const houseKeyDetail = useAgent((s) => s.houseKeyDetail);
   const themeFile = useRef<HTMLInputElement>(null);
 
   const refreshStatus = async () => {
     const agent = useAgent.getState();
     try {
       const status = await fetchStatus();
+      // Everything the status endpoint knows, not just the models: pressing
+      // "Re-check" used to leave a stale "no shared key" on screen forever.
+      const houseOk = status.houseKey === 'ok' || status.houseKey === 'unverified';
       agent.setStatus({
-        configured: status.configured,
+        configured: hasSessionKey() || (houseOk && status.configured),
         demoMode: !status.configured && !hasSessionKey(),
+        houseKey: status.houseKey,
+        houseKeyDetail: status.houseKeyDetail ?? null,
+        budget: status.budget ?? null,
+        live: Boolean(status.live),
         models: {
           builder: status.models.builder,
           architect: status.models.architect,
@@ -133,7 +144,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 ? 'local engine'
                 : configured
                   ? 'using the house key'
-                  : 'no key'}
+                  : houseKeyLabel(houseKey)}
           </span>
         </div>
         <p className="field-hint" style={{ marginTop: -2 }}>
@@ -143,11 +154,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               ? 'The local engine is on: the real pipeline, no model calls, no cost. Turn it off to use the muse models.'
               : configured
                 ? 'Using the house key — the owner’s shared key on this server. Nothing about it reaches your browser.'
-                : houseKey === 'exhausted'
-                  ? 'The house key is out of budget today. Paste your own key below to keep the muse models running.'
-                  : houseKey === 'absent'
-                    ? 'This server has no shared key. Paste your own to switch the muse models on.'
-                    : 'No key yet.'}
+                : houseKeySentence(houseKey, houseKeyDetail)}
           {budget?.capUsd
             ? ` House budget today: $${budget.spentUsd.toFixed(3)} of $${budget.capUsd}.`
             : ''}
@@ -171,6 +178,80 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {reveal ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
         </div>
+        <div className="token-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={testing}
+            onClick={async () => {
+              setTesting(true);
+              try {
+                const result = await testKey(key);
+                setVerdict(result);
+                if (result.ok) {
+                  toast('That key works — Muse answered.', 'ok');
+                }
+              } finally {
+                setTesting(false);
+              }
+            }}
+          >
+            <KeyRound size={12} /> {testing ? 'Asking Meta…' : 'Test this key'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={testing}
+            onClick={async () => {
+              setTesting(true);
+              try {
+                const result = await testKey();
+                setVerdict(result);
+                await refreshStatus();
+              } finally {
+                setTesting(false);
+              }
+            }}
+          >
+            <RefreshCw size={12} /> Test the server key
+          </Button>
+        </div>
+        {verdict && (
+          <div
+            className="proxy-problem"
+            role="status"
+            data-tone={verdict.ok ? 'ok' : 'warn'}
+          >
+            <strong>
+              {verdict.ok
+                ? 'Meta accepted the key'
+                : `Meta did not accept it${verdict.status ? ` (HTTP ${verdict.status})` : ''}`}
+            </strong>
+            <p className="field-hint">
+              {verdict.ok
+                ? `A real 1-token call through ${verdict.model || 'the pinned chat model'} answered in ${
+                    verdict.ms ?? 0
+                  } ms, using the ${verdict.source === 'user' ? 'key you pasted' : 'server key'}.`
+                : verdict.detail || 'No detail came back.'}
+            </p>
+            {!verdict.ok && verdict.status === 401 && (
+              <p className="field-hint">
+                A 401 means the key itself was refused — wrong value, revoked, or a missing{' '}
+                <span className="mono">Authorization</span> header upstream.
+              </p>
+            )}
+            {!verdict.ok && verdict.status === 402 && (
+              <p className="field-hint">
+                A 402 means the key is valid but has no credit or budget left.
+              </p>
+            )}
+            {!verdict.ok && verdict.status === 429 && (
+              <p className="field-hint">
+                A 429 means throttling, not a bad key — wait and try again.
+              </p>
+            )}
+          </div>
+        )}
         <p className="field-hint">
           Dev uses the Vite proxy at <span className="mono">/api/muse</span>; production
           ships one serverless file. The browser bundle never contains the key — CI greps

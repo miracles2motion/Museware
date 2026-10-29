@@ -560,6 +560,30 @@ function wrapError(err: unknown, userText: string) {
     offerKey(`The shared key for this demo is out of budget. ${message}`, userText);
     return;
   }
+  if (code === 'house_key_rejected') {
+    // A refused key is NOT a spent budget. Say which one it was.
+    useAgent.getState().setStatus({
+      configured: false,
+      demoMode: false,
+      houseKey: 'rejected',
+      statusError: message,
+    });
+    offerKey(
+      `The server's shared key was rejected by Meta — not a budget problem, the key itself. ${message}`,
+      userText,
+    );
+    return;
+  }
+  if (code === 'house_key_rate_limited') {
+    useAgent.getState().setStatus({
+      configured: false,
+      demoMode: false,
+      houseKey: 'rate_limited',
+      statusError: message,
+    });
+    offerKey(`Meta is rate-limiting the shared key right now. ${message}`, userText);
+    return;
+  }
   if (code === 'no_key') {
     useAgent
       .getState()

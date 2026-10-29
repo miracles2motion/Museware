@@ -3,6 +3,7 @@ import { Check, KeyRound, Loader2, X } from 'lucide-react';
 import { Modal, Button } from '../../components/ui';
 import { useUi } from '../../store/useUi';
 import { useAgent } from '../../store/useAgent';
+import { houseKeyLabel } from '../../muse/connection';
 import { fetchStatus } from '../../muse/client';
 import { getSessionKey, setSessionKey } from '../../muse/sessionKey';
 import { MEDIA_ROLES, TEXT_ROLES, probeTextRoles } from '../../muse/probe';
@@ -177,8 +178,8 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
                       : probe.detail || `failed${probe.status ? ` (${probe.status})` : ''}`
                     : probing
                       ? 'pinging…'
-                      : houseKey === 'exhausted'
-                        ? 'the house key is out of budget'
+                      : houseKey !== 'ok' && houseKey !== 'unverified'
+                        ? houseKeyLabel(houseKey)
                         : 'not probed yet'}
                 </span>
               </div>

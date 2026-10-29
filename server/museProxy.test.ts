@@ -145,14 +145,47 @@ describe('key resolution', () => {
     expect(upstream.calls.length).toBe(afterFirst);
   });
 
-  it('reports exhausted when the house key is rejected', async () => {
+  it('names a rejected key "rejected", not "out of budget"', async () => {
     env.MUSE_API_KEY = 'dead-key';
     upstream.status = 401;
     upstream.body = '{"error":"invalid api key"}';
     const { json } = await status();
-    expect(json.houseKey).toBe('exhausted');
+    expect(json.houseKey).toBe('rejected');
     expect(json.configured).toBe(false);
     expect(String(json.houseKeyDetail)).toContain('invalid api key');
+  });
+
+  it('distinguishes a spent key (402) from a revoked one (403)', async () => {
+    env.MUSE_API_KEY = 'spent-key';
+    upstream.status = 402;
+    upstream.body = '{"error":"insufficient_quota"}';
+    expect((await status()).json.houseKey).toBe('exhausted');
+
+    resetHouseState();
+    env.MUSE_API_KEY = 'revoked-key';
+    upstream.status = 403;
+    upstream.body = '{"error":"forbidden"}';
+    expect((await status()).json.houseKey).toBe('rejected');
+  });
+
+  it('distinguishes rate limiting (429) from both', async () => {
+    env.MUSE_API_KEY = 'busy-key';
+    upstream.status = 429;
+    upstream.body = '{"error":"slow down"}';
+    const { json } = await status();
+    expect(json.houseKey).toBe('rate_limited');
+    expect(json.configured).toBe(false);
+  });
+
+  it('keeps a broken network from being reported as a working key', async () => {
+    env.MUSE_API_KEY = 'house-key';
+    // A port nothing listens on: the key is present, Meta is unreachable.
+    env.MUSE_BASE_URL = 'http://127.0.0.1:1/v1';
+    const { json } = await status();
+    // Present but unproven — not "ok", and usable so the real call can speak.
+    expect(json.houseKey).toBe('unverified');
+    expect(json.configured).toBe(true);
+    expect(String(json.houseKeyDetail)).toMatch(/could not reach/i);
   });
 
   it('a user key makes the request usable even with no house key', async () => {
@@ -163,25 +196,51 @@ describe('key resolution', () => {
 });
 
 describe('house key failure is typed, user key failure is verbatim', () => {
-  it('turns a dead house key into 402 HOUSE_KEY_EXHAUSTED', async () => {
+  it('turns a rejected house key into a typed 402 that names rejection', async () => {
     env.MUSE_API_KEY = 'dead-key';
     upstream.status = 401;
     upstream.body = '{"error":"invalid api key"}';
     const res = await chat();
     expect(res.status).toBe(402);
     const body = JSON.parse(res.text) as Record<string, unknown>;
-    expect(body.error).toBe('HOUSE_KEY_EXHAUSTED');
+    expect(body.error).toBe('HOUSE_KEY_REJECTED');
     expect(body.status).toBe(401);
-    expect(String(body.detail)).toMatch(/add your own/i);
+    expect(String(body.detail)).toMatch(/your own key will work/i);
   });
 
-  it('turns a rate-limited house key into the same typed 402', async () => {
+  it('keeps a genuinely spent house key as HOUSE_KEY_EXHAUSTED', async () => {
+    env.MUSE_API_KEY = 'spent-key';
+    upstream.status = 402;
+    upstream.body = '{"error":"insufficient_quota"}';
+    const res = await chat();
+    expect(res.status).toBe(402);
+    const body = JSON.parse(res.text) as Record<string, unknown>;
+    expect(body.error).toBe('HOUSE_KEY_EXHAUSTED');
+    expect(String(body.detail)).toMatch(/out of budget/i);
+  });
+
+  it('turns a rate-limited house key into its own typed 402', async () => {
     env.MUSE_API_KEY = 'busy-key';
     upstream.status = 429;
     upstream.body = '{"error":"quota"}';
     const res = await chat();
     expect(res.status).toBe(402);
-    expect((JSON.parse(res.text) as { error: string }).error).toBe('HOUSE_KEY_EXHAUSTED');
+    const body = JSON.parse(res.text) as { error: string; detail: string; houseKey: string };
+    expect(body.error).toBe('HOUSE_KEY_RATE_LIMITED');
+    expect(body.houseKey).toBe('rate_limited');
+    expect(body.detail).toMatch(/rate-limiting/i);
+  });
+
+  it('never calls a rejected house key "out of budget"', async () => {
+    env.MUSE_API_KEY = 'dead-key';
+    upstream.status = 401;
+    upstream.body = '{"error":"invalid api key"}';
+    const res = await chat();
+    expect(res.status).toBe(402);
+    const body = JSON.parse(res.text) as { error: string; detail: string };
+    expect(body.error).toBe('HOUSE_KEY_REJECTED');
+    expect(body.detail).toMatch(/rejected/i);
+    expect(body.detail).not.toMatch(/out of budget/i);
   });
 
   it('passes a user key failure through with its own status and text', async () => {
@@ -249,5 +308,68 @@ describe('no key at all', () => {
     const res = await chat();
     expect(res.status).toBe(503);
     expect((JSON.parse(res.text) as { error: string }).error).toBe('no_key');
+  });
+});
+
+describe('POST /keytest proves a key without spending a turn', () => {
+  async function keytest(
+    body: Record<string, unknown>,
+    headers: Record<string, string> = {},
+  ) {
+    const res = await fetch(`${baseUrl}/api/muse/keytest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, json: (await res.json()) as Record<string, unknown> };
+  }
+
+  it('reports a working key with what it actually sent', async () => {
+    upstream.status = 200;
+    upstream.body = '{"ok":true}';
+    upstream.contentType = 'application/json';
+    const { json } = await keytest({ key: 'good-key' });
+    expect(json.ok).toBe(true);
+    expect(json.status).toBe(200);
+    expect(json.source).toBe('user');
+    expect(upstream.calls[0].key).toBe('Bearer good-key');
+    // One token, not a real turn.
+    expect(upstream.calls[0].body.max_tokens).toBe(1);
+  });
+
+  it("returns Meta's own words when the key is refused", async () => {
+    upstream.status = 401;
+    upstream.body = '{"error":{"message":"Incorrect API key provided"}}';
+    upstream.contentType = 'application/json';
+    const { json } = await keytest({ key: 'typo-key' });
+    expect(json.ok).toBe(false);
+    expect(json.status).toBe(401);
+    expect(json.state).toBe('rejected');
+    expect(String(json.detail)).toContain('Incorrect API key provided');
+  });
+
+  it('tells a spent key (402) apart from a bad one (401)', async () => {
+    upstream.status = 402;
+    upstream.body = '{"error":"insufficient_quota"}';
+    upstream.contentType = 'application/json';
+    const { json } = await keytest({ key: 'broke-key' });
+    expect(json.state).toBe('exhausted');
+  });
+
+  it('says there is nothing to test when no key exists anywhere', async () => {
+    const { json } = await keytest({});
+    expect(json.ok).toBe(false);
+    expect(String(json.detail)).toMatch(/no key to test/i);
+  });
+
+  it('a failed test of the SERVER key updates /status, so the UI cannot lie', async () => {
+    env.MUSE_API_KEY = 'dead-house-key';
+    upstream.status = 403;
+    upstream.body = '{"error":"forbidden"}';
+    upstream.contentType = 'application/json';
+    await keytest({});
+    const { json } = await status();
+    expect(json.houseKey).toBe('rejected');
+    expect(String(json.houseKeyDetail)).toContain('forbidden');
   });
 });

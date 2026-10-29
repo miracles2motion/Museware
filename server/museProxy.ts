@@ -117,7 +117,34 @@ function resolveKey(
 
 // ---------------------------------------------------------------- house key
 
-export type HouseKeyState = 'ok' | 'exhausted' | 'absent';
+/**
+ * Why the server's own key is (not) usable. These are FOUR different problems
+ * and the visitor sees a different sentence for each, because "out of budget"
+ * printed over a typo'd key is exactly the kind of lie this product exists not
+ * to tell:
+ *
+ *   ok            Meta accepted it
+ *   absent        MUSE_API_KEY is not set for THIS deployment (redeploy)
+ *   unverified    the key is set but Meta could not be reached to confirm it
+ *   exhausted     accepted auth, no money left (402)
+ *   rejected      Meta refused the key itself (401 / 403)
+ *   rate_limited  accepted, but throttled right now (429)
+ */
+export type HouseKeyState =
+  | 'ok'
+  | 'absent'
+  | 'unverified'
+  | 'exhausted'
+  | 'rejected'
+  | 'rate_limited';
+
+/** Status code → the honest name for it. */
+export function houseStateFromStatus(status: number): HouseKeyState {
+  if (status === 402) return 'exhausted';
+  if (status === 401 || status === 403) return 'rejected';
+  if (status === 429) return 'rate_limited';
+  return status >= 400 ? 'rejected' : 'ok';
+}
 
 interface HouseProbe {
   state: HouseKeyState;
@@ -168,30 +195,43 @@ export async function houseKeyState(
       houseProbe = { state: 'ok', at: Date.now(), status: r.status };
     } else {
       const detail = (await r.text().catch(() => '')).slice(0, 300);
-      const dead =
-        r.status === 401 || r.status === 402 || r.status === 403 || r.status === 429;
       houseProbe = {
-        state: dead ? 'exhausted' : 'ok',
+        state: houseStateFromStatus(r.status),
         at: Date.now(),
         status: r.status,
         detail: detail || `status ${r.status}`,
       };
     }
   } catch (err) {
-    // A network hiccup is not an exhausted key: keep the last known state.
+    // A network hiccup is not a working key and not a dead one. Say the truth:
+    // the key is present but unverified, and let the real call report its own
+    // failure rather than blocking the visitor on our guess.
+    const previous = houseProbe.state;
+    const keep =
+      previous === 'exhausted' || previous === 'rejected' || previous === 'rate_limited';
     houseProbe = {
-      ...houseProbe,
+      state: keep ? previous : 'unverified',
       at: Date.now(),
-      detail: err instanceof Error ? err.message : String(err),
+      detail: `could not reach Meta from the server to check the key: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
       status: started ? houseProbe.status : undefined,
     };
-    if (houseProbe.state === 'absent') houseProbe.state = 'ok';
   }
   return houseProbe;
 }
 
+export function markHouseState(
+  state: HouseKeyState,
+  detail: string,
+  status?: number,
+): void {
+  houseProbe = { state, at: Date.now(), detail, status };
+}
+
+/** Kept for the older call sites: a dead key defaults to exhausted. */
 export function markHouseExhausted(detail: string, status?: number): void {
-  houseProbe = { state: 'exhausted', at: Date.now(), detail, status };
+  markHouseState(status ? houseStateFromStatus(status) : 'exhausted', detail, status);
 }
 
 /** Tests only. */
@@ -219,8 +259,9 @@ async function forward(
   });
 }
 
+/** True when the house key cannot be used right now — the key card applies. */
 function isDeadKey(status: number): boolean {
-  return status === 401 || status === 402 || status === 403 || status === 429;
+  return houseStateFromStatus(status) !== 'ok';
 }
 
 /**
@@ -228,19 +269,44 @@ function isDeadKey(status: number): boolean {
  * for a personal key); a dead USER key streams its real error verbatim, because
  * that failure is the visitor's own and they deserve the actual message.
  */
+const HOUSE_FAILURE: Record<
+  'exhausted' | 'rejected' | 'rate_limited',
+  { error: string; detail: string }
+> = {
+  exhausted: {
+    error: 'HOUSE_KEY_EXHAUSTED',
+    detail:
+      'The shared key for this demo is out of budget or credit. Add your own Meta API key to keep building.',
+  },
+  rejected: {
+    error: 'HOUSE_KEY_REJECTED',
+    detail:
+      'Meta rejected the shared key this deployment is configured with — it is wrong, revoked, or was never valid. Your own key will work; the server key needs replacing.',
+  },
+  rate_limited: {
+    error: 'HOUSE_KEY_RATE_LIMITED',
+    detail:
+      'Meta is rate-limiting the shared key right now. Your own key is not throttled by other visitors.',
+  },
+};
+
 async function upstreamError(
   res: ServerResponse,
   r: Response,
   source: KeySource,
 ): Promise<void> {
   const detail = await r.text().catch(() => '');
-  if (source === 'house' && isDeadKey(r.status)) {
-    markHouseExhausted(detail.slice(0, 300) || `status ${r.status}`, r.status);
+  const houseState = houseStateFromStatus(r.status);
+  if (source === 'house' && houseState !== 'ok' && houseState !== 'absent') {
+    markHouseState(houseState, detail.slice(0, 300) || `status ${r.status}`, r.status);
+    const failure = HOUSE_FAILURE[houseState as 'exhausted' | 'rejected' | 'rate_limited'];
+    // Always 402 downstream: the client's key card is the fix for all three,
+    // and the typed `error` carries WHY so the sentence can be true.
     return sendJson(res, 402, {
-      error: 'HOUSE_KEY_EXHAUSTED',
+      error: failure.error,
       status: r.status,
-      detail:
-        'The shared key for this demo is out of budget or credit. Add your own Meta API key to keep building.',
+      houseKey: houseState,
+      detail: failure.detail,
       upstream: detail.slice(0, 400),
     });
   }
@@ -359,7 +425,9 @@ export async function handleMuse(
   try {
     if (route === '/status' && req.method === 'GET') {
       const house = await houseKeyState(env, { signal: abort.signal });
-      const usable = source === 'user' || (source === 'house' && house.state === 'ok');
+      const usable =
+        source === 'user' ||
+        (source === 'house' && (house.state === 'ok' || house.state === 'unverified'));
       return sendJson(res, 200, {
         configured: usable,
         source,
@@ -379,6 +447,82 @@ export async function handleMuse(
           voice: { id: cfg.voice, role: 'Voice', effort: null },
         },
       });
+    }
+
+    // Test a key WITHOUT spending a turn. The Settings "Test this key" button
+    // and the key card both use it, so a visitor can tell a typo from a budget
+    // problem before they blame themselves.
+    if (route === '/keytest' && req.method === 'POST') {
+      const body = await readJson<{ key?: string; model?: string }>(req);
+      const pasted = (body.key || '').trim();
+      const candidate = pasted || key;
+      // Report where the key under test came from, not where a chat would get it.
+      const candidateSource: KeySource = pasted ? 'user' : source;
+      if (!candidate) {
+        return sendJson(res, 200, {
+          ok: false,
+          status: 0,
+          source: candidateSource,
+          detail:
+            'No key to test: this deployment has none, and none was sent with the request.',
+        });
+      }
+      const model = body.model || cfg.chat;
+      const started = Date.now();
+      try {
+        const r = await fetch(`${apiRoot(cfg.baseUrl)}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${candidate}`,
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: 'ping' }],
+            max_tokens: 1,
+            stream: false,
+          }),
+          signal: abort.signal,
+        });
+        const ms = Date.now() - started;
+        const text = await r.text().catch(() => '');
+        if (r.ok) {
+          return sendJson(res, 200, {
+            ok: true,
+            status: r.status,
+            source: candidateSource,
+            model,
+            ms,
+          });
+        }
+        // A key that was just proven bad is bad news the UI should keep.
+        const state = houseStateFromStatus(r.status);
+        if (candidateSource === 'house') {
+          markHouseState(state, text.slice(0, 300) || `status ${r.status}`, r.status);
+        }
+        return sendJson(res, 200, {
+          ok: false,
+          status: r.status,
+          state,
+          source: candidateSource,
+          model,
+          ms,
+          detail: text.slice(0, 600) || `Meta answered ${r.status} with no body.`,
+        });
+      } catch (err) {
+        return sendJson(res, 200, {
+          ok: false,
+          status: 0,
+          source: candidateSource,
+          model,
+          ms: Date.now() - started,
+          detail:
+            err instanceof Error
+              ? `The server could not reach Meta at all: ${err.message}`
+              : String(err),
+        });
+      }
     }
 
     if (!key) {
