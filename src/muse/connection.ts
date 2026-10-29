@@ -133,6 +133,19 @@ export function diagnose(err: unknown): Diagnosis {
         offerKey: false,
       };
     }
+    if (err.status && err.status >= 500) {
+      // The function ran and failed. No key can fix that, and pretending
+      // otherwise sends the visitor hunting for the wrong problem.
+      const unavailable = err.status === 503 || err.status === 504;
+      return {
+        kind: 'unreachable',
+        text: unavailable
+          ? `The proxy is up but could not serve that request (HTTP ${err.status}). That is a server problem, not your key. (${err.message})`
+          : `The proxy crashed while answering (HTTP ${err.status}) — a server fault, not your key. ` +
+            `The function logs on Vercel hold the stack. (${err.message})`,
+        offerKey: false,
+      };
+    }
     if (err.status === 402 || err.code === 'rate_limited') {
       return {
         kind: 'budget',

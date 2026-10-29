@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MuseError, fetchStatus, type HouseKeyState } from './client';
+import { MuseError, describeFailure, fetchStatus, type HouseKeyState } from './client';
 import { diagnose, houseKeyLabel, houseKeySentence } from './connection';
 import { recreateFromScreenshot } from './screenshot';
 import { useProject } from '../store/useProject';
@@ -217,5 +217,60 @@ describe('the shared key is described by what actually happened', () => {
     expect(throttled.kind).toBe('rate_limited');
     expect(throttled.offerKey).toBe(true);
     expect(throttled.text).toMatch(/rate-limiting/i);
+  });
+});
+
+describe('a 500 says what the server said', () => {
+  const body = JSON.stringify({
+    error: 'proxy',
+    route: '/status',
+    detail: 'Cannot find module ../../server/museProxy',
+    hint: 'The proxy itself failed, not your key.',
+  });
+
+  it('quotes the detail and the hint instead of "the proxy answered 500"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(body, {
+            status: 500,
+            headers: { 'content-type': 'application/json' },
+          }),
+        ),
+      ),
+    );
+    const err = (await fetchStatus().catch((e: unknown) => e)) as MuseError;
+    expect(err).toBeInstanceOf(MuseError);
+    expect(err.status).toBe(500);
+    expect(err.message).toContain('Cannot find module');
+    expect(err.message).toContain('The proxy itself failed');
+    expect(err.message).toMatch(/crashed/);
+  });
+
+  it('a crash is not a key problem: the diagnosis offers no key card', async () => {
+    const err = new MuseError(
+      'upstream',
+      'GET /api/muse/status failed: the proxy crashed (HTTP 500): boom',
+      500,
+    );
+    const d = diagnose(err);
+    expect(d.kind).toBe('unreachable');
+    expect(d.offerKey).toBe(false);
+    expect(d.text).toMatch(/server fault, not your key/i);
+  });
+
+  it('reads a plain-text body, an empty body, and an HTML body differently', () => {
+    expect(describeFailure('  Internal Server Error  ')).toBe('Internal Server Error');
+    expect(describeFailure('')).toBe('');
+    expect(describeFailure('<!doctype html><title>x</title>')).toMatch(
+      /HTML instead of JSON/,
+    );
+    expect(describeFailure('{"detail":"nope"}')).toBe('nope');
+    expect(describeFailure('{"error":"proxy"}')).toBe('proxy');
+  });
+
+  it('does not choke on a JSON body that will not parse', () => {
+    expect(describeFailure('{"detail": broken')).toBe('{"detail": broken');
   });
 });

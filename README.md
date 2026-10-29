@@ -138,6 +138,9 @@ Vercel bakes environment variables into a deployment at build time, so **adding
 `MUSE_API_KEY` does not change the build that is already serving traffic**. That
 one fact causes most "I added the key and it still doesn't work" reports.
 
+0. **Is the function alive at all?** Open `/api/muse/health`. It touches no key
+   and no network — it only proves the serverless file is deployed and running.
+   A crash there is a deployment problem: read the function's logs on Vercel.
 1. **Read the server's own verdict.** Open `/api/muse/status` on the exact domain
    you are using. JSON means the function is deployed; HTML or a 404 means it is
    not, and no key will fix that.
@@ -161,6 +164,22 @@ Settings also has **Test this key** and **Test the server key**: each makes one
 real 1-token call through `/api/muse/keytest` and prints Meta's actual status and
 body, so a typo (401) can be told apart from an empty wallet (402) without
 guessing. The app never says "out of budget" for a key that was rejected.
+
+### "the proxy answered 500"
+
+A 500 is the proxy failing, never the key. The app now shows the server's own
+sentence instead of only the status code, and the proxy itself:
+
+- returns `{error, route, detail, hint}` for any crash and logs the stack to the
+  function's runtime logs;
+- cannot be held hostage by a slow upstream — `/status` gives the probe 4 s and
+  then reports `unverified` instead of being killed by the platform;
+- answers `/api/muse/health` before any key or network work, so "deployed but
+  broken" can be told apart from "not deployed".
+
+If `/health` is fine and `/status` 500s, the `detail` on screen names the failing
+route. If `/health` also 500s, the function failed to load — check the build log
+and the Functions tab for `api/muse/[...path]`.
 
 ## Design system
 
