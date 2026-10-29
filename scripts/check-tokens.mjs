@@ -55,6 +55,63 @@ for (const file of [...walk(join(ROOT, 'src')), join(ROOT, 'index.html')]) {
   }
 }
 
+// ---- 2. stacking: canvas chrome stays under the panels --------------------
+/*
+ * The selection outline, the hover ring, the id chip and the drop chrome are
+ * absolutely positioned INSIDE the scaled artboard. Absolute positioning with
+ * a z-index lets a descendant paint over anything the ancestor does not
+ * out-rank — which is how an outline ended up drawn across the inspector and
+ * the tab bar. One line fixes the whole class of bug: `.canvas-area` must own a
+ * stacking context, so nothing inside it can escape above the panels that
+ * slide over the canvas.
+ */
+const CSS_FILE = 'src/design/app.css';
+const appCss = readFileSync(join(ROOT, CSS_FILE), 'utf8');
+
+function ruleFor(selector) {
+  const pattern = new RegExp(
+    `(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`,
+  );
+  return appCss.match(pattern)?.[1] ?? null;
+}
+
+const TRAPPED = [
+  '.hover-outline',
+  '.selection-outline',
+  '.drop-line',
+  '.drop-inside',
+  '.id-chip',
+  '.node-handle',
+  '.inline-edit',
+];
+
+function createsStackingContext(block) {
+  if (/isolation\s*:\s*isolate/.test(block)) return true;
+  const zIndex = block.match(/z-index\s*:\s*([^;]+);/)?.[1]?.trim();
+  return Boolean(zIndex && zIndex !== 'auto');
+}
+
+const canvasArea = ruleFor('.canvas-area');
+if (canvasArea === null) {
+  problems.push(`${CSS_FILE}: .canvas-area is missing — the canvas lost its shell`);
+} else if (!createsStackingContext(canvasArea)) {
+  problems.push(
+    `${CSS_FILE}: .canvas-area must create a stacking context (isolation: isolate) — ` +
+      'without it the selection outline paints over the inspector, menus and the tab bar',
+  );
+}
+
+for (const selector of TRAPPED) {
+  const rule = ruleFor(selector);
+  if (rule === null) continue;
+  if (/position\s*:\s*fixed/.test(rule)) {
+    problems.push(
+      `${CSS_FILE}: ${selector} is position: fixed — canvas chrome must stay inside the ` +
+        'artboard, or it floats over every panel on the page',
+    );
+  }
+}
+
 // ---- 2. contrast ----------------------------------------------------------
 const css = readFileSync(join(ROOT, TOKENS_FILE), 'utf8');
 
@@ -181,6 +238,9 @@ if (problems.length) {
 
 const worst = report.reduce((min, row) => (row[3] < min[3] ? row : min), report[0]);
 console.log(`✓ tokens: no raw hex outside ${TOKENS_FILE}`);
+console.log(
+  `✓ stacking: .canvas-area traps its chrome; ${TRAPPED.length} overlays checked`,
+);
 console.log(
   `✓ contrast: ${report.length} pairs pass AA; tightest is ${worst[1]} on ${worst[2]} (${worst[0]}) at ${worst[3].toFixed(2)}:1`,
 );

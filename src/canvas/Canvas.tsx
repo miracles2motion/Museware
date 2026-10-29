@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import { GripVertical, ImagePlus, Monitor, Plus, Smartphone, Sparkles } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi, BREAKPOINT_WIDTHS } from '../store/useUi';
-import { useDrag, buildDropOps, nodeIdFromElement, resolveTarget } from './drag';
+import { useDrag, buildDropOps, nodeIdFromElement, dropTargetFor } from './drag';
 import { fitScale, fitSize, toLocalBox } from './fit';
 import { CanvasStyle, NodeView } from './NodeView';
 import { findNode } from '../ops/treeUtils';
@@ -30,6 +31,7 @@ export function Canvas() {
   const breakpoint = useUi((s) => s.breakpoint);
   const setBreakpoint = useUi((s) => s.setBreakpoint);
   const setRunMode = useUi((s) => s.setRunMode);
+  const runMode = useUi((s) => s.runMode);
   const startPrompt = useUi((s) => s.startPrompt);
   const toast = useUi((s) => s.toast);
   const drag = useDrag((s) => s.drag);
@@ -40,6 +42,10 @@ export function Canvas() {
   // you SEE so a 1280 artboard still fits a phone. Layout stays honest.
   const scaleRef = useRef(1);
   const [fit, setFit] = useState({ k: 1, w: 0, h: 0 });
+  // `fitFrame` must stay stable (it is a listener), so it reads the live
+  // breakpoint through a ref rather than a dependency.
+  const breakpointRef = useRef(breakpoint);
+  breakpointRef.current = breakpoint;
   const [selBox, setSelBox] = useState<Box | null>(null);
   const [hoverBox, setHoverBox] = useState<Box | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -77,8 +83,15 @@ export function Canvas() {
     const scroller = scrollRef.current;
     const frame = frameRef.current;
     if (!scroller || !frame) return;
-    const w = frame.offsetWidth;
-    const h = frame.offsetHeight;
+    /*
+     * Width is the artboard's DECLARED width, never a measurement. Measuring it
+     * was the bug behind "the phone goes tiny after I visit desktop": the
+     * switcher animates the frame's width, the layout effect ran while the old
+     * width was still in the box, and the phone inherited the desktop's scale
+     * from then on. Height is still measured, because Run mode changes it.
+     */
+    const w = BREAKPOINT_WIDTHS[breakpointRef.current] || frame.offsetWidth;
+    const h = frame.offsetHeight || 780;
     if (!w || !h) return;
     const cs = getComputedStyle(scroller);
     const availW =
@@ -115,9 +128,17 @@ export function Canvas() {
     };
   }, [fitFrame]);
 
+  /*
+   * A breakpoint swap changes layout, so measure once now and once after the
+   * browser has settled — a single stale measurement is what the bug fed on.
+   */
   useLayoutEffect(() => {
     fitFrame();
-  }, [fitFrame, breakpoint]);
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => fitFrame());
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [fitFrame, breakpoint, runMode]);
 
   const measure = useCallback(
     (id: string | null): Box | null => {
@@ -161,7 +182,22 @@ export function Canvas() {
     }
     const onMove = (e: PointerEvent) => {
       if (!screen) return;
-      const target = resolveTarget(doc, screen.root.id, e.clientX, e.clientY);
+      /*
+       * Two independent readings of "what is under the pointer": the browser's
+       * own hit test, and the element this very event was delivered to. The
+       * second one costs nothing and covers the cases where elementFromPoint
+       * answers with an overlay or with the canvas padding — which used to mean
+       * a drag released in the middle of a screen did nothing at all.
+       */
+      const direct = dropTargetFor(doc, screen.root.id, e.target as Element, e.clientY);
+      const target =
+        direct ||
+        dropTargetFor(
+          doc,
+          screen.root.id,
+          document.elementFromPoint(e.clientX, e.clientY),
+          e.clientY,
+        );
       useDrag.getState().move(e.clientX, e.clientY, target);
       setDropBox(target ? toLocal(target.rect as unknown as DOMRect) : null);
     };
@@ -183,13 +219,17 @@ export function Canvas() {
       useDrag.getState().end();
       setDropBox(null);
     };
+    const onCancel = () => {
+      useDrag.getState().end();
+      setDropBox(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onCancel);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointercancel', onCancel);
     };
   }, [drag.active, doc, screen, applyBatch, toast, select, toLocal]);
 
@@ -587,11 +627,15 @@ export function Canvas() {
         </div>
       </div>
 
-      {drag.active && (
-        <div className="drag-ghost" style={{ left: drag.x + 12, top: drag.y + 12 }}>
-          <GripVertical size={12} /> {drag.label}
-        </div>
-      )}
+      {/* Portalled: the ghost has to float over the panels you drag across,
+          so it cannot live inside the canvas's own stacking context. */}
+      {drag.active &&
+        createPortal(
+          <div className="drag-ghost" style={{ left: drag.x + 12, top: drag.y + 12 }}>
+            <GripVertical size={12} /> {drag.label}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
