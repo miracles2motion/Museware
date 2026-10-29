@@ -1,4 +1,8 @@
-import { useState, type CSSProperties } from 'react';
+import {
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { Action, ComponentNode, ProjectDoc } from '../types/tree';
 import { isVisible, runActions, screenSlugForLabel, useRuntime } from '../preview/runtime';
 import { nodeClass } from './cssGen';
@@ -106,6 +110,17 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     runActions(extra, runtime);
     runActions(node.events?.[event], runtime);
   };
+  /*
+   * Edit mode: a field stays the click target (so it selects) but its native
+   * behaviour — focus, pickers, range drags — is suppressed by cancelling the
+   * pointer's default action. The click itself still fires and bubbles to the
+   * canvas's selection handler. Hiding the field with pointer-events: none
+   * instead made inputs, textareas, selects, sliders and date pickers
+   * unselectable: the click fell through to the parent.
+   */
+  const editGuard = (e: ReactPointerEvent) => {
+    if (mode !== 'run') e.preventDefault();
+  };
   const bind = asText(p.bindKey);
   const value = bind && runtime ? runtime.state[bind] : undefined;
   const sizeIcon = Number(p.size) || 20;
@@ -140,7 +155,11 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
                 className="mw-tab"
                 data-active={i === tab}
                 onClick={(e) => {
-                  e.stopPropagation();
+                  // Run mode keeps the tap to itself; edit mode lets the click
+                  // bubble so the canvas selects the tabs node (and the panel
+                  // still switches, which is how its children become
+                  // clickable at all).
+                  if (mode === 'run') e.stopPropagation();
                   setTab(i);
                   fire('change');
                 }}
@@ -239,7 +258,9 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           type="button"
           className={cls}
           onClick={(e) => {
-            e.stopPropagation();
+            // In edit mode the click must bubble: the canvas selects through
+            // it. Stopping here made every button unselectable.
+            if (mode === 'run') e.stopPropagation();
             fire('tap');
           }}
         >
@@ -252,7 +273,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           type="button"
           className={cls}
           onClick={(e) => {
-            e.stopPropagation();
+            if (mode === 'run') e.stopPropagation();
             fire('tap');
           }}
           aria-label={asText(p.icon, 'button')}
@@ -269,7 +290,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           readOnly={mode !== 'run'}
           onChange={(e) => runtime?.setKey(bind, e.target.value)}
           onBlur={() => fire('change')}
-          style={{ pointerEvents: mode === 'run' ? 'auto' : 'none' }}
+          onPointerDown={editGuard}
         />
       );
     case 'textarea':
@@ -281,7 +302,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           value={typeof value === 'string' ? value : ''}
           readOnly={mode !== 'run'}
           onChange={(e) => runtime?.setKey(bind, e.target.value)}
-          style={{ pointerEvents: mode === 'run' ? 'auto' : 'none' }}
+          onPointerDown={editGuard}
         />
       );
     case 'select': {
@@ -294,7 +315,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             runtime?.setKey(bind, e.target.value);
             fire('change');
           }}
-          style={{ pointerEvents: mode === 'run' ? 'auto' : 'none' }}
+          onPointerDown={editGuard}
         >
           <option value="">{asText(p.placeholder, 'Choose…')}</option>
           {options.map((o) => (
@@ -362,7 +383,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             runtime?.setKey(bind, Number(e.target.value));
             fire('change');
           }}
-          style={{ pointerEvents: mode === 'run' ? 'auto' : 'none' }}
+          onPointerDown={editGuard}
         />
       );
     }
@@ -376,7 +397,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             runtime?.setKey(bind, e.target.value);
             fire('change');
           }}
-          style={{ pointerEvents: mode === 'run' ? 'auto' : 'none' }}
+          onPointerDown={editGuard}
         />
       );
     case 'navbar': {
@@ -441,11 +462,13 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         <span
           className={cls}
           onClick={(e) => {
-            e.stopPropagation();
-            if (mode === 'run' && runtime) {
-              const to = asText(p.to);
-              if (to) runtime.navigate(to);
-              runActions(node.events?.tap, runtime);
+            if (mode === 'run') {
+              e.stopPropagation();
+              if (runtime) {
+                const to = asText(p.to);
+                if (to) runtime.navigate(to);
+                runActions(node.events?.tap, runtime);
+              }
             }
           }}
         >
@@ -459,7 +482,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           type="button"
           className={cls}
           onClick={(e) => {
-            e.stopPropagation();
+            if (mode === 'run') e.stopPropagation();
             fire('tap');
           }}
           aria-label="Action"
