@@ -41,11 +41,14 @@ interface Props extends StyleWriters {
 }
 
 /** 'match' / '100%' are the same idea; so are 'hug' / 'fit-content'. */
-export function sizeMode(value: string): 'match' | 'hug' | 'fixed' {
+export function sizeMode(
+  value: string,
+  emptyMode: 'match' | 'hug' = 'match',
+): 'match' | 'hug' | 'fixed' {
   if (value === 'match' || value === '100%') return 'match';
   if (value === 'hug' || value === 'fit-content') return 'hug';
   if (value) return 'fixed';
-  return 'match';
+  return emptyMode;
 }
 
 function SizeField({
@@ -57,7 +60,7 @@ function SizeField({
   value: string;
   onCommit: (v: string) => void;
 }) {
-  const mode = sizeMode(value);
+  const mode = sizeMode(value, field.key === 'height' ? 'hug' : 'match');
   const axis = field.key === 'height' ? '120px' : '320px';
   return (
     <div className="field">
@@ -134,23 +137,21 @@ function Field({
                 entry.card.data.breakpoint === breakpoint,
             );
           if (!existing)
-            useProject
-              .getState()
-              .addRail({
-                role: 'card',
-                text: 'Choose colour scope',
-                card: {
-                  kind: 'color',
-                  state: 'pending',
-                  data: {
-                    nodeId,
-                    initialHex: hex,
-                    styleKey: field.key,
-                    breakpoint,
-                    title: `Apply ${field.label}`,
-                  },
+            useProject.getState().addRail({
+              role: 'card',
+              text: 'Choose colour scope',
+              card: {
+                kind: 'color',
+                state: 'pending',
+                data: {
+                  nodeId,
+                  initialHex: hex,
+                  styleKey: field.key,
+                  breakpoint,
+                  title: `Apply ${field.label}`,
                 },
-              });
+              },
+            });
           if (useUi.getState().railCollapsed) useUi.getState().toggleRail();
           useUi.getState().setMobileRail(true);
           useUi.getState().toast('Choose where to apply the colour in the agent rail.');

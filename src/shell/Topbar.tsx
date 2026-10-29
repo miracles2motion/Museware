@@ -161,48 +161,50 @@ export function Topbar() {
         </span>
       </div>
 
-      <div className="screen-tabs">
-        {doc.screens.map((screen) => (
-          <button
-            type="button"
-            key={screen.id}
-            className="screen-tab"
-            data-active={screen.id === (activeScreenId || doc.screens[0]?.id)}
-            title={`${screen.name} · ${screen.id}${screen.entry ? ' · entry' : ''}`}
-            onClick={() => {
-              setActiveScreen(screen.id);
-              select(null);
-            }}
-            onDoubleClick={() => {
-              setRenaming(screen.id);
-              setRenameValue(screen.name);
-            }}
-          >
-            {screen.entry && <span className="badge-dot" data-tone="ok" />}
-            {renaming === screen.id ? (
-              <input
-                className="input"
-                style={{ height: 20, fontSize: 11, width: 110, padding: '0 4px' }}
-                autoFocus
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                onBlur={() => {
-                  const next = renameValue.trim();
-                  setRenaming(null);
-                  if (next && next !== screen.name)
-                    run(renameScreenBatch(doc, screen.id, next));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  if (e.key === 'Escape') setRenaming(null);
-                }}
-              />
-            ) : (
-              screen.name
-            )}
-          </button>
-        ))}
+      <div className="screen-switcher">
+        <div className="screen-tabs">
+          {doc.screens.map((screen) => (
+            <button
+              type="button"
+              key={screen.id}
+              className="screen-tab"
+              data-active={screen.id === (activeScreenId || doc.screens[0]?.id)}
+              title={`${screen.name} · ${screen.id}${screen.entry ? ' · entry' : ''}`}
+              onClick={() => {
+                setActiveScreen(screen.id);
+                select(null);
+              }}
+              onDoubleClick={() => {
+                setRenaming(screen.id);
+                setRenameValue(screen.name);
+              }}
+            >
+              {screen.entry && <span className="badge-dot" data-tone="ok" />}
+              {renaming === screen.id ? (
+                <input
+                  className="input"
+                  style={{ height: 20, fontSize: 11, width: 110, padding: '0 4px' }}
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={() => {
+                    const next = renameValue.trim();
+                    setRenaming(null);
+                    if (next && next !== screen.name)
+                      run(renameScreenBatch(doc, screen.id, next));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    if (e.key === 'Escape') setRenaming(null);
+                  }}
+                />
+              ) : (
+                screen.name
+              )}
+            </button>
+          ))}
+        </div>
         <span className="topbar-desktop" style={{ display: 'contents' }}>
           <IconButton label="Add screen" size="sm" onClick={addScreen}>
             <Plus size={14} />

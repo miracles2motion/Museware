@@ -143,6 +143,17 @@ describe('a Row gets the fields a Row needs', () => {
     expect(useProject.getState().doc.screens[0].root.children[0].styles.width).toBe('hug');
   });
 
+  it('shows unset height as Hug and only shows Match after it is applied', () => {
+    const group = document.querySelector('[aria-label="Height mode"]')!;
+    const hug = group.querySelector('[aria-label="Hug — fit the content"]')!;
+    const match = group.querySelector('[aria-label="Match — fill the parent"]')!;
+    expect(hug.getAttribute('aria-pressed')).toBe('true');
+    expect(match.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(match);
+    expect(useProject.getState().doc.screens[0].root.children[0].styles.height).toBe('match');
+    expect(match.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('toggling “Fill leftover space” writes grow as a number', () => {
     const toggle = screen.getByLabelText('Fill leftover space') as HTMLInputElement;
     fireEvent.click(toggle);

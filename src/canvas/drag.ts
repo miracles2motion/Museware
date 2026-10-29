@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ComponentNode, ComponentType, ProjectDoc } from '../types/tree';
 import { isContainerType, spec } from '../types/library';
 import { findNode, findParent, isDescendant } from '../ops/treeUtils';
-import { hydrateNode } from '../ops/validate';
+import { createInsertedNode } from '../ops/screenOps';
 import { takenIds } from '../ops/validate';
 
 export type DropMode = 'before' | 'after' | 'inside';
@@ -194,7 +194,8 @@ export function buildDropOps(
 
   if (!drag.type) return { ops: [], label: '', error: 'Nothing to insert.' };
   const taken = takenIds(doc);
-  const node = hydrateNode({ type: drag.type }, taken);
+  const parent = findNode(screen.root, parentId)!;
+  const node = createInsertedNode(drag.type, parent, taken);
   return {
     ops: [{ op: 'add', parentId, index, node: node as unknown as ComponentNode }],
     label: `Add ${spec(drag.type)?.label || drag.type}`,

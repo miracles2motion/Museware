@@ -76,6 +76,24 @@ export function duplicateScreenBatch(doc: ProjectDoc, screenId: string): unknown
   ];
 }
 
+/** New columns placed directly on a screen fill it by default. Nested
+ * columns keep their natural height so they do not force their parent open. */
+export function createInsertedNode(
+  type: ComponentType,
+  parent: ComponentNode,
+  taken: Set<string>,
+): ComponentNode {
+  return hydrateNode(
+    {
+      type,
+      ...(type === 'col' && parent.type === 'screen'
+        ? { styles: { height: 'match' } }
+        : {}),
+    },
+    taken,
+  );
+}
+
 export function insertNodeBatch(
   doc: ProjectDoc,
   type: ComponentType,
@@ -96,7 +114,7 @@ export function insertNodeBatch(
     }
   }
   const taken = takenIds(doc);
-  const node = hydrateNode({ type }, taken);
+  const node = createInsertedNode(type, parent, taken);
   return {
     ops: [{ op: 'add', parentId: parent.id, index: parent.children.length, node }],
     parentId: parent.id,

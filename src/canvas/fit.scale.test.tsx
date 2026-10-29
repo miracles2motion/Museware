@@ -109,11 +109,44 @@ async function settle() {
 }
 
 describe('the breakpoint switcher keeps its own scale', () => {
+  it('starts observing and fits the frame when a screen is created after the empty canvas', async () => {
+    const doc = useProject.getState().doc;
+    const firstScreen = doc.screens[0];
+    useProject.getState().replaceDoc({ ...doc, screens: [] });
+    stubBoxModel();
+    const observed: Element[] = [];
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      observe(element: Element) {
+        observed.push(element);
+      }
+      disconnect() {}
+      unobserve() {}
+    };
+    const width = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(300);
+    const height = vi
+      .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockReturnValue(500);
+    const offset = vi
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockReturnValue(780);
+    render(<Canvas />);
+    await act(async () =>
+      useProject.getState().replaceDoc({ ...doc, screens: [firstScreen] }),
+    );
+    expect(observed.some((el) => el.classList.contains('canvas-scroll'))).toBe(true);
+    expect(observed.some((el) => el.classList.contains('device-frame'))).toBe(true);
+    expect(scaleNow()).toBeCloseTo(300 / 390, 3);
+    width.mockRestore();
+    height.mockRestore();
+    offset.mockRestore();
+  });
   it('sizes the phone from 390px, not from whatever the frame last measured', async () => {
     renderCanvas();
     await settle();
 
-    const phone = fitScale(CANVAS_W, CANVAS_H - HINT_H, 390, FRAME_H);
+    const phone = fitScale(CANVAS_W, Infinity, 390, FRAME_H);
     expect(scaleNow()).toBeCloseTo(phone, 3);
 
     await act(async () => useUi.getState().setBreakpoint('expanded'));
@@ -123,10 +156,21 @@ describe('the breakpoint switcher keeps its own scale', () => {
     expect(desktop).toBeLessThan(phone);
   });
 
+  it('keeps the phone at natural width even when the workspace is short', async () => {
+    renderCanvas();
+    const scroller = document.querySelector('.canvas-scroll') as HTMLElement;
+    setMetric(scroller, 'clientHeight', 420);
+    await settle();
+    expect(scaleNow()).toBe(1);
+    expect((document.querySelector('.frame-fit') as HTMLElement).style.height).toBe(
+      '780px',
+    );
+  });
+
   it('comes back to the phone scale after a desktop round trip', async () => {
     renderCanvas();
     await settle();
-    const phone = fitScale(CANVAS_W, CANVAS_H - HINT_H, 390, FRAME_H);
+    const phone = fitScale(CANVAS_W, Infinity, 390, FRAME_H);
 
     for (const bp of ['medium', 'expanded', 'compact', 'expanded', 'compact'] as const) {
       await act(async () => useUi.getState().setBreakpoint(bp));

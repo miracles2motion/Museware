@@ -60,6 +60,7 @@ export function Canvas() {
     doc.screens.find((s) => s.entry) ||
     doc.screens[0];
 
+  const hasScreen = Boolean(screen);
   useEffect(() => {
     if (screen && screen.id !== activeScreenId) setActiveScreen(screen.id);
   }, [screen, activeScreenId, setActiveScreen]);
@@ -102,8 +103,15 @@ export function Canvas() {
       parseFloat(cs.paddingTop) -
       parseFloat(cs.paddingBottom) -
       (hint ? hint.offsetHeight + 10 : 0);
-    if (availW <= 0 || availH <= 0) return;
-    const k = fitScale(availW, availH, w, h);
+    if (availW <= 0 || (breakpointRef.current !== 'compact' && availH <= 0)) return;
+    // Compact is the working phone canvas: preserve its natural size when
+    // it fits horizontally, and scroll vertically instead of shrinking it.
+    const k = fitScale(
+      availW,
+      breakpointRef.current === 'compact' ? Infinity : availH,
+      w,
+      h,
+    );
     const size = fitSize(w, h, k);
     scaleRef.current = k;
     setFit((prev) =>
@@ -126,7 +134,7 @@ export function Canvas() {
       observer.disconnect();
       window.removeEventListener('resize', fitFrame);
     };
-  }, [fitFrame]);
+  }, [fitFrame, hasScreen]);
 
   /*
    * A breakpoint swap changes layout, so measure once now and once after the
@@ -337,7 +345,7 @@ export function Canvas() {
   }
 
   const width = BREAKPOINT_WIDTHS[breakpoint];
-  const frameHeight = fit.k ? Math.round(fit.h / fit.k) : 780;
+  const frameHeight = fit.h && fit.k ? Math.round(fit.h / fit.k) : 780;
   const BpIcon = breakpoint === 'compact' ? Smartphone : Monitor;
 
   return (
@@ -405,10 +413,7 @@ export function Canvas() {
           if (file) await recreateFromScreenshot(file);
         }}
       >
-        <div
-          className="frame-fit"
-          style={fit.w ? { width: fit.w, height: fit.h } : undefined}
-        >
+        <div className="frame-fit" style={{ width: fit.w || width, height: fit.h || 780 }}>
           <div
             className="device-frame"
             data-bp={breakpoint}
