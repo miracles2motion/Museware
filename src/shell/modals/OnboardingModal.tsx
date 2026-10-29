@@ -106,10 +106,10 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
+      {/* The modal already says "Welcome to Museware" in its header; naming the
+          product twice before the first sentence is what pushed the key field
+          below the fold on a phone. */}
       <div style={{ marginBottom: 18 }}>
-        <div className="wordmark" style={{ marginBottom: 6 }}>
-          Museware
-        </div>
         <h2 style={{ margin: '0 0 6px', fontSize: 22, lineHeight: 1.25 }}>
           The canvas where Muse builds with you
         </h2>
@@ -122,7 +122,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
 
       <div className="insp-section">
         <div className="insp-section-head">
-          <span className="eyebrow">1 · Your key</span>
+          <span className="eyebrow">Your key</span>
         </div>
         <div className="key-row">
           <input
@@ -194,7 +194,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
 
       <div className="insp-section">
         <div className="insp-section-head">
-          <span className="eyebrow">2 · How you want to start</span>
+          <span className="eyebrow">How you want to start</span>
         </div>
         <div className="steps-inline">
           <button
@@ -202,7 +202,6 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
             className="how-card"
             onClick={() => start('Design me a landing page website for a small product.')}
           >
-            <span className="step">1</span>
             <div>
               <strong>Start from blueprint</strong>
               <p className="field-hint">
@@ -223,7 +222,6 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
               );
             }}
           >
-            <span className="step">2</span>
             <div>
               <strong>Recreate a screenshot</strong>
               <p className="field-hint">
@@ -240,7 +238,6 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
               setRoute('gallery');
             }}
           >
-            <span className="step">3</span>
             <div>
               <strong>Import a preset</strong>
               <p className="field-hint">

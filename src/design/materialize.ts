@@ -107,8 +107,15 @@ function colorBlock(colors: ColorMap): string[] {
   );
 }
 
-/** tokens → the CSS custom properties every surface (canvas, run, export) shares. */
-export function materializeCss(tokens: DesignTokens): string {
+/**
+ * tokens → the CSS custom properties every surface (canvas, run, export) shares.
+ *
+ * `scope` exists for the one page that shows two design systems at once: on
+ * `:root` the second stylesheet would overwrite the first and both halves of a
+ * comparison would render in whichever token set came last. Pass a selector and
+ * the tokens land on that element only.
+ */
+export function materializeCss(tokens: DesignTokens, scope = ':root'): string {
   const t = tokens.openuiTheme;
   const light = t.light_colors || {};
   const dark = t.dark_colors || {};
@@ -117,13 +124,17 @@ export function materializeCss(tokens: DesignTokens): string {
     fontStack(t.font_heading) || 'system-ui, -apple-system, Segoe UI, sans-serif';
   const body = fontStack(t.font_body) || heading;
   const lines: string[] = [];
-  lines.push(':root{');
+  lines.push(`${scope}{`);
   lines.push(...colorBlock(light).map((l) => `${l};`));
   lines.push(...scaleLines(scales).map((l) => `${l};`));
   lines.push(`--font-heading:${heading};`);
   lines.push(`--font-body:${body};`);
   lines.push('}');
-  lines.push(`[data-theme="dark"]{`);
+  lines.push(
+    scope === ':root'
+      ? '[data-theme="dark"]{'
+      : `${scope}[data-theme="dark"],${scope} [data-theme="dark"]{`,
+  );
   lines.push(...colorBlock(dark).map((l) => `${l};`));
   lines.push('}');
   return lines.join('\n');

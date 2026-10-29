@@ -3,6 +3,7 @@ import {
   Copy,
   Download,
   Laptop,
+  Play,
   LayoutGrid,
   Monitor,
   Moon,
@@ -60,6 +61,7 @@ export function Topbar() {
   const setLeftFlyout = useUi((s) => s.setLeftFlyout);
   const setMobileRail = useUi((s) => s.setMobileRail);
   const setModal = useUi((s) => s.setModal);
+  const setRoute = useUi((s) => s.setRoute);
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
   const toast = useUi((s) => s.toast);
@@ -102,14 +104,14 @@ export function Topbar() {
       <button
         type="button"
         className="brand"
-        onClick={() => setModal('onboardingOpen', true)}
-        title="About Museware"
+        aria-label="Museware — back to the start page"
+        title="Back to the start page"
+        onClick={() => setRoute('landing')}
       >
-        <span className="brand-mark">
-          <Sparkles size={14} />
-        </span>
+        <Sparkles size={18} className="brand-mark" strokeWidth={1.8} />
         <span className="brand-word">
-          museware<em>.</em>
+          {'museware'}
+          <em>.</em>
         </span>
       </button>
 
@@ -324,11 +326,16 @@ export function Topbar() {
         <button
           type="button"
           className="run-btn"
-          onClick={() => setRunMode(true, activeScreenId || doc.screens[0]?.id)}
-          disabled={!doc.screens.length}
-          title={doc.screens.length ? 'Run the app (⌘⏎)' : 'Add a screen first'}
+          onClick={() =>
+            doc.screens.length
+              ? setRunMode(true, activeScreenId || doc.screens[0].id)
+              : setModal('onboardingOpen', true)
+          }
+          title={doc.screens.length ? 'Run the app (⌘⏎)' : 'Start with a prompt'}
+          aria-label={doc.screens.length ? 'Run the app' : 'Start with a prompt'}
         >
-          ▶ Run
+          <Play size={13} fill="currentColor" strokeWidth={0} />
+          <span className="run-label">Run</span>
         </button>
         <div className="topbar-desktop" style={{ position: 'relative' }}>
           <IconButton
