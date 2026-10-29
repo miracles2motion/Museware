@@ -5,7 +5,18 @@ product from scratch to finish using only this file. Nothing here requires acces
 any prior conversation. Where a decision was painful to learn elsewhere, the lesson is
 recorded as a **LAW** — do not relitigate laws during implementation.
 
-**Spec version:** 1.5 — sixth pass: the landing page (live-canvas hero), first-run
+**Spec version:** 1.6 — seventh pass: **the layout vocabulary**. One home per
+concept (§2, §4.4): `styles` own presentation and layout, `props` own content
+and behaviour; a container's `align` is align-items and its `justify` is
+justify-content, while a child's `selfAlign` is align-self and its `grow` is
+flex-grow (Sketchware's weight); sizing is `match` | `hug` | a length on BOTH
+axes. The Style tab is rendered from one dictionary (§9.3), property sheets
+carry a group and a hint, and events are a per-type map (§4.2). Also fixed and
+now pinned: everything on the canvas selects in edit mode (§9.2), the artboard
+keeps its own scale through a breakpoint round trip (§9.7), and saved projects
+migrate to layout v2 on load (§11).
+
+**Earlier passes:** 1.5 — sixth pass: the landing page (live-canvas hero), first-run
 entry, the three-tier mw token architecture (own system, calibrated by the
 iOS/Windows foundations, openui-1.0 architecture), and the professional-polish
 checklist (the muse family strategy from v1.4 stands
@@ -87,6 +98,12 @@ laws. Sketchware Pro is source-available, NOT open-source — zero code reuse.
     layout, styling, logic, data — is reachable by drag, tap, and pick alone
     (palette, inspector, logic chips). The AI accelerates this; it is never a
     prerequisite. If a flow requires typing code, the design is wrong.
+16. **One home per concept, one word per job.** A visual idea lives in exactly
+    one place and is named for what it does: layout is `styles`, content is
+    `props`; a container *aligns children*, a child *aligns in its parent*; a
+    child that soaks up space is *grow*. Two fields with the same label doing
+    different things is not a wording problem, it is a design failure — the
+    user cannot learn a vocabulary whose words change meaning per panel (§4.4).
 
 ---
 
@@ -207,8 +224,8 @@ type NodeId = string;            // "btn_save" style ids — see §3.2 naming
 interface ComponentNode {
   id: NodeId;                    // unique per project, stable across ops
   type: ComponentType;           // from the fixed library (§4)
-  props: Record<string, unknown>;// schema-checked per type (§4)
-  styles: StyleSet;              // see below — token references FIRST
+  props: Record<string, unknown>;// content+behaviour, schema-checked per type (§4)
+  styles: StyleSet;              // layout+presentation, token references FIRST
   children: ComponentNode[];     // containers only
   events?: Events;               // §4.2 — no-code logic (tap/change/submit)
   visibleWhen?: { key: string;   // declarative show/hide, zero logic:
@@ -216,22 +233,47 @@ interface ComponentNode {
 }
 
 interface StyleSet {
-  // every value is either a token reference "var(--...)..." or a literal
-  padding?: string;  margin?: string;  gap?: string;
-  background?: string;              // e.g. "var(--openui-accent)" or "#FF0000"
-  color?: string;
-  fontSize?: string;  fontWeight?: string;
-  borderRadius?: string;
-  width?: string;  height?: string; // "match" | "hug" | "<px>" | "<%>"
-  align?: "start"|"center"|"end"|"stretch";
+  // Styles are presentation AND layout (§4.4). Every value is either a token
+  // reference ("var(--openui-accent)") or a literal; numbers mean px except
+  // the unitless keys (grow, opacity, fontWeight, lineHeight, letterSpacing).
+  padding?: StyleValue | SpaceBox;   // SpaceBox = {top,right,bottom,left}
+  margin?: StyleValue | SpaceBox;
+  gap?: StyleValue;
+  background?: StyleValue;           // "var(--openui-accent)" or "#FF0000"
+  color?: StyleValue;
+  border?: StyleValue;
+  fontSize?: StyleValue;  fontWeight?: StyleValue;  fontFamily?: StyleValue;
+  lineHeight?: StyleValue;  letterSpacing?: StyleValue;  textAlign?: string;
+  borderRadius?: StyleValue;  boxShadow?: StyleValue;  opacity?: StyleValue;
+  overflow?: "visible" | "hidden" | "auto";
+  // Sketchware sizing on BOTH axes: match (fill the parent) | hug (fit the
+  // content) | any length. 'match' → 100%, 'hug' → fit-content.
+  width?: StyleValue;  height?: StyleValue;
+  minWidth?: StyleValue;  maxWidth?: StyleValue;
+  minHeight?: StyleValue;  maxHeight?: StyleValue;
+  // ALIGNMENT — two axes, two homes, no shared word (§4.4):
+  align?: "start"|"center"|"end"|"stretch";   // container → align-items
+  justify?: "start"|"center"|"end"|"space-between"; // container → justify-content
+  wrap?: boolean;                                 // container → flex-wrap
+  selfAlign?: "start"|"center"|"end"|"stretch"; // child → align-self
+  grow?: 0 | 1;                                   // child → flex-grow (weight)
+  columns?: number;                               // grid only
   responsive?: { medium?: Partial<StyleSet>;   // ≥600 px overrides
                  expanded?: Partial<StyleSet> } // ≥1024 px overrides;
-  [k: string]: string | undefined;
+  [k: string]: unknown;              // raw CSS escape hatch (marginTop, …)
 }
+type StyleValue = string | number;
 // RESPONSIVE MODEL (§9.7): base styles ARE the compact (mobile-first)
 // design; medium/expanded override ONLY what should reflow. Rendered as
-// generated CSS classes with @media queries (inline styles cannot carry
+// generated CSS classes with @container queries (inline styles cannot carry
 // them) — the same CSS ships in export (§10.1).
+//
+// ONE HOME PER CONCEPT (the law behind this shape — see §4.4):
+//   styles = presentation + layout (gap, align, justify, wrap, grow, size…)
+//   props  = content and behaviour only (text, src, items, bindKey, variant…)
+// A Row therefore has NO gap/align/wrap props; a Card has NO `pad` prop. The
+// CSS engine still reads those four legacy props as a migration fallback so an
+// unmigrated document renders exactly as it did (§11).
 
 interface ScreenDoc {
   id: string;                    // "home", "details" (slug)
@@ -243,6 +285,7 @@ interface ScreenDoc {
 
 interface ProjectDoc {
   format: "museware/1";
+  layoutVersion?: number;        // 2 = styles own layout (§11); absent = v1
   name: string;
   screens: ScreenDoc[];
   tokens: DesignTokens;          // §5
@@ -310,8 +353,13 @@ type Op =
   | { op: "rename"; id: NodeId; name: string }
   | { op: "addScreen"; screen: ScreenDoc }
   | { op: "removeScreen"; id: string }
-  | { op: "setTokens"; patch: Partial<DesignTokens> };               // §5
+  | { op: "setTokens"; patch: Partial<DesignTokens> }              // §5
+  | { op: "saveComponent"; name: string; description: string; root: ComponentNode }
+  | { op: "placeComponent"; name: string; parentId: NodeId; index?: number }; // §4.3
 ```
+`saveComponent` / `placeComponent` are user AND agent ops (§4.3); every other
+row above is what the palette, the inspector, drag-and-drop and the agent all
+produce — one vocabulary, one undo history.
 
 ### 3.2 Id naming (enforced by validate.ts)
 Pattern `^[a-z][a-z0-9_]{2,30}$`, semantic prefix by kind: `btn_ txt_ img_ card_ row_
@@ -329,6 +377,32 @@ error). If the model omits an id, the app generates one (`btn_3f2a`) — never b
   the model for one correction round. (All-or-nothing batches keep the canvas sane.)
 - **Snapshot before every applied batch** (structural clone) → undo stack. Snapshot
   persisted with the op log entry (persist-on-create law).
+
+#### 3.3.1 The vocabulary gate (what a style or a prop may contain)
+
+A batch is checked against the SAME tables the UI renders from, so the agent
+cannot write a value the panel could never produce (§4.4, §9.3):
+
+- **Style keys the dictionary names are checked by name**: `align`/`selfAlign`
+  ∈ start|center|end|stretch · `justify` ∈ start|center|end|space-between (a
+  `stretch` here is refused with the valid words in the message) · `wrap` is a
+  boolean · `grow` is 0 or 1 · `width`/`height`/`min*`/`max*` are
+  `match` | `hug` | a length · `overflow` ∈ visible|hidden|auto ·
+  `padding`/`margin` are a value or a `{top,right,bottom,left}` box. Any OTHER
+  key still passes through as raw CSS (`marginTop`, `fontFamily`) — the
+  dictionary names the vocabulary, it does not fence the canvas in.
+- **Props are checked against the type's property sheet**: an unknown enum
+  value comes back as `E_BAD_OP` naming the valid ones (`variant must be one
+  of: primary, secondary, ghost, danger`), numbers are range-checked, toggles
+  must be booleans, and a crossed range (`min` above `max`) is refused.
+- **Required content is checked when a node ENTERS the canvas** — a button
+  with no words is rejected. Edits are not policed the same way: clearing a
+  field in the panel while you retype it must never throw errors at you.
+- **A `navigate` target is checked for shape, not existence**: a half-built
+  import may point `link.to` at a screen a later batch creates; Run mode says
+  so honestly if it never arrives.
+- Guidance travels with every error (the error table below), because the model
+  gets exactly one correction round per batch.
 
 ### 3.4 OpEntry (the log)
 ```ts
@@ -369,15 +443,25 @@ All styling resolves through design tokens (§5) by default; the model overrides
 `styles` only when the request demands it. Every component lists: kind (container or
 leaf), props schema (zod-able), defaults.
 
-**Layout containers** (children allowed):
-- `screen` — full-page flex-col; props: `title`, `layout` ("flex-col"|"flex-row"), `scroll` (bool, default true)
-- `row` — flex-row container; props: `gap`, `align`, `wrap`
-- `col` — flex-col container; props: `gap`, `align`
-- `grid` — CSS grid; props: `columns` (2–6), `gap` (responsive: override `columns` per
-  breakpoint — 2 on compact, 3 medium, 4 expanded is the classic card page)
-- `card` — elevated rounded surface; props: `title?`, `pad`
+**Layout containers** (children allowed). Since v1.6 a container's LAYOUT lives
+in `styles` (gap / align / justify / wrap / padding — §4.4); `props` holds only
+content and behaviour:
+- `screen` — full-page flex; props: `layout` ("flex-col"|"flex-row", default
+  flex-col — horizontal lays its sections out in a Row)
+- `row` — "Row (horizontal)" · flex-row container; **props: none**
+  (default styles: `gap: var(--gap-item)`, `align: center`, `wrap: true`)
+- `col` — "Column (vertical)" · flex-col container; **props: none**
+  (default styles: `gap: var(--gap-item)`, `align: stretch`)
+- `grid` — CSS grid; props: `columns` (2–6); `gap` is a style. Responsive:
+  override `columns` per breakpoint — 2 on compact, 3 medium, 4 expanded is the
+  classic card page. In the panel the column count appears as "Columns at this
+  width" only while editing a wider breakpoint (on compact it is content).
+- `card` — elevated rounded surface; props: `title?` (padding is the `padding`
+  style, default `var(--pad-card)`)
 - `hero` — full-width banner; props: `title`, `subtitle`, `image?`
-- `tabs` — tab strip + panels; props: `items: string[]`
+- `tabs` — tab strip + panels; props: `items: string[]` — one child per label.
+  Only the ACTIVE panel renders; clicking a tab on the canvas switches it (and
+  selects the tabs block), and the Layers panel reaches every panel's contents.
 - `section` — titled grouping; props: `title`
 - `form` — input-grouping container; props: `submitLabel` (default "Submit"),
   events: `submit` (§4.2); children inputs bind keys, submit fires the actions
@@ -390,37 +474,65 @@ leaf), props schema (zod-able), defaults.
   stage, `alt`, `fit`), `avatar` (`src`, `size`),
 `progress` (`value` 0–100), `spinner`.
 
-**Input** (leaf): `button` (`text`, `action` §4.1, `variant`: primary|secondary|ghost|danger),
-`iconbutton` (`icon`, `action`), `input` (`placeholder`, `bindKey`), `textarea`,
-`select` (`options: string[]`, `bindKey`), `checkbox` (`label`, `bindKey`),
-`switch` (`label`, `bindKey`), `slider` (`min`,`max`,`step`,`bindKey`), `datepicker` (`bindKey`).
+**Input** (leaf): `button` (`text`, `variant`: primary|secondary|ghost|danger,
+`icon?` drawn before the text, `disabled`), `iconbutton` (`icon`, `variant`),
+`input` (`placeholder`, `bindKey`, `inputType`: text|number|password|phone —
+renders the matching HTML type, so a password field shows dots), `textarea`
+(`placeholder`, `bindKey`, `rows`), `select` (`options: string[]`, `bindKey`),
+`checkbox` (`label`, `bindKey`), `switch` (`label`, `bindKey`), `slider`
+(`min`,`max`,`step`,`bindKey`, `label?` rendered above the track with its live
+value in Run mode), `datepicker` (`bindKey`).
 
 **Navigation** (leaf): `navbar` (`items: string[]` — top app bar with menu),
-`bottomnav` (`items`), `link` (`text`, `to: screenId`), `fab` (`icon`, `action`).
+`bottomnav` (`items`), `link` (`text`, `to: screenId`), `fab` (`icon`).
+Behaviour is never a prop: what these do on tap is an EVENT (§4.2) — the spec's
+old `action` prop never existed in the tree and is gone from this list.
 
 **Data display** (leaf, mock-data driven for the demo): `list` (`itemTemplate` — a
-mini node map repeated over mock items; render first 5), `table` (`columns`, `rows` ≤ 10),
-`stat` (`label`, `value`, `delta`), `chart` (`kind`: bar|line|spark, `data` ≤ 12 points).
+mini node map repeated over mock items; render first 5; `divider` draws hairlines
+between rows instead of a card per row), `table` (`columns`, `dataKey`, rows ≤ 10),
+`stat` (`label`, `value`, `delta`), `chart` (`kind`: bar|line|spark, `dataKey`, ≤ 12
+points). The list's ROWS are not nodes: you select the list itself, the same model
+Sketchware listviews use.
 
-**Props schemas (zod — two full examples; every component gets the same
-treatment in `types/tools.ts`):**
+**Prop rules (two examples; every type is described the same way in
+`types/library.ts`, and `ops/validate.ts` enforces the sheet — §3.3.1):**
 
 ```ts
-const buttonProps = z.object({
-  text: z.string().min(1).max(80),
-  action: actionSchema,                                  // §4.1
-  variant: z.enum(["primary","secondary","ghost","danger"]).default("primary"),
-});
-const cardProps = z.object({
-  title: z.string().max(80).optional(),
-  pad: z.string().default("var(--pad-card)"),            // token default
-});
+// what the property sheet says, and therefore what validation enforces
+button: {
+  text:     { kind: 'text',     group: 'Content',  hint: 'The word on the button.', required: true },
+  variant:  { kind: 'select',   group: 'Content',  hint: 'How loud the button is.',
+              options: ['primary', 'secondary', 'ghost', 'danger'], defaultValue: 'primary' },
+  icon:     { kind: 'icon',     group: 'Content',  hint: 'Optional icon drawn before the text.' },
+  disabled: { kind: 'toggle',   group: 'Behavior', hint: 'Greyed out and untappable — but still selectable on the canvas.' },
+}
+card: {
+  title:    { kind: 'text',     group: 'Content',  hint: 'Optional heading rendered above the children.' },
+  // no `pad`: padding is the `padding` style (§4.4)
+}
 ```
-Every prop has a default OR `.optional()`, a max length on strings, and a
-doc comment the inspector renders as its field hint.
+A required prop is checked when the node ENTERS the canvas, not on every edit —
+so clearing a field while you retype it never throws (§3.3.1).
+Every prop has a default OR `.optional()`, a max length on strings, and — from
+v1.6 — a **group** (Content | Behavior | Advanced) plus a **hint**, both
+required. A library test fails the build if any prop is missing either: a field
+the user cannot understand is a field that should not be on screen.
+
+```ts
+interface PropDef {
+  key: string; label: string; kind: PropKind;
+  group: "Content" | "Behavior" | "Advanced";   // inspector section
+  hint: string;                                // one line, always shown
+  options?: string[]; min?: number; max?: number; required?: boolean;
+}
+```
+`PropKind` = text | longtext | number | select | toggle | icon | screen | tone |
+actions | data | bind — each kind has exactly one control in the panel (§9.3).
 
 **Default styles per kind (under the token defaults, §5.3):** containers
-render flex per their axis with `gap: var(--gap-section)`; `card`/`hero`
+render flex per their axis, with a gap from their own default styles — screen
+`var(--gap-section)`, row/col/grid `var(--gap-item)`; `card`/`hero`
 get `border-radius: var(--radius-card)` + `background: var(--openui-elevated)`;
 buttons/inputs height `var(--h-button)`/`var(--h-input)` +
 `border-radius: var(--radius-button)`; heading levels 28/22/18/15 px, body 14,
@@ -468,9 +580,31 @@ of actions rendered as chips:
 type EventName = "tap" | "change" | "submit";
 type Events = Partial<Record<EventName, Action[]>>;
 ```
-Defaults: every leaf gets `tap`; inputs/select/checkbox/switch/slider get
-`change`; `form` gets `submit`; `link`/`bottomnav` items carry navigate
-chips out of the box. **The builder UI (Inspector → Events tab):** a
+**`EVENT_MAP` is the truth** (`types/library.ts`) — a block offers only the
+triggers it can actually fire, and the panel renders ONLY those (v1.6; before
+this, a Divider showed three dead editors and "every leaf gets tap" was a
+promise the renderer did not keep):
+
+| event | types |
+|---|---|
+| `tap` | heading, text, label, card, hero, section, image, avatar, button, iconbutton, fab, link, list, table, stat, chart, navbar, bottomnav |
+| `change` | input, textarea, select, checkbox, switch, slider, datepicker, tabs |
+| `submit` | form |
+
+Everything else (divider, spinner, progress, icon, row, col, grid, screen) has
+NO events, and the Events tab says so in one honest line rather than offering
+editors that go nowhere. Two rules keep the map true:
+
+- **A listed type really fires.** Card, Hero, Section, Image, Avatar, Heading,
+  Text, Label, Stat, Chart and Table carry a tap handler in Run mode; the tab
+  strip fires `change`; the navbar and bottom nav fire `tap` after navigating.
+- **A tap belongs to the block it landed on**, not to every ancestor with a tap
+  wired: clicking a Heading inside a tappable Card fires the Heading's actions
+  and NOT the Card's. (The nearest `n-<id>` element decides.)
+
+`link`/`bottomnav` items still carry navigate chips out of the box.
+
+**The builder UI (Inspector → Events tab):** only the mapped triggers appear; a
 "WHEN <event>" row per event; under it "+ add action" opens a picker —
 Navigate (screen list) / Set state (key picker + value field) / Toggle /
 Toast (text) / Open URL / If state equals… (then nested chips). Argument
@@ -497,9 +631,74 @@ interface CustomComponent {
   retro-update placed copies (deep sync is post-hackathon; the inspector
   says so in one line). The AI can `saveComponent`/`placeComponent` too
   (ops below), so "make me a card I can reuse" works end-to-end.
-- New ops (§3.1): `{ op:"saveComponent"; name; description; root }` ·
-  `{ op:"placeComponent"; name; parentId; index? }` — validated like all
-  ops; `E_NAME_TAKEN` on duplicate save.
+- Ops: `saveComponent` / `placeComponent` (§3.1) — validated like all ops;
+  `E_NAME_TAKEN` on duplicate save.
+
+---
+
+### 4.4 The layout & style vocabulary (one home per concept)
+
+**The problem this section exists to kill.** Before v1.6 the same idea had two
+homes and sometimes two names: a `row` kept `gap`/`align`/`wrap` in PROPS while
+a `screen` kept them in STYLES; `styles.align` compiled to align-self while
+`props.align` compiled to align-items, so the panel showed two fields both
+labelled "Align" that did different things and neither said which axis; width
+accepted `match`/`hug` in the CSS engine but no field offered them; and height
+had no field at all. Rows and Columns read as decoration because their one
+interesting property — who grows — did not exist.
+
+**The law.** `styles` = presentation + layout. `props` = content + behaviour.
+Alignment is never one ambiguous word:
+
+| key | who it applies to | label in the panel | compiles to |
+|---|---|---|---|
+| `align` | container | **Align children** | `align-items` |
+| `justify` | container | **Distribute children** | `justify-content` |
+| `wrap` | container | **Wrap to new lines** | `flex-wrap` |
+| `gap` | container | **Space between children** | `gap` |
+| `selfAlign` | any child | **Align in parent** | `align-self` |
+| `grow` | any child | **Fill leftover space** | `flex-grow` |
+
+`justify` takes start | center | end | **space-between** and never `stretch` —
+`stretch` was never a valid justify-content and is refused at validation.
+`grow` is Sketchware's `layout_weight`, Figma's `layoutGrow`, CSS `flex-grow`:
+one concept, one friendly name. A spacer is an empty col/row with `grow: 1`.
+
+The rest of the dictionary — defined once in `types/styleDict.ts` as
+`STYLE_FIELDS: { key, label, hint, kind, options?, scope }` and consumed by the
+inspector (renders the Style tab), the validator (§3.3.1) and the CSS engine
+(`canvas/cssGen.ts` emits from it) — is:
+
+| group | keys |
+|---|---|
+| Layout | align, justify, wrap, gap (containers) · selfAlign, grow (children) |
+| Space | padding, margin, borderRadius |
+| Size | width, height, minWidth, maxWidth, minHeight, maxHeight |
+| Colour | background, color, border |
+| Type | fontSize, fontWeight, lineHeight, letterSpacing, textAlign |
+| Effects | boxShadow, opacity, overflow |
+
+`scope` decides relevance: `container` (only if it holds children), `child`
+(everything except the screen root), `text` (only the seven text-ish types:
+heading, text, label, badge, button, link, stat), `every`. That one word is why
+a Divider is no longer offered "Align children" and a Heading is.
+
+**Sizing is Sketchware's, on both axes.** `width`/`height`/`min*`/`max*` accept
+`match` (fill the parent → 100%), `hug` (fit the content → fit-content) or a
+length. The panel offers Match / Hug / Fixed as a segmented control, with a
+length box for Fixed; `hug` works on height, which it never did before. Hint
+shown under the field: "match fills the parent when the parent stretches you —
+use grow in the main axis."
+
+**`padding`/`margin` accept a box** `{top,right,bottom,left}` from the agent,
+emitted as one declaration per side. The inspector keeps one field (`Inner
+space`) plus a hint — per-side editing is agent-only in v1.
+
+**The migration window.** The CSS engine still honours a CONTAINER's legacy
+`props.gap` / `props.align` / `props.wrap` when `styles` does not speak, and a
+card's `props.pad`, so an unmigrated document renders exactly as it did; styles
+always win. Saved documents are migrated on load (§11), so the fallback only
+ever catches a project that has not been opened since v1.5.
 
 ---
 
@@ -734,9 +933,59 @@ finish(summary)                     → ends the turn with a 2-sentence user sum
 ```
 All calls validated by zod (§3.3). `edit_canvas` with ops referencing unknown
 screens/tokens/components fails with the E_ codes and the model gets exactly one
-correction round per batch. The system prompt instructs: "edit_canvas calls are BIG:
-one call carries ALL the add ops for a screen; a second carries the styling. NEVER one
-widget per call." (law 2 exists because models do it unless told, every time).
+correction round per batch. The system prompt instructs: "edit_canvas calls are
+BIG: one call carries ALL the add ops for a screen; a second carries the
+styling. NEVER one widget per call." (law 2 exists because models do it unless
+told, every time).
+
+**The model is told the same vocabulary the panel shows (v1.6).** Two lines ride
+on `TOOL_DESCRIPTIONS.edit_canvas`, after the op grammar:
+
+> styles keys: gap, align(start|center|end|stretch = align children), justify(start|center|end|space-between = distribute), wrap, grow(1 = fill leftover space), selfAlign, padding, width/height ("match"|"hug"|length), background, color, fontSize, fontWeight, textAlign, borderRadius, boxShadow, opacity.
+> props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}.
+
+Descriptions are prose, not schema: the wire mirror (§7.1) stays SHALLOW, so the
+depth refusal cannot come back. Before this, no prompt or description named a
+single style key and the model guessed — which is how `justify: stretch` reached
+the canvas. The `LAYOUT:` block in the system prompt (§8.5) is the third leg:
+the vocabulary, the grammar, and an example of it in use.
+
+### 7.1 The wire mirror — what the model actually receives
+
+Two 400s killed whole turns before a single token was generated, because the
+tools array rides on EVERY request:
+
+1. `400 Recursive JSON schemas are not currently supported` — a truthful,
+   recursive tree schema emits `$ref`s.
+2. `400 JSON schema exceeds the maximum nesting depth of 10 levels` — even a
+   BOUNDED tree mirror inlined to ~27 levels once you multiply op union × node ×
+   children × styles × responsive.
+
+The fix is the shape that makes both impossible: **the wire names the op and
+leaves the payload open; the structure lives in prose.** `types/wire.ts`:
+
+```ts
+export const OP_NAMES = ["add","remove","move","setProps","setStyles","setText",
+  "rename","addScreen","removeScreen","renameScreen","setEntry","setTokens",
+  "saveComponent","placeComponent"] as const;                 // names, not shapes
+export const editCanvasWire = z.object({
+  screen_id: z.string().max(31).optional(),
+  ops: z.array(z.object({ op: z.enum(OP_NAMES) }).catchall(z.unknown())).min(1).max(40),
+});
+```
+
+`opSchema` (§3.1) stays the RUNTIME authority and validates every payload exactly
+as deeply as before; only the wire stops describing it. `TOOL_DESCRIPTIONS`
+(§7) carries the grammar instead — and, from v1.6, the style keys and per-type
+props too. `types/wire.test.ts` enforces the invariants that keep this true:
+
+- **no `$ref` anywhere** and no `definitions`;
+- **every tool ≤ 8 levels deep** (headroom under Meta's cap of 10);
+- every op name present in the enum, every payload left open;
+- no empty sub-schema and no `additionalProperties: {}` (some validators refuse
+  to interpret those), so the emitted JSON is cleaned up before it is sent;
+- total parameters stay under a 24 kB budget, because they ride on every call;
+- the runtime validator still accepts what the canvas really does.
 
 **Structured output defence (law 1):** request tool-calls natively; if a reply
 contains fenced JSON/HTML instead of tool calls, retry ONCE with a correction message.
@@ -830,7 +1079,7 @@ finish() with one sentence."
   Tapping the card cancels any still-finishing turn first. User drags bypass this
   entirely — it gates only the model.
 
-### 8.5 System prompt (assembled, ~1200 chars max — pin exactly this spirit)
+### 8.5 System prompt (~2050 chars — pin exactly this spirit; the string lives in `prompts.ts`)
 ```
 You are the muse builder inside Museware. You change the canvas ONLY through tools:
 read_canvas, set_design_tokens, propose_blueprint, ask_choice, edit_canvas,
@@ -839,11 +1088,23 @@ styling call; never one component per call. Components come from the library lis
 token sheet (hex literals only when the user explicitly demands a custom colour).
 First agree the look (offer 2–4 whole directions with hexes), save it with
 set_design_tokens, propose_blueprint, then fill in after approval. Never print HTML,
-JSON, or code in your reply — prose only. The user's saved design system is LAW:
-use its tokens, never invent replacements. Design COMPACT-FIRST (390px);
-add medium (≥600px) / expanded (≥1024px) overrides only where the layout
-should reflow — grid columns, wrapping rows, hero splitting side-by-side.
+JSON, or code in your reply — prose only.
+
+LAYOUT: Screens and Columns stack top-to-bottom, Rows go left-to-right; children
+sit edge-to-edge with gap between. Give containers gap:var(--gap-item) and
+align:stretch by default. A child with grow:1 soaks up leftover main-axis space
+(a spacer is an empty col/row with grow). "match" fills the parent, "hug" fits
+the content. Justify distributes: space-between pins the first child to the start
+and the last to the end. Text aligns with textAlign, boxes with align/selfAlign.
+
+The user's saved design system is LAW: use its tokens, never invent replacements.
+Design COMPACT-FIRST (390px); add medium (≥600px) / expanded (≥1024px) overrides
+only where the layout should reflow — grid columns, wrapping rows, hero splitting
+side-by-side.
 ```
+The verbatim strings live in `src/muse/prompts.ts` (this block included); §A1
+points there. The LAYOUT paragraph is load-bearing: without it the builder
+invented properties instead of using `gap`/`grow`.
 
 ### 8.6 Choice protocol (the colour moment)
 The model asks the user to pick between 2–4 whole directions by calling
@@ -1244,35 +1505,136 @@ only (law 13). Empty states teach in one line each.
 
 ### 9.2 Canvas
 - Recursive `NodeView` renders the tree with resolved styles (tokens → CSS vars).
-- dnd-kit: drag from a component palette (grouped by §4 categories, plus a
-  "My components" group from §4.3 at the top) OR drag existing
-  nodes (move). Drop indicators: before/after/inside (containers only — enforce §3.3
-  rules at drag time, so illegal drops are visibly impossible). Drop
-  indicators: before/after = a 2 px accent line across the edge; inside = an
-  inset accent outline on the container (pointer within 12 px of the edge
-  counts as before/after).
-- Selection: click → inspector; outline uses `--mw-accent`. Double-click text nodes →
-  inline edit (Enter or blur commits, Esc cancels; the commit is a plain
-  `setText` op). Hover shows the node's id chip (ids matter to
-  the agent round-trips).
+- **Dragging** (§9.2.1 below) is one pointer implementation for both gestures:
+  palette → canvas (insert) and node → node (move). The layer panel owns the
+  third: row → row with dnd-kit, reorder AND nest by indentation (§9.2.2).
+- Drop indicators: before/after = a 2 px accent line across the edge; inside =
+  an inset accent outline on the container (pointer within 12 px of the edge
+  counts as before/after). Illegal drops are visibly impossible: the rule set is
+  §3.3's, applied at drag time.
+- **Selection: everything selects.** One delegated click handler on
+  `.frame-viewport` resolves `e.target` up to the nearest `n-<id>` element.
+  Cards, headings, rows and columns always worked; buttons, icon buttons, links,
+  FABs, tab labels and every form field did not, for two reasons that are now
+  laws:
+  - *Edit mode = everything selects. Run mode = things behave.* An element may
+    stop propagation ONLY when `mode === 'run'`; in edit mode a `tap` is a no-op
+    and stopping the click is pure loss (it killed the selection).
+  - *A field stays hit-testable.* `pointer-events: none` in edit mode (the old
+    anti-typing guard) makes an element invisible to the mouse, so the click fell
+    through to its parent and selected the wrong node. The guard is now
+    `onPointerDown → preventDefault()`: the field remains the click target, still
+    cannot take focus or open a picker, and a tap on it selects it.
+  - *Chrome never steals the selection.* The move handle sits outside any
+    `n-<id>`, so its click resolves to "nothing"; it stops propagation itself.
+- Outline uses `--mw-accent`. Double-click text nodes → inline edit (Enter or
+  blur commits, Esc cancels; the commit is a plain `setText` op). Hover shows the
+  node's id chip (ids matter to the agent round-trips).
+- **Chrome cannot escape the canvas.** Selection, hover, id chip and drop
+  outlines are absolutely positioned INSIDE the scaled artboard, so an
+  un-trapped `z-index` paints them over the inspector, menus and the mobile tab
+  bar. `.canvas-area` therefore owns a stacking context
+  (`isolation: isolate`), the drag ghost is portalled to `document.body` (it must
+  float over the panels, and a `fixed` element inside a transformed frame is
+  pinned to the frame instead of the pointer), and `check:tokens` fails the build
+  if that context is removed or if any canvas overlay becomes `position: fixed`.
 - User drags produce the SAME ops as the agent — one history, one undo.
 
+#### 9.2.1 The pointer drag (palette → canvas, node → node)
+
+- `pointerdown` on a palette tile (or the move handle) begins a drag in
+  `useDrag`; `pointermove` resolves a target; `pointerup` commits ONE op;
+  `pointercancel` CANCELS (it used to commit whatever the last hover was, which
+  built things on a stray gesture).
+- The target is resolved twice and the first hit wins: `dropTargetFor(e.target)`
+  — the element the event reached — then `document.elementFromPoint(x, y)`.
+  A single `elementFromPoint` alone answered "the canvas padding" or "an overlay"
+  whenever the pointer was between nodes, so releasing in the middle of a screen
+  silently did nothing. **Empty artboard space is a target**: it maps to the
+  screen node, so a drop in the padding appends to the screen.
+- Anything OUTSIDE `.frame-viewport` is not a target: a stray release over a
+  panel cancels instead of building.
+- The target speaks about the NODE, not the deepest span inside it — `before` and
+  `after` therefore use the container's geometry, not a line of text's.
+- On commit the drag reports honestly: an op applied → a toast naming what
+  happened and that ⌘Z undoes it; a refusal ("That element cannot hold
+  children", "Already there") → a warn toast saying why. A drop that does
+  nothing must never be silent.
+
+#### 9.2.2 The layer panel (reorder and nest)
+
+`src/layers/move.ts` owns the decision, because the old inline maths had a bug
+that made the panel feel fake: dragging a row DOWN one slot computed the index
+the row already had, so nothing moved — silently. The solver: descend / move up /
+move down (de-indexing the row's own slot when it leaves its parent), nest when
+the row is dragged right by more than `NEST_INDENT_PX` (18 px) over a CONTAINER,
+and refuse self, descendant, root and no-op moves with a sentence. The row under
+the drag highlights (`data-over`) and a successful move toasts "Moved — ⌘Z undoes
+it". The panel's hint says it in the same words: "drag a row to reorder it; drag
+it right, over a container, to nest it inside."
+
 ### 9.3 Inspector
-Schema-driven from §4: props fields by type (text/number/select/toggle/screen-picker/
-action-picker), styles section (token pickers FIRST: colour = token swatch grid with
-custom hex as the last option; spacing/radius steppers bound to token defaults),
-bindings list (`bindKey`s on the screen). **Breakpoint awareness (§9.7):** the
-inspector edits the breakpoint the topbar switcher currently shows; a
-field carrying an override at THIS breakpoint gets a filled dot (tap to
-revert to inherit). **Events tab** (§4.2): the WHEN/THEN chip editor —
-argument fields are pickers, zero code. **Save as component** button
-(§4.3). "Ask muse to restyle this" button → prefills
-the rail with a scoped request.
+
+**Props tab** — schema-driven from §4: one control per `PropKind` (text /
+longtext / number / select / toggle / icon-picker / screen-picker / tone /
+data-key / bindKey), each with its required label and hint. A container with no
+content props says so in a sentence instead of showing an empty section
+("Row (horizontal) has no content of its own — what it holds, and how it spaces
+it, lives in the Style tab").
+
+**Style tab** — rendered from `STYLE_FIELDS` (§4.4), grouped and FILTERED BY
+RELEVANCE. The old tab was one flat fourteen-field list shown to every widget,
+which is why none of the fields meant anything. Now:
+
+| section | shown when | fields |
+|---|---|---|
+| Layout · children | the node is a container | Align children, Distribute children, Wrap, Space between children (+ Columns at this width on a wider breakpoint) |
+| Layout · in parent | the node is not the screen root | Align in parent, Fill leftover space |
+| Space | always | Inner space, Outer space, Corners |
+| Size · match, hug or fixed | always | Width, Height (Match/Hug/Fixed segmented + length box), Min/Max width, Min/Max height |
+| Colour | always | Background, Text colour, Border — token swatch grid, custom hex last |
+| Type | text-ish types only | Text size, Weight, Line height, Letter spacing, Text align |
+| Effects | always | Shadow, Opacity, Overflow |
+
+Every field prints its `hint` underneath. There is no field labelled bare
+"Align", and a test asserts it: the two alignment words are "Align children"
+(align-items) and "Align in parent" (align-self).
+
+**Breakpoint awareness (§9.7):** the inspector edits the breakpoint the topbar
+switcher currently shows; a field carrying an override at THIS breakpoint gets a
+filled dot (tap to revert to inherit), and the tab shows how many overrides the
+width has plus one "inherit" button that clears them.
+
+**Events tab** (§4.2): only the triggers in `EVENT_MAP` for this type, each a
+WHEN/THEN chip editor whose argument fields are pickers — zero code. A block with
+no events says so once.
+
+**Foot:** Save as component (§4.3), Duplicate (one op), Delete, and "Ask muse to
+restyle this" → prefills the rail with a scoped request.
+
+Bindings list (`bindKey`s on the screen) lives on the screen inspector (nothing
+selected), next to the design-system presets.
 
 ### 9.4 Screens & viewport
-Screen tabs add/duplicate/delete/rename screens. Viewport switch resizes the canvas
-frame (390×844 / 768 / 1280) — the tree is responsive (flex/grid), not absolute.
-The initial viewport follows `kind` (§8.8); switching is always manual-after.
+Screen tabs add/duplicate/delete/rename screens. The viewport switch resizes the
+canvas frame (390 / 768 / 1280 wide) — the tree is responsive (flex/grid), not
+absolute. The initial viewport follows `kind` (§8.8); switching is always
+manual-after.
+
+**The artboard is laid out at its TRUE width and only the DISPLAY is scaled.**
+Edit-mode height is 780 px (so a whole phone fits a laptop screen with the chrome
+on); Run mode grows to 844 px. When either axis overflows the canvas,
+`fitScale` shrinks what you see — clamped to [0.2, 1], never upscaled, rounded to
+three decimals — and the frame's reserved box comes from that size so scrolling
+and centring stay honest. Two consequences, both load-bearing:
+
+1. `getBoundingClientRect()` reports RENDERED pixels: overlays, drop lines and
+   the inline editor divide by the scale before speaking in frame coordinates.
+2. Hit-testing and pointer coordinates stay in rendered pixels and need no
+   adjustment at all.
+
+The frame chrome prints the real numbers ("390 × 780 · 74%"), so the preview can
+never lie about what it is showing.
 
 ### 9.5 Agent rail & cards (port of the field-proven set — richness identical)
 - **How-to-build card** (auto-posted after a turn creates the first screens): "Build it — how?" with Blueprint
@@ -1332,17 +1694,21 @@ This is the judge-moment feature: "the AI built this, and it actually RUNS."
   **medium** ≥ 600 px; **expanded** ≥ 1024 px. (Material window-size
   classes — three is enough for the demo and for real sites.)
 - Mechanism: a node's `styles.responsive` holds per-breakpoint overrides
-  (§2). Rendering generates one CSS class per node id plus `@media
-  (min-width: …)` blocks — the canvas, RunMode, and the exported code all
-  consume the SAME generated CSS. No duplicate styling logic anywhere.
+  (§2). Rendering generates one CSS class per node id plus
+  `@container mw (min-width: …)` blocks — the canvas, RunMode, and the
+  exported code all consume the SAME generated CSS. No duplicate styling logic
+  anywhere. (Container queries, not media queries: the artboard is a container,
+  so the same CSS reflows inside a 390 px canvas frame, a phone and a desktop
+  browser without knowing the window size.)
 - **Design-time UX (the topbar 📱 💻 🖥 switcher EDITS, it doesn't just
   preview):** the switcher selects the breakpoint being edited. On 📱 you
   edit base styles; on 💻/🖥 edited fields write `responsive.medium` /
   `.expanded` overrides. Fields inheriting from the lower breakpoint show
   an "inherits" chip; overriding one shows a filled dot (tap = clear
-  override). The canvas frame animates to the breakpoint width so the
-  reflow is VISIBLE while you edit. Nodes carrying an override at the
-  current breakpoint get a small dot badge on the canvas too.
+  override). The frame resizes instantly to the new width so the reflow is
+  VISIBLE while you edit. It does NOT animate — see the round-trip law below.
+  Nodes carrying an override at the current breakpoint get a small dot badge on
+  the canvas too.
 - Defaults are responsive already: containers flex/wrap, `grid.columns`
   overridable per breakpoint, hero splits side-by-side at expanded via
   its default overrides, text uses relative sizes. A fresh component
@@ -1352,6 +1718,19 @@ This is the judge-moment feature: "the AI built this, and it actually RUNS."
   prompt's LOOK line keep it purposeful (reflow where it matters, not
   vanity overrides). The reviewer sees compact AND expanded outlines
   (§8.3), so a broken tablet layout FAILS review like any other defect.
+- **The round-trip law (v1.6).** Switching compact → medium → expanded →
+  compact must return the artboard to its original size. The fit used to be
+  derived from the frame's MEASURED `offsetWidth` while a CSS width transition
+  was still running, so the layout effect measured the OUTGOING breakpoint and
+  the phone inherited the desktop's scale — permanently, because nothing
+  re-measured afterwards. Two rules fix it for good:
+  1. **Width comes from `BREAKPOINT_WIDTHS[breakpoint]`, never from a
+     measurement.** Only height is measured (Run mode changes it). A stale box
+     can no longer decide how big a phone looks.
+  2. **No width transition on `.device-frame`,** and the fit re-runs once after
+     two animation frames, so a settled layout is what gets measured.
+  A test pins it: it lies to the frame (always reports 1280) and requires the
+  scale to follow the breakpoint anyway, including a five-step round trip.
 - RunMode reflows live with the browser window — judges will drag the
   window edge; let them.
 - **Watches & tiny screens: honest fence.** v1 targets ≥ 320 px compact;
@@ -1367,7 +1746,7 @@ This is the judge-moment feature: "the AI built this, and it actually RUNS."
 
 ### 10.1 React codegen
 `ProjectDoc → React components` (one component per screen; styles → the SAME
-generated CSS classes + `@media` blocks the canvas used (plus
+generated CSS classes + `@container` blocks the canvas used (plus
 `tokens.css`), so breakpoints survive export exactly; actions → `useState`/`useNavigate`
 equivalents in a 40-line runtime stub). Deterministic, readable, no AI in the loop.
 Round-trip guarantee: exported projects re-import as `museware/1`.
@@ -1388,6 +1767,29 @@ scope, two paragraphs max).
   time restores as "interrupted" (honest line: what the op log shows was applied).
 - Project file: download/upload `.museware.json` (the ProjectDoc). Import validates
   with zod; unknown fields preserved.
+
+### 11.1 Layout v2 migration (one-time, idempotent, on every load)
+
+`src/persist/migrate.ts` rewrites a pre-v1.6 document to the vocabulary in §4.4
+BEFORE zod sees it — refusing to open somebody's project in order to teach them
+a rule is the wrong trade, and a v1 document may hold a value the dictionary now
+rejects (`justify: "stretch"`). It moves each value to the home that matches
+what it always did:
+
+| from | to | why |
+|---|---|---|
+| container `props.gap` / `props.align` / `props.wrap` | `styles.gap` / `.align` / `.wrap` | layout belongs to styles |
+| `card` `props.pad` | `styles.padding` | it was an inline padding all along |
+| LEAF `styles.align` | `styles.selfAlign` | it always compiled to align-self |
+| `justify: "stretch"` (base or a breakpoint block) | dropped | never a valid justify-content |
+
+Rules that make it safe: **a style value always wins** over the legacy prop;
+`layoutVersion: 2` is stamped so it is a one-way trip per document (a migrated
+CONTAINER's `align` now means align-items and must never be demoted a second
+time); documents created now start at 2; and the CSS engine keeps the props
+fallback (§4.4) so a document that is never re-saved still renders identically.
+Golden test: a v1 document is migrated, rendered before and after, and the row's
+rule is byte-identical.
 
 ---
 
@@ -1491,6 +1893,32 @@ Fallback: pre-recorded run.
 25. Contributor guard: budget/profile switch to contributor works in dev,
     and the demo profile REFUSES to export artifacts built with it
     (restriction honored, message explains).
+26. **Everything selects:** click a card, a heading, a row, a form, a button, an
+    icon button, a link, a FAB, a tab label, a text field, a textarea, a select,
+    a slider and a date picker — each selects ITSELF, never its parent. Then
+    press Run: the same clicks act like an app and do not re-select.
+27. **Fields stay hit-testable:** in edit mode a field cannot take focus or open
+    a picker (pointer-down is cancelled), and no edit-mode field carries
+    `pointer-events: none`. Grabbing the move handle keeps the selection.
+28. **Drag and drop:** a palette block dropped on the MIDDLE of a card inserts
+    there and selects it; dropped on empty artboard it appends to the screen;
+    released over a panel it cancels and builds nothing. A pointercancel builds
+    nothing. The ghost follows the pointer over the panels.
+29. **Layers:** drag a row DOWN one slot → it moves down one (the old maths wrote
+    the index it already had); drag a row RIGHT over a container → it nests; a
+    row onto its own child refuses with a sentence; the row under the drag
+    highlights.
+30. **Breakpoint round trip:** compact → medium → expanded → compact returns the
+    artboard to its original scale. The fit follows the breakpoint even when the
+    frame lies about its measured width.
+31. **One vocabulary:** a Row's Style tab shows Align children / Distribute
+    children / Wrap / Space between children and no field labelled bare "Align";
+    Width and Height offer Match / Hug / Fixed; `grow` writes `flex-grow`; the
+    agent cannot save `justify: "stretch"`, `variant: "banana"`, a button with no
+    text on add, or a crossed range.
+32. **Honest panel:** a Divider's Events tab shows one "no events" line, not
+    three dead editors; every prop in the panel shows its hint; opening a
+    v1.5 project migrates it silently and it still looks the same.
 
 ---
 
@@ -1516,6 +1944,62 @@ Fallback: pre-recorded run.
   zero quota errors → the muse family carries Museware (§6.1 matrix).
 - Dead cards stayed clickable after answering → law 11.
 - Hex codes ate the labels ("Any need for those codes?") → display stripping §8.6.
+- Two fields called "Align" did different things (`align-items` in one home,
+  `align-self` in another) → one word per concept, `selfAlign`/`grow` named for
+  what they do (§4.4).
+- Row and Column had no property worth setting (gap as a raw CSS string, never a
+  weight) → a row without `grow` cannot make a layout, so rows read as decoration
+  ("rows and columns are useless and confusing") → the sizing and weight
+  vocabulary of §4.4.
+- Buttons, links, FABs and every form field were unselectable: `stopPropagation`
+  in EDIT mode, where the tap was a no-op → "edit mode = everything selects"
+  (§9.2).
+- Form fields carried `pointer-events: none` as an anti-typing guard, which also
+  removed them from hit-testing, so clicks selected their parent → guard the
+  pointer's DEFAULT ACTION, never the element's visibility (§9.2).
+- A palette drop released between two nodes did nothing at all, silently
+  (`elementFromPoint` answers "padding" or "overlay") → dual hit-test + empty
+  artboard is a target + outside the frame cancels (§9.2.1).
+- The phone inherited the desktop's zoom after visiting desktop and coming back:
+  the fit measured the frame while its width was still animating → measure the
+  declared breakpoint width, never the box (§9.7).
+- Dragging a layer row down one slot wrote the index it already had, so nothing
+  moved and nothing was said → the move solver + a toast (§9.2.2).
+- The selection outline drew across the inspector and the tab bar: absolutely
+  positioned chrome with a z-index escapes any ancestor that does not out-rank it
+  → the canvas owns a stacking context (§9.2).
+- A dead `Layout` select on the screen (flex-row changed nothing) and a dead
+  `Scrolls` toggle → wire it or delete it (§4).
+- `justify: "stretch"` reached justify-content because nothing validated a style
+  value and no prompt named a style key → the vocabulary gate (§3.3.1) + the
+  grammar in the tool description (§7).
+
+---
+
+## 15. Glossary
+**Op** — the single atomic change unit (§3). **Batch** — an all-or-nothing list of
+ops from one tool call. **Blueprint** — the up-front plan text + its approval card.
+**Fill queue** — the screen-by-screen build after blueprint approval. **Token sheet**
+— the ≤1800-char AI-facing design summary. **Verify gate** — render + model
+self-review PASS/PROBLEMS with one rebuild. **Rail** — the agent chat dock. **Card**
+— an interactive rail message that leaves on answer. **Receipts** — the op log; the
+only source of truth for "did it happen." **Event** — a
+component trigger (tap/change/submit) holding an ordered action list (§4.2).
+**Logic chip** — one action rendered in the Events tab; arguments are
+pickers. **Custom component** — a saved subtree placed as copies (§4.3).
+**kind** — the project's web/app mode: defaults only, one tree (§8.8).
+**Style dictionary** — `types/styleDict.ts`, the single table of layout and
+presentation keys with their labels, hints, scopes and CSS output; the inspector,
+the validator and the CSS engine all read it (§4.4). **align / justify** — a
+CONTAINER aligning its children across the cross axis / distributing them along
+the main axis. **selfAlign** — a CHILD aligning itself inside its parent.
+**grow** — a child soaking up leftover main-axis space; Sketchware's weight,
+Figma's layoutGrow, CSS flex-grow (§4.4). **match / hug** — Sketchware sizing:
+fill the parent / fit the content. **EVENT_MAP** — the per-type table of which
+triggers a block can actually fire (§4.2). **layout v2** — the one-home layout
+model and the migration that moves a v1 document onto it (§11.1). **fit scale** —
+the display-only shrink applied to the artboard so the whole frame fits the
+canvas; layout stays at the true breakpoint width (§9.4).
 
 ---
 
@@ -1579,19 +2063,6 @@ the turn):**
 "Describe this UI mockup for a builder: structure top→bottom, every
 component with its type, every colour as hex, all text verbatim, spacing
 impressions in dp. ≤ 250 words."
-
-## 15. Glossary
-**Op** — the single atomic change unit (§3). **Batch** — an all-or-nothing list of
-ops from one tool call. **Blueprint** — the up-front plan text + its approval card.
-**Fill queue** — the screen-by-screen build after blueprint approval. **Token sheet**
-— the ≤1800-char AI-facing design summary. **Verify gate** — render + model
-self-review PASS/PROBLEMS with one rebuild. **Rail** — the agent chat dock. **Card**
-— an interactive rail message that leaves on answer. **Receipts** — the op log; the
-only source of truth for "did it happen." **Event** — a
-component trigger (tap/change/submit) holding an ordered action list (§4.2).
-**Logic chip** — one action rendered in the Events tab; arguments are
-pickers. **Custom component** — a saved subtree placed as copies (§4.3).
-**kind** — the project's web/app mode: defaults only, one tree (§8.8).
 
 ---
 
