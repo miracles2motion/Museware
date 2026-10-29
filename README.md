@@ -196,6 +196,26 @@ After changing anything in `server/`, run `npm run build-api` and commit the
 result. The platform build does **not** generate it: it is checked in, and
 `check:api:fresh` fails the moment it drifts from the source.
 
+### What counts as a key problem
+
+Only four upstream statuses say anything about the key:
+
+| Meta says | We call it     | What it means                                        |
+| --------- | -------------- | ---------------------------------------------------- |
+| 401 / 403 | `rejected`     | the key is wrong, revoked, or not allowed to do this |
+| 402       | `exhausted`    | valid key, no credit                                 |
+| 429       | `rate_limited` | valid key, throttled                                 |
+
+Everything else — 400 (bad request), 404 (unknown model), 422, 5xx — is passed
+through with **Meta's own sentence** and the real status. It is never described
+as a key failure, because a good key plus a malformed request is not a key
+problem, and telling someone their key is wrong when it is not sends them off to
+fix the wrong thing. That exact mistake once reported a 400 as "key rejected".
+
+If the rail ever blames the key, the card also carries a **Re-check the server
+key** button that bypasses the cached verdict (`/api/muse/status?force=1`). A
+healthy check clears the card instead of leaving a stale accusation on screen.
+
 ### "the proxy answered 500"
 
 A 500 is the proxy failing, never the key. The app now shows the server's own

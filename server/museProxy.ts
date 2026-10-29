@@ -172,12 +172,28 @@ export type HouseKeyState =
   | 'rejected'
   | 'rate_limited';
 
-/** Status code → the honest name for it. */
-export function houseStateFromStatus(status: number): HouseKeyState {
+/**
+ * Which upstream failures actually mean "the KEY is the problem"?
+ *
+ * Only these four. Everything else — 400 (the request was malformed), 404 (the
+ * model name is unknown), 422, 5xx — says something about the REQUEST or about
+ * Meta, not about the key. Mapping those to 'rejected' told a visitor with a
+ * perfectly good key that it was wrong: the status probe passed, then the first
+ * chat call 400'd on a payload detail and the rail accused the key.
+ */
+export function isKeyFault(status: number): boolean {
+  return status === 401 || status === 402 || status === 403 || status === 429;
+}
+
+/** The three ways a key can fail without being absent. */
+export type KeyFault = 'rejected' | 'exhausted' | 'rate_limited';
+
+/** Status code → the honest name for it. Returns null when the key is blameless. */
+export function houseStateFromStatus(status: number): KeyFault | null {
   if (status === 402) return 'exhausted';
   if (status === 401 || status === 403) return 'rejected';
   if (status === 429) return 'rate_limited';
-  return status >= 400 ? 'rejected' : 'ok';
+  return null;
 }
 
 interface HouseProbe {
@@ -229,20 +245,34 @@ export async function houseKeyState(
       houseProbe = { state: 'ok', at: Date.now(), status: r.status };
     } else {
       const detail = (await r.text().catch(() => '')).slice(0, 300);
-      houseProbe = {
-        state: houseStateFromStatus(r.status),
-        at: Date.now(),
-        status: r.status,
-        detail: detail || `status ${r.status}`,
-      };
+      const state = houseStateFromStatus(r.status);
+      houseProbe = state
+        ? {
+            state,
+            at: Date.now(),
+            status: r.status,
+            detail: detail || `status ${r.status}`,
+          }
+        : {
+            // 400/404/5xx from the ping says nothing about the key. Do not
+            // turn it into a verdict — say the check itself did not land.
+            state: 'unverified',
+            at: Date.now(),
+            status: r.status,
+            detail:
+              `the key check got HTTP ${r.status} instead of a verdict, so the key ` +
+              `could not be confirmed${detail ? `: ${detail}` : ''}`,
+          };
     }
   } catch (err) {
     // A network hiccup is not a working key and not a dead one. Say the truth:
     // the key is present but unverified, and let the real call report its own
     // failure rather than blocking the visitor on our guess.
     const previous = houseProbe.state;
-    const keep =
-      previous === 'exhausted' || previous === 'rejected' || previous === 'rate_limited';
+    // A rejected key is a claim about the key's identity, and a network failure
+    // is no evidence for it: keep only the states that are facts about the
+    // account (spent, throttled), and let rejection be re-proven each time.
+    const keep = previous === 'exhausted' || previous === 'rate_limited';
     houseProbe = {
       state: keep ? previous : 'unverified',
       at: Date.now(),
@@ -269,7 +299,7 @@ export function markHouseState(
 
 /** Kept for the older call sites: a dead key defaults to exhausted. */
 export function markHouseExhausted(detail: string, status?: number): void {
-  markHouseState(status ? houseStateFromStatus(status) : 'exhausted', detail, status);
+  markHouseState((status && houseStateFromStatus(status)) || 'exhausted', detail, status);
 }
 
 /** Tests only. */
@@ -299,7 +329,7 @@ async function forward(
 
 /** True when the house key cannot be used right now — the key card applies. */
 function isDeadKey(status: number): boolean {
-  return houseStateFromStatus(status) !== 'ok';
+  return isKeyFault(status);
 }
 
 /**
@@ -335,11 +365,12 @@ async function upstreamError(
 ): Promise<void> {
   const detail = await r.text().catch(() => '');
   const houseState = houseStateFromStatus(r.status);
-  if (source === 'house' && houseState !== 'ok' && houseState !== 'absent') {
+  if (source === 'house' && houseState) {
     markHouseState(houseState, detail.slice(0, 300) || `status ${r.status}`, r.status);
-    const failure = HOUSE_FAILURE[houseState as 'exhausted' | 'rejected' | 'rate_limited'];
+    const failure = HOUSE_FAILURE[houseState];
     // Always 402 downstream: the client's key card is the fix for all three,
-    // and the typed `error` carries WHY so the sentence can be true.
+    // and the typed `error` carries WHY so the sentence can be true. Meta's own
+    // words ride in `upstream` and are shown, not paraphrased.
     return sendJson(res, 402, {
       error: failure.error,
       status: r.status,
@@ -348,11 +379,14 @@ async function upstreamError(
       upstream: detail.slice(0, 400),
     });
   }
+  // Not a key fault: the request or Meta itself is the problem. Pass the real
+  // status and Meta's own sentence through — never dress it up as a key issue.
   sendJson(res, r.status, {
     error:
       r.status === 429 ? 'rate_limited' : r.status === 401 ? 'unauthorized' : 'upstream',
     status: r.status,
     detail: detail.slice(0, 800),
+    metaSaid: detail.slice(0, 800),
   });
 }
 
@@ -441,8 +475,11 @@ export async function handleMuse(
   env: MuseEnv,
 ): Promise<void> {
   const cfg = envOf(env);
-  const path = (req.url || '/').split('?')[0].replace(/\/+$/, '') || '/';
+  const [rawPath, rawQuery = ''] = (req.url || '/').split('?');
+  const path = rawPath.replace(/\/+$/, '') || '/';
   const route = path.replace(/^\/api\/muse/, '') || '/status';
+  // `?force=1` re-checks the house key instead of trusting a cached verdict.
+  const force = /(?:^|&)force=1(?:&|$)/.test(rawQuery);
   const { key, source } = resolveKey(req, env);
   const abort = new AbortController();
   // Abort only when the CLIENT hung up mid-flight. `req` 'close' fires as soon
@@ -470,9 +507,7 @@ export async function handleMuse(
         route,
         runtime: typeof process !== 'undefined' ? process.version : 'unknown',
         uptimeMs:
-          typeof process !== 'undefined'
-            ? Math.round(process.uptime() * 1000)
-            : undefined,
+          typeof process !== 'undefined' ? Math.round(process.uptime() * 1000) : undefined,
         hasHouseKey: Boolean((env.MUSE_API_KEY || '').trim()),
         keySource: source,
         baseUrl: cfg.baseUrl,
@@ -484,7 +519,7 @@ export async function handleMuse(
       // reason we did not foresee, the status still answers, honestly.
       let house: HouseProbe;
       try {
-        house = await houseKeyState(env, { signal: abort.signal });
+        house = await houseKeyState(env, { signal: abort.signal, force });
       } catch (err) {
         house = {
           state: 'unverified',
@@ -565,9 +600,10 @@ export async function handleMuse(
             ms,
           });
         }
-        // A key that was just proven bad is bad news the UI should keep.
+        // A key that was just proven bad is bad news the UI should keep. A
+        // non-key failure (400, 404, 5xx) proves nothing about the key.
         const state = houseStateFromStatus(r.status);
-        if (candidateSource === 'house') {
+        if (candidateSource === 'house' && state) {
           markHouseState(state, text.slice(0, 300) || `status ${r.status}`, r.status);
         }
         return sendJson(res, 200, {

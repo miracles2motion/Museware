@@ -143,7 +143,13 @@ export function describeFailure(raw: string): string {
         hint?: unknown;
         error?: unknown;
         message?: unknown;
+        metaSaid?: unknown;
       };
+      // Meta nests its sentence one level down: {"error":{"message":"…"}}.
+      const nested =
+        json.error && typeof json.error === 'object'
+          ? (json.error as { message?: unknown }).message
+          : undefined;
       const detail =
         typeof json.detail === 'string'
           ? json.detail
@@ -151,7 +157,9 @@ export function describeFailure(raw: string): string {
             ? json.error
             : typeof json.message === 'string'
               ? json.message
-              : '';
+              : typeof nested === 'string'
+                ? nested
+                : '';
       const hint = typeof json.hint === 'string' ? json.hint : '';
       return [detail, hint].filter(Boolean).join(' — ').slice(0, 300);
     } catch {
@@ -227,10 +235,12 @@ async function pace(signal?: AbortSignal, minGapMs = PACE_FLOOR): Promise<void> 
  * ends up telling a visitor "you need a key" when the truth is "your deployment
  * has no serverless function". So every branch names itself.
  */
-export async function fetchStatus(): Promise<ServerStatus> {
+export async function fetchStatus(opts: { force?: boolean } = {}): Promise<ServerStatus> {
   let res: Response;
   try {
-    res = await fetch('/api/muse/status', { headers: headers() });
+    res = await fetch(`/api/muse/status${opts.force ? '?force=1' : ''}`, {
+      headers: headers(),
+    });
   } catch {
     throw new MuseError(
       'network',
@@ -626,15 +636,19 @@ export async function chatStream(opts: ChatOptions): Promise<ChatResult> {
         await delay(wait, opts.signal);
         continue;
       }
+      // Prefer the human sentence inside Meta's JSON over the raw blob, so the
+      // card reads "tools are not supported for this model", not a wall of
+      // escaped braces.
+      const said = describeFailure(raw) || info.detail || '';
       throw new MuseError(
         res.status === 429
           ? 'rate_limited'
           : res.status === 401
             ? 'unauthorized'
             : 'upstream',
-        info.detail || `muse returned ${res.status}`,
+        said || `muse returned ${res.status}`,
         res.status,
-        info.detail,
+        said,
       );
     }
 

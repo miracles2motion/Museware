@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Eye, EyeOff, KeyRound, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, RefreshCw, Sparkles } from 'lucide-react';
 import type { RailEntry } from '../types/tree';
 import { useAgent } from '../store/useAgent';
 import { useUi } from '../store/useUi';
-import { dismissKey, submitKey } from '../muse/cards';
+import { clearKeyCard, dismissKey, submitKey } from '../muse/cards';
+import { fetchStatus } from '../muse/client';
 import { houseKeyLabel, houseKeySentence } from '../muse/connection';
 
 /**
@@ -20,6 +21,39 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
   const houseKey = useAgent((s) => s.houseKey);
   const houseKeyDetail = useAgent((s) => s.houseKeyDetail);
   const setModal = useUi((s) => s.setModal);
+  const toast = useUi((s) => s.toast);
+
+  // A cached verdict can be stale — the key may be fine and the card wrong.
+  const recheck = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const status = await fetchStatus({ force: true });
+      const healthy = status.houseKey === 'ok' || status.houseKey === 'unverified';
+      useAgent.getState().setStatus({
+        configured: healthy && status.configured,
+        demoMode: false,
+        houseKey: status.houseKey,
+        houseKeyDetail: status.houseKeyDetail ?? null,
+        budget: status.budget ?? null,
+        live: Boolean(status.live),
+        models: status.models,
+        statusError: null,
+      });
+      if (healthy) {
+        clearKeyCard(
+          entry.id,
+          'Re-checked: the shared key answers Meta, so nothing was wrong with it. Carry on.',
+        );
+      } else {
+        toast(houseKeySentence(status.houseKey, status.houseKeyDetail), 'warn');
+      }
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'The proxy could not be reached.', 'warn');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async () => {
     if (!value.trim() || busy) return;
@@ -83,6 +117,14 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
           onClick={() => void submit()}
         >
           <KeyRound size={12} /> {busy ? 'Adding…' : 'Add key'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost"
+          disabled={busy}
+          onClick={() => void recheck()}
+        >
+          <RefreshCw size={12} /> {busy ? 'Checking…' : 'Re-check the server key'}
         </button>
         <button
           type="button"

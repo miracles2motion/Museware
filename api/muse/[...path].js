@@ -185,11 +185,14 @@ function resolveKey(req, env) {
   if (house) return { key: house, source: "house" };
   return { key: "", source: "none" };
 }
+function isKeyFault(status) {
+  return status === 401 || status === 402 || status === 403 || status === 429;
+}
 function houseStateFromStatus(status) {
   if (status === 402) return "exhausted";
   if (status === 401 || status === 403) return "rejected";
   if (status === 429) return "rate_limited";
-  return status >= 400 ? "rejected" : "ok";
+  return null;
 }
 var houseProbe = { state: "absent", at: 0 };
 var HOUSE_TTL_MS = 6e4;
@@ -224,16 +227,24 @@ async function houseKeyState(env, opts = {}) {
       houseProbe = { state: "ok", at: Date.now(), status: r.status };
     } else {
       const detail = (await r.text().catch(() => "")).slice(0, 300);
-      houseProbe = {
-        state: houseStateFromStatus(r.status),
+      const state = houseStateFromStatus(r.status);
+      houseProbe = state ? {
+        state,
         at: Date.now(),
         status: r.status,
         detail: detail || `status ${r.status}`
+      } : {
+        // 400/404/5xx from the ping says nothing about the key. Do not
+        // turn it into a verdict — say the check itself did not land.
+        state: "unverified",
+        at: Date.now(),
+        status: r.status,
+        detail: `the key check got HTTP ${r.status} instead of a verdict, so the key could not be confirmed${detail ? `: ${detail}` : ""}`
       };
     }
   } catch (err) {
     const previous = houseProbe.state;
-    const keep = previous === "exhausted" || previous === "rejected" || previous === "rate_limited";
+    const keep = previous === "exhausted" || previous === "rate_limited";
     houseProbe = {
       state: keep ? previous : "unverified",
       at: Date.now(),
@@ -249,7 +260,7 @@ function markHouseState(state, detail, status) {
   houseProbe = { state, at: Date.now(), detail, status };
 }
 function markHouseExhausted(detail, status) {
-  markHouseState(status ? houseStateFromStatus(status) : "exhausted", detail, status);
+  markHouseState(status && houseStateFromStatus(status) || "exhausted", detail, status);
 }
 async function forward(url, key, body, init = {}) {
   return fetch(url, {
@@ -264,7 +275,7 @@ async function forward(url, key, body, init = {}) {
   });
 }
 function isDeadKey(status) {
-  return houseStateFromStatus(status) !== "ok";
+  return isKeyFault(status);
 }
 var HOUSE_FAILURE = {
   exhausted: {
@@ -283,7 +294,7 @@ var HOUSE_FAILURE = {
 async function upstreamError(res, r, source) {
   const detail = await r.text().catch(() => "");
   const houseState = houseStateFromStatus(r.status);
-  if (source === "house" && houseState !== "ok" && houseState !== "absent") {
+  if (source === "house" && houseState) {
     markHouseState(houseState, detail.slice(0, 300) || `status ${r.status}`, r.status);
     const failure = HOUSE_FAILURE[houseState];
     return sendJson(res, 402, {
@@ -297,7 +308,8 @@ async function upstreamError(res, r, source) {
   sendJson(res, r.status, {
     error: r.status === 429 ? "rate_limited" : r.status === 401 ? "unauthorized" : "upstream",
     status: r.status,
-    detail: detail.slice(0, 800)
+    detail: detail.slice(0, 800),
+    metaSaid: detail.slice(0, 800)
   });
 }
 async function pipeThrough(res, r, charge) {
@@ -365,8 +377,10 @@ function budgetState() {
 var cleanBase = (v) => typeof v === "string" && /^(data:image\/(png|jpe?g|webp);base64,|https:\/\/)/.test(v) ? v : "";
 async function handleMuse(req, res, env) {
   const cfg = envOf(env);
-  const path = (req.url || "/").split("?")[0].replace(/\/+$/, "") || "/";
+  const [rawPath, rawQuery = ""] = (req.url || "/").split("?");
+  const path = rawPath.replace(/\/+$/, "") || "/";
   const route = path.replace(/^\/api\/muse/, "") || "/status";
+  const force = /(?:^|&)force=1(?:&|$)/.test(rawQuery);
   const { key, source } = resolveKey(req, env);
   const abort = new AbortController();
   res.on("close", () => {
@@ -391,7 +405,7 @@ async function handleMuse(req, res, env) {
     if (route === "/status" && req.method === "GET") {
       let house;
       try {
-        house = await houseKeyState(env, { signal: abort.signal });
+        house = await houseKeyState(env, { signal: abort.signal, force });
       } catch (err) {
         house = {
           state: "unverified",
@@ -463,7 +477,7 @@ async function handleMuse(req, res, env) {
           });
         }
         const state = houseStateFromStatus(r.status);
-        if (candidateSource === "house") {
+        if (candidateSource === "house" && state) {
           markHouseState(state, text.slice(0, 300) || `status ${r.status}`, r.status);
         }
         return sendJson(res, 200, {
