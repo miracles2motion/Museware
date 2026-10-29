@@ -34,7 +34,15 @@ interface UiStore {
   railCollapsed: boolean;
   mobileRailOpen: boolean;
   propertiesOpen: boolean;
+  /** The user pressed minimize; selecting a node must not undo that. */
+  inspectorCollapsed: boolean;
+  /** The user pressed maximize: the panel takes the wide width. */
+  inspectorWide: boolean;
   setPropertiesOpen: (open: boolean) => void;
+  setInspectorWide: (wide: boolean) => void;
+  minimizeInspector: () => void;
+  restoreInspector: () => void;
+  toggleInspector: () => void;
   runMode: boolean;
   runScreenId: string | null;
   onboardingOpen: boolean;
@@ -96,6 +104,8 @@ export const useUi = create<UiStore>((set) => ({
   railCollapsed: false,
   mobileRailOpen: false,
   propertiesOpen: false,
+  inspectorCollapsed: false,
+  inspectorWide: false,
   runMode: false,
   runScreenId: null,
   onboardingOpen: false,
@@ -125,8 +135,22 @@ export const useUi = create<UiStore>((set) => ({
     }
     set({ route });
   },
-  select: (selectedId) => set({ selectedId, propertiesOpen: Boolean(selectedId) }),
-  setPropertiesOpen: (propertiesOpen) => set({ propertiesOpen }),
+  // Selecting a node opens the panel unless the user minimized it on purpose.
+  select: (selectedId) =>
+    set((s) => ({
+      selectedId,
+      propertiesOpen: selectedId ? s.propertiesOpen || !s.inspectorCollapsed : false,
+    })),
+  setPropertiesOpen: (propertiesOpen) => set({ propertiesOpen, inspectorCollapsed: false }),
+  setInspectorWide: (inspectorWide) => set({ inspectorWide }),
+  minimizeInspector: () => set({ propertiesOpen: false, inspectorCollapsed: true }),
+  restoreInspector: () => set({ propertiesOpen: true, inspectorCollapsed: false }),
+  toggleInspector: () =>
+    set((s) =>
+      s.propertiesOpen && !s.inspectorCollapsed
+        ? { propertiesOpen: false, inspectorCollapsed: true }
+        : { propertiesOpen: true, inspectorCollapsed: false },
+    ),
   setActiveScreen: (activeScreenId) => set({ activeScreenId, selectedId: null }),
   setBreakpoint: (breakpoint) => set({ breakpoint }),
   setLeftTab: (leftTab) => set({ leftTab }),

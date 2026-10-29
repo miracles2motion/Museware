@@ -690,6 +690,12 @@ a {
   display: flex;
   min-height: 0;
   position: relative;
+  /* The inspector's width follows its own state: docked, wide, or gone. */
+  --mw-inspector-now: var(--mw-inspector-w);
+}
+
+.workspace[data-inspector='wide'] {
+  --mw-inspector-now: min(var(--mw-inspector-wide), 40vw);
 }
 
 .left-panel {
@@ -1101,7 +1107,7 @@ a {
 
 /* ---------- inspector ---------- */
 .inspector {
-  width: var(--mw-inspector-w);
+  width: var(--mw-inspector-now, var(--mw-inspector-w));
   flex: 0 0 auto;
   border-left: 1px solid var(--mw-border);
   background: var(--mw-surface);
@@ -3366,5 +3372,98 @@ button.how-card .field-hint {
 
   .agent-pill span.pill-text {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   The inspector panel: minimize, maximize, and a dock that never covers the
+   artboard. On a desktop the panel is its own column between the canvas and
+   the rail, so opening it takes width from the canvas instead of floating
+   over the screen you are designing. On a phone it stays a sheet, and
+   maximize makes the sheet taller.
+   ========================================================================== */
+
+.inspector-peek {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--mw-rail-w) + 8px);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  writing-mode: vertical-rl;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-md);
+  background: var(--mw-surface);
+  color: var(--mw-ink-2);
+  box-shadow: var(--mw-shadow-e2);
+  cursor: pointer;
+  z-index: var(--mw-z-popover);
+}
+
+.inspector-peek:hover {
+  color: var(--mw-ink);
+  border-color: var(--mw-border-strong, var(--mw-border));
+}
+
+.workspace[data-rail='collapsed'] .inspector-peek {
+  right: calc(var(--mw-left-icon-rail) + 8px);
+}
+
+.inspector-peek .eyebrow {
+  font-size: var(--mw-fs-11);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1023px) {
+  .inspector-peek {
+    top: auto;
+    right: 8px;
+    bottom: calc(var(--mw-rail-peek) + 16px);
+    transform: none;
+    writing-mode: horizontal-tb;
+  }
+}
+
+@media (max-width: 599px) {
+  /* The tab bar already owns "Inspect" on a phone — and the sheet's X
+     already minimizes it, so the extra glyph would be noise. */
+  .inspector-peek,
+  .inspector-min {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Dock, do not float. inset:auto also cancels the collapsed-rail offset. */
+  .inspector,
+  .workspace[data-rail='collapsed'] .inspector {
+    position: relative;
+    inset: auto;
+    height: auto;
+    border: 0;
+    border-left: 1px solid var(--mw-border);
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .inspector[data-open='false'] {
+    display: none;
+  }
+}
+
+/* Maximize means "give me room", wherever the panel is. */
+@media (max-width: 700px) {
+  .workspace[data-inspector='wide'] .inspector[data-open='true'] {
+    height: min(82vh, 640px);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1023px) {
+  .workspace[data-inspector='wide'] .inspector[data-open='true'] {
+    height: min(84vh, 720px);
   }
 }

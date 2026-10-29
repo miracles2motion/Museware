@@ -18,6 +18,7 @@ const GROUPS: Array<{ title: string; rows: Array<[string, string]> }> = [
       ['⇧⌘/Ctrl + Z', 'Redo'],
       ['⌘/Ctrl + ⏎', 'Run the app'],
       ['⌘/Ctrl + \\', 'Collapse / show the panels'],
+      ['⌘/Ctrl + I', 'Minimize / restore the inspector panel'],
       ['1 · 2 · 3', 'Compact · medium · expanded breakpoint'],
       ['?', 'This sheet'],
     ],

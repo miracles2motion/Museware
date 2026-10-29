@@ -1,4 +1,12 @@
-import { Layers, LayoutGrid, Play, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  Layers,
+  LayoutGrid,
+  Play,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { Topbar } from './Topbar';
@@ -20,15 +28,38 @@ export function Editor() {
   const leftTab = useUi((s) => s.leftTab);
   const leftFlyout = useUi((s) => s.leftFlyout);
   const propertiesOpen = useUi((s) => s.propertiesOpen);
+  const inspectorWide = useUi((s) => s.inspectorWide);
+  const restoreInspector = useUi((s) => s.restoreInspector);
   const mobileRailOpen = useUi((s) => s.mobileRailOpen);
+
+  // Three states for the one panel: docked, docked wide, or out of the way.
+  const panelState = propertiesOpen ? (inspectorWide ? 'wide' : 'open') : 'closed';
+  const inspectable = Boolean(screens.length);
 
   return (
     <div className="app-shell">
       <Topbar />
-      <div className="workspace" data-rail={railCollapsed ? 'collapsed' : 'open'}>
+      <div
+        className="workspace"
+        data-rail={railCollapsed ? 'collapsed' : 'open'}
+        data-inspector={panelState}
+      >
         <LeftPanel />
         <Canvas />
         <Inspector />
+        {/* A minimized panel leaves a tab on the edge, never a dead end. */}
+        {!propertiesOpen && inspectable && (
+          <button
+            type="button"
+            className="inspector-peek"
+            aria-label="Restore the panel"
+            title="Restore the panel (⌘/Ctrl + I)"
+            onClick={restoreInspector}
+          >
+            <ChevronLeft size={13} />
+            <span className="eyebrow">inspect</span>
+          </button>
+        )}
         <AgentRail />
       </div>
       <nav className="mobile-bottom-bar" aria-label="Workspace">
