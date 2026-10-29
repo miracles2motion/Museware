@@ -19,6 +19,7 @@ import {
 import {
   JSON_CORRECTION,
   SYSTEM_PROMPT,
+  TYPED_OPTIONS_CORRECTION,
   adjustBlueprintPrompt,
   fillPrompt,
   rebuildNote,
@@ -131,6 +132,89 @@ let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let turnScreenAdds = 0;
 let changedThisTurn = false;
 
+/**
+ * The one turn that starts from a card tap, or null.
+ *
+ * Why this exists: `history()` replays prose only, so a tap used to arrive at
+ * the model as a bare user line — "Museware Default" — with no trace of the
+ * card that asked for it and no trace that the question was already answered.
+ * The model answered that line by offering directions again, every tap, for as
+ * long as the user was willing to tap: a loop that costs money and builds
+ * nothing. A tap is a DECISION, not a new request, and this is what tells the
+ * model that.
+ */
+let pickTurn: PickDirective | null = null;
+
+export interface PickDirective {
+  question: string;
+  label: string;
+  hexes: string[];
+}
+
+/**
+ * A greeting is not a build order. The first turn of the loop in the wild was
+ * "Hello" answered with a look-choice card, so the app now refuses to open the
+ * design flow on small talk — belt as well as braces, because a prompt rule is
+ * only a request and this is a guarantee.
+ */
+const SMALL_TALK =
+  /^(?:hi|hii+|hey|heya|hello|yo|sup|hiya|good (?:morning|afternoon|evening)|how are you|how's it going|thanks|thank you|cheers)[\s!.,?~-]*$/i;
+
+export function isSmallTalk(text: string): boolean {
+  return SMALL_TALK.test(text.trim());
+}
+
+let smallTalkTurn = false;
+
+/** The sentence that turns a tap into a decision the model cannot re-ask. */
+export function pickReceipt(pick: PickDirective): string {
+  const colours = pick.hexes.length
+    ? ` Its palette is already on the token sheet — brand ${pick.hexes[0]}` +
+      `${pick.hexes[1] ? `, secondary ${pick.hexes[1]}` : ''} — applied by the app, so do not call ` +
+      'set_design_tokens for these colours again.'
+    : '';
+  return (
+    `PICK RECEIPT: the user just tapped "${pick.label}" on your card "${pick.question}". ` +
+    `That decision is final and is already recorded.${colours} ` +
+    'Do NOT call ask_choice in this turn, do not offer more directions, and do not stop at an ' +
+    'acknowledgement. Your next move is propose_blueprint with the plan for their app — or, if a ' +
+    'blueprint is already on screen, build the screens it asks for.'
+  );
+}
+
+/**
+ * What has already been decided, restated on every turn.
+ *
+ * `history()` carries the last few prose lines and nothing else, so without
+ * this the model begins each turn with no memory of the cards it sent or the
+ * palette the user chose — which is exactly how "Museware Default Blue" got
+ * offered back to the person who had just picked it.
+ */
+export function decisionLedger(doc: ProjectDoc): string {
+  const picks: string[] = [];
+  for (const entry of doc.rail) {
+    const card = entry.card;
+    if (card?.kind !== 'choice' || card.state !== 'answered') continue;
+    const data = card.data as { question?: string; picked?: string };
+    if (!data.picked) continue;
+    picks.push(
+      data.question ? `"${data.picked}" (for "${data.question}")` : `"${data.picked}"`,
+    );
+  }
+  const theme = doc.tokens.openuiTheme;
+  return [
+    picks.length
+      ? `DECIDED ALREADY — tapped: ${picks.slice(-4).join('; ')}. Never ask for these again.`
+      : '',
+    `TOKEN SHEET NOW — brand ${theme.brand_color}, secondary ${theme.secondary_color}.`,
+    doc.blueprint?.text
+      ? 'A blueprint is on screen awaiting approval.'
+      : 'No blueprint yet.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 export function isAgentRunning(): boolean {
   return running;
 }
@@ -206,7 +290,7 @@ function contextMessages(
     { role: 'system', content: `${SYSTEM_PROMPT}\n\nTOKEN SHEET (design law):\n${sheet}` },
     {
       role: 'system',
-      content: `CANVAS INDEX:\n${index}${extraSystem.length ? `\n${extraSystem.join('\n')}` : ''}`,
+      content: `CANVAS INDEX:\n${index}\n\n${decisionLedger(doc)}${extraSystem.length ? `\n${extraSystem.join('\n')}` : ''}`,
     },
     ...history(),
     { role: 'user', content: userText },
@@ -280,6 +364,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
   let calls = 0;
   let finished = false;
   let choiceAsked = false;
+  let correctedPick = false;
   let stopped = false;
   const changedBefore = useProject.getState().doc.opLog.length;
 
@@ -326,6 +411,26 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       }
       const typed = parseTypedOptions(result.text);
       if (typed) {
+        /*
+         * Same loop, typed instead of tool-called: options printed as prose
+         * after a tap. The fallback must not turn those into a second card —
+         * it corrects the model once, then stops asking either way.
+         */
+        if (pickTurn) {
+          if (!correctedPick) {
+            correctedPick = true;
+            addSystem('Correction: the user already picked — no second choice card.');
+            messages.push({ role: 'assistant', content: result.text });
+            messages.push({
+              role: 'user',
+              content: `${TYPED_OPTIONS_CORRECTION} ${pickReceipt(pickTurn)}`,
+            });
+            calls += 1;
+            if (calls < opts.maxCalls) continue;
+          }
+          if (result.text) addAgent(result.text);
+          break;
+        }
         addCard(
           'choice',
           {
@@ -419,6 +524,16 @@ async function runTool(
   args: unknown,
   _opts: ToolLoopOptions,
 ): Promise<ToolOutcome> {
+  if (
+    smallTalkTurn &&
+    (name === 'ask_choice' || name === 'propose_blueprint' || name === 'edit_canvas')
+  ) {
+    return {
+      text:
+        'E_SMALL_TALK: that message was a greeting, not a build order. No card, no blueprint, ' +
+        'no ops. Answer in one or two sentences and call finish().',
+    };
+  }
   const doc = useProject.getState().doc;
   switch (name) {
     case 'read_canvas':
@@ -453,6 +568,20 @@ async function runTool(
     }
 
     case 'ask_choice': {
+      /*
+       * The deterministic half of the loop fix. The receipt above tells the
+       * model not to ask again; this makes it impossible. A second card in a
+       * turn that started from a tap would be the same question the user just
+       * answered, so no card is added and the model is told what to do next.
+       */
+      if (pickTurn) {
+        return {
+          text:
+            `E_CHOICE_REPEAT: the user already answered "${pickTurn.question}" with ` +
+            `"${pickTurn.label}" — that is the loop they are stuck in, and no card was added. ` +
+            'Call propose_blueprint now with the plan, or edit_canvas if a blueprint already exists.',
+        };
+      }
       const a = args as {
         question: string;
         options: Array<{ label: string; hexes?: string[] }>;
@@ -692,6 +821,8 @@ export interface TurnOptions {
   effort?: string;
   silent?: boolean;
   skipVerify?: boolean;
+  /** Set when this turn is the answer to a choice card the user just tapped. */
+  pick?: PickDirective;
 }
 
 /** One user turn: paced, streamed, tool-validated, verified (§8.1). */
@@ -707,6 +838,8 @@ export async function runAgentTurn(
   controller = new AbortController();
   turnScreenAdds = 0;
   changedThisTurn = false;
+  pickTurn = opts.pick ?? null;
+  smallTalkTurn = isSmallTalk(userText);
   const agent = useAgent.getState();
   agent.startTurn();
   const startedAt = Date.now();
@@ -724,12 +857,18 @@ export async function runAgentTurn(
       useAgent.getState().endTurn();
       running = false;
       controller = null;
+      pickTurn = null;
+      smallTalkTurn = false;
     }
     return;
   }
 
   try {
-    const messages = contextMessages(before, userText);
+    const messages = contextMessages(
+      before,
+      userText,
+      pickTurn ? [pickReceipt(pickTurn)] : [],
+    );
     // Wonder mode (§6.1): an opt-in, 4x-priced planning round on the architect
     // role. Only the FIRST turn — before anything exists to fill — and never
     // for the routine edits that follow.
@@ -765,6 +904,8 @@ export async function runAgentTurn(
     useAgent.getState().endTurn();
     running = false;
     controller = null;
+    pickTurn = null;
+    smallTalkTurn = false;
   }
 }
 

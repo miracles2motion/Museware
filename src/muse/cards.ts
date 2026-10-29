@@ -63,7 +63,40 @@ export async function answerChoice(cardId: string, index: number): Promise<void>
   markCard(cardId, 'answered', { picked: option.label });
   system(`✓ Picked: ${option.label}`);
   useProject.getState().addRail({ role: 'user', text: option.label });
-  await runAgentTurn(option.label);
+
+  /*
+   * A tap is a decision, so the app honours it here instead of hoping the model
+   * will: the swatches the user just looked at become the token sheet. That is
+   * the difference between "picked" and "repainted", and it is why the card no
+   * longer has to be answered twice to mean anything.
+   */
+  const hexes = (option.hexes ?? [])
+    .filter((hex) => /^#[0-9A-Fa-f]{6}$/.test(hex))
+    .slice(0, 2);
+  if (hexes.length) {
+    const brand = hexes[0];
+    const secondary = hexes[1] || brand;
+    const res = useProject
+      .getState()
+      .applyBatch(
+        [{ op: 'setTokens', patch: { brand_color: brand, secondary_color: secondary } }],
+        {
+          source: 'user',
+        },
+      );
+    if (res.errors.length) useUi.getState().toast(res.errors[0].message, 'danger');
+    else
+      system(
+        `🎨 ${brand}${secondary === brand ? '' : ` / ${secondary}`} — applied to the token sheet`,
+      );
+  }
+
+  const question = String(
+    (entry.card.data as { question?: string }).question || 'a choice card',
+  );
+  await runAgentTurn(option.label, {
+    pick: { question, label: option.label, hexes },
+  });
 }
 
 export async function answerBlueprint(
