@@ -5,7 +5,16 @@ product from scratch to finish using only this file. Nothing here requires acces
 any prior conversation. Where a decision was painful to learn elsewhere, the lesson is
 recorded as a **LAW** — do not relitigate laws during implementation.
 
-**Spec version:** 1.6 — seventh pass: **the layout vocabulary**. One home per
+**Spec version:** 1.7 — eighth pass: **Height: Match means match.** A
+percentage height needs a parent with a SET height, and the chain was indefinite
+(`.mw-app` and the screen both used `min-height`, which is not a height), so
+`height: "match"` silently compiled to `auto` while `width: "match"` worked.
+The scrolling screen now owns the frame's height and scrolls inside it (§4.4,
+§9.4), which also makes the screen's **Scrolls** toggle a real control; the run
+frame and the exported app use the same chain. Pinned by a test in `cssGen.ts`
+and by `check:tokens` (§13).
+
+**Earlier passes:** 1.6 — seventh pass: **the layout vocabulary**. One home per
 concept (§2, §4.4): `styles` own presentation and layout, `props` own content
 and behaviour; a container's `align` is align-items and its `justify` is
 justify-content, while a child's `selfAlign` is align-self and its `grow` is
@@ -447,7 +456,11 @@ leaf), props schema (zod-able), defaults.
 in `styles` (gap / align / justify / wrap / padding — §4.4); `props` holds only
 content and behaviour:
 - `screen` — full-page flex; props: `layout` ("flex-col"|"flex-row", default
-  flex-col — horizontal lays its sections out in a Row)
+  flex-col — horizontal lays its sections out in a Row) and `scroll` ("Scrolls",
+  toggle, default ON). Scrolls on = the screen is exactly the frame and scrolls
+  inside it, so a child can Height: Match the screen. Scrolls off = the web-page
+  model: the screen grows with its content and the page scrolls, but nothing
+  inside it can fill it — the panel hint says both halves of that trade.
 - `row` — "Row (horizontal)" · flex-row container; **props: none**
   (default styles: `gap: var(--gap-item)`, `align: center`, `wrap: true`)
 - `col` — "Column (vertical)" · flex-col container; **props: none**
@@ -686,9 +699,26 @@ a Divider is no longer offered "Align children" and a Heading is.
 **Sizing is Sketchware's, on both axes.** `width`/`height`/`min*`/`max*` accept
 `match` (fill the parent → 100%), `hug` (fit the content → fit-content) or a
 length. The panel offers Match / Hug / Fixed as a segmented control, with a
-length box for Fixed; `hug` works on height, which it never did before. Hint
-shown under the field: "match fills the parent when the parent stretches you —
-use grow in the main axis."
+length box for Fixed; `hug` works on height, which it never did before.
+
+**Height: Match needs a parent with a SET height — that is the whole law.** A
+percentage height against an indefinite parent falls back to `auto` without a
+warning, which is exactly why match worked on width and did nothing on height
+for three passes with every test green. The chain that makes it definite:
+
+| box | what it must be | why |
+|---|---|---|
+| `.frame-viewport` · `.run-frame` | a set height (the run frame only for an APP project — a web page keeps an auto height, §9.6) | the artboard, and the run window |
+| `.mw-app` (the screen's wrapper) | `height: 100%` — never `min-height` | a percentage of "at least this tall" is nothing |
+| the screen | `height: 100%` + `overflow-y: auto` when Scrolls is ON | it owns the frame and scrolls inside it |
+
+So `Height: Match` on a child fills the screen, and the screen scrolls rather
+than the page. Turn Scrolls OFF and the screen goes back to `min-height: 100%`
+and grows with its content — the web-page model — and its children cannot
+height-match it, by design. Sketchware said `match_parent` and meant the same
+thing; the difference here is that the parent's height is stated, not inferred.
+The exported app follows the same split (§10.1). Hint under the field: "Match
+fills a parent with a set height — a screen with Scrolls on qualifies."
 
 **`padding`/`margin` accept a box** `{top,right,bottom,left}` from the agent,
 emitted as one declaration per side. The inspector keeps one field (`Inner
@@ -1636,6 +1666,20 @@ and centring stay honest. Two consequences, both load-bearing:
 The frame chrome prints the real numbers ("390 × 780 · 74%"), so the preview can
 never lie about what it is showing.
 
+**The artboard is a definite-height box, on purpose.** `.device-frame` has a set
+height (780 px in edit mode), `.frame-viewport` is the flex child that fills it,
+and `.mw-app` takes `height: 100%` of that — which is what lets a scrolling
+screen own the frame and a child Height: Match it (§4.4). `check:tokens` fails
+the build if any link in that chain goes back to `min-height`, because the break
+is invisible: the layout still renders, only the percentage silently becomes
+`auto`. Two side effects worth knowing:
+
+- a scrolling screen is now the scroller, so the overlay refresh listens for
+  `scroll` in the CAPTURE phase — scroll does not bubble, and a selection outline
+  pinned to a node would otherwise stay put while the content moved;
+- Run mode uses the same chain for an app project (`.run-frame` is the viewport)
+  and keeps an auto height for a web project, where the page is the scroller.
+
 ### 9.5 Agent rail & cards (port of the field-proven set — richness identical)
 - **How-to-build card** (auto-posted after a turn creates the first screens): "Build it — how?" with Blueprint
   first (recommended) / Steady screens / Fast screens / Not now. Leaves on tap.
@@ -1685,6 +1729,11 @@ Toggles the canvas to a real running app: navigation actions switch screens, sta
 actions mutate a per-run store (`bindKey`s read/write it), toasts toast, forms bind,
 and every component's EVENTS fire their action lists in order (incl. `when`).
 This is the judge-moment feature: "the AI built this, and it actually RUNS."
+
+The run window keeps the height contract of §4.4: an APP project's frame is the
+viewport (`height: 100%`, the screen scrolls inside it), so Height: Match looks
+exactly as it did in the canvas; a WEB project's frame keeps an auto height and
+the stage scrolls, because a page is a document.
 
 ---
 
@@ -1750,6 +1799,13 @@ generated CSS classes + `@container` blocks the canvas used (plus
 `tokens.css`), so breakpoints survive export exactly; actions → `useState`/`useNavigate`
 equivalents in a 40-line runtime stub). Deterministic, readable, no AI in the loop.
 Round-trip guarantee: exported projects re-import as `museware/1`.
+
+**The exported wrapper keeps the height contract (§4.4):** an APP export gives
+`.mw-app` `height: 100vh` — the phone model, so a scrolling screen fills the
+window and Height: Match keeps working on a real device — while a WEB export
+keeps `min-height: 100vh`, because a website is a document that grows and the
+browser scrolls it. Same split as the run frame (§9.6), so what people saw in
+Run mode is what they get in the zip.
 
 ### 10.2 PWA (the "mobile app" story)
 Zip bundle: `index.html` + built JS/CSS + `manifest.webmanifest` (name/theme/icons
@@ -1919,6 +1975,13 @@ Fallback: pre-recorded run.
 32. **Honest panel:** a Divider's Events tab shows one "no events" line, not
     three dead editors; every prop in the panel shows its hint; opening a
     v1.5 project migrates it silently and it still looks the same.
+33. **Height: Match actually fills:** put a Column on a screen, set its Height to
+    Match — it fills the screen in the canvas AND in Run mode, and the screen
+    scrolls (not the page). Turn the screen's Scrolls off: the column no longer
+    fills, the screen grows instead, and the panel says so in its hint. A
+    project with no `scroll` flag at all shows Scrolls ON, because absent means
+    on. Break any link in the height chain and `npm run check` fails on
+    `check:tokens`, which is the only way this bug stays dead.
 
 ---
 
@@ -1968,8 +2031,16 @@ Fallback: pre-recorded run.
 - The selection outline drew across the inspector and the tab bar: absolutely
   positioned chrome with a z-index escapes any ancestor that does not out-rank it
   → the canvas owns a stacking context (§9.2).
-- A dead `Layout` select on the screen (flex-row changed nothing) and a dead
-  `Scrolls` toggle → wire it or delete it (§4).
+- A dead `Layout` select on the screen (flex-row changed nothing) → wire it or
+  delete it (§4). The `Scrolls` toggle went the other way: deleted, then brought
+  back when the height fix needed it, so it is now the switch between "a phone
+  screen that scrolls inside the frame" and "a web page that grows".
+- `Height: Match` compiled to `100%` and did nothing at all, for three passes,
+  with 250 tests green: the parent chain was `min-height`, which is not a height,
+  so the browser quietly resolved the percentage to `auto` → a definite-height
+  chain, a real Scrolls toggle, and a CSS invariant check that fails the build
+  if any link goes soft (§4.4, §9.4). Width: Match worked the whole time, which
+  is why nobody suspected the vocabulary.
 - `justify: "stretch"` reached justify-content because nothing validated a style
   value and no prompt named a style key → the vocabulary gate (§3.3.1) + the
   grammar in the tool description (§7).
@@ -1995,8 +2066,11 @@ CONTAINER aligning its children across the cross axis / distributing them along
 the main axis. **selfAlign** — a CHILD aligning itself inside its parent.
 **grow** — a child soaking up leftover main-axis space; Sketchware's weight,
 Figma's layoutGrow, CSS flex-grow (§4.4). **match / hug** — Sketchware sizing:
-fill the parent / fit the content. **EVENT_MAP** — the per-type table of which
-triggers a block can actually fire (§4.2). **layout v2** — the one-home layout
+fill the parent / fit the content. **Scrolls** — the screen's toggle: on, the
+screen IS the frame and scrolls inside it; off, it grows and the page scrolls.
+**height chain** — the three boxes (frame → `.mw-app` → screen) whose SET heights
+are what make a percentage height mean anything (§4.4). **EVENT_MAP** — the
+per-type table of which triggers a block can actually fire (§4.2). **layout v2** — the one-home layout
 model and the migration that moves a v1 document onto it (§11.1). **fit scale** —
 the display-only shrink applied to the artboard so the whole frame fits the
 canvas; layout stays at the true breakpoint width (§9.4).
