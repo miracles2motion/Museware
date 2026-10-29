@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { GripVertical, ImagePlus, Monitor, Plus, Smartphone, Sparkles } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi, BREAKPOINT_WIDTHS } from '../store/useUi';
 import { useDrag, buildDropOps, nodeIdFromElement, resolveTarget } from './drag';
+import { fitScale, fitSize, toLocalBox } from './fit';
 import { CanvasStyle, NodeView } from './NodeView';
 import { findNode } from '../ops/treeUtils';
 import { addScreenBatch } from '../ops/screenOps';
@@ -32,6 +34,12 @@ export function Canvas() {
   const toast = useUi((s) => s.toast);
   const drag = useDrag((s) => s.drag);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  // The frame always lays out at its true breakpoint width; `k` shrinks what
+  // you SEE so a 1280 artboard still fits a phone. Layout stays honest.
+  const scaleRef = useRef(1);
+  const [fit, setFit] = useState({ k: 1, w: 0, h: 0 });
   const [selBox, setSelBox] = useState<Box | null>(null);
   const [hoverBox, setHoverBox] = useState<Box | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -53,14 +61,63 @@ export function Canvas() {
   const toLocal = useCallback((rect: DOMRect): Box | null => {
     const vp = viewportRef.current;
     if (!vp) return null;
-    const base = vp.getBoundingClientRect();
-    return {
-      left: rect.left - base.left + vp.scrollLeft,
-      top: rect.top - base.top + vp.scrollTop,
-      width: rect.width,
-      height: rect.height,
-    };
+    // rect and base are both in rendered px; the overlays live inside the
+    // scaled frame, so undo the scale to speak in frame coordinates.
+    return toLocalBox(
+      rect,
+      vp.getBoundingClientRect(),
+      scaleRef.current,
+      vp.scrollLeft,
+      vp.scrollTop,
+    );
   }, []);
+
+  /** Fit the whole artboard in the canvas instead of cropping it. */
+  const fitFrame = useCallback(() => {
+    const scroller = scrollRef.current;
+    const frame = frameRef.current;
+    if (!scroller || !frame) return;
+    const w = frame.offsetWidth;
+    const h = frame.offsetHeight;
+    if (!w || !h) return;
+    const cs = getComputedStyle(scroller);
+    const availW =
+      scroller.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const hint = scroller.querySelector('.canvas-hint') as HTMLElement | null;
+    const availH =
+      scroller.clientHeight -
+      parseFloat(cs.paddingTop) -
+      parseFloat(cs.paddingBottom) -
+      (hint ? hint.offsetHeight + 10 : 0);
+    if (availW <= 0 || availH <= 0) return;
+    const k = fitScale(availW, availH, w, h);
+    const size = fitSize(w, h, k);
+    scaleRef.current = k;
+    setFit((prev) =>
+      prev.k === k && prev.w === size.w && prev.h === size.h ? prev : { k, ...size },
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    fitFrame();
+    const scroller = scrollRef.current;
+    const frame = frameRef.current;
+    if (!scroller || !frame) return;
+    // Both boxes matter: the canvas shrinks, and the frame changes width when
+    // the breakpoint does.
+    const observer = new ResizeObserver(() => fitFrame());
+    observer.observe(scroller);
+    observer.observe(frame);
+    window.addEventListener('resize', fitFrame);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', fitFrame);
+    };
+  }, [fitFrame]);
+
+  useLayoutEffect(() => {
+    fitFrame();
+  }, [fitFrame, breakpoint]);
 
   const measure = useCallback(
     (id: string | null): Box | null => {
@@ -247,6 +304,7 @@ export function Canvas() {
   }
 
   const width = BREAKPOINT_WIDTHS[breakpoint];
+  const frameHeight = fit.k ? Math.round(fit.h / fit.k) : 780;
   const BpIcon = breakpoint === 'compact' ? Smartphone : Monitor;
 
   return (
@@ -262,7 +320,11 @@ export function Canvas() {
         <button
           type="button"
           className="chip"
-          title="Switch breakpoint (1 · 2 · 3)"
+          title={`Switch breakpoint (1 · 2 · 3) — ${width}px${
+            fit.k < 0.999
+              ? `, shown at ${Math.round(fit.k * 100)}% so the whole frame fits`
+              : ''
+          }. Watches are out of scope in v1.`}
           onClick={() =>
             setBreakpoint(
               breakpoint === 'compact'
@@ -274,6 +336,9 @@ export function Canvas() {
           }
         >
           <BpIcon size={11} /> {breakpoint}
+          {fit.k < 0.999 && (
+            <span className="faint mono"> · {Math.round(fit.k * 100)}%</span>
+          )}
         </button>
         <Button size="sm" variant="ghost" onClick={() => setRunMode(true, screen.id)}>
           ▶ Run
@@ -285,6 +350,7 @@ export function Canvas() {
 
       <div
         className="canvas-scroll"
+        ref={scrollRef}
         onClick={(e) => {
           if (e.target === e.currentTarget) select(null);
         }}
@@ -302,203 +368,222 @@ export function Canvas() {
           if (file) await recreateFromScreenshot(file);
         }}
       >
-        <div className="device-frame" data-bp={breakpoint}>
-          <div className="frame-chrome">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
-            <span className="mono" style={{ marginLeft: 6, fontSize: 10 }}>
-              {screen.id}
-            </span>
-            <span style={{ flex: 1 }} />
-            <span className="mono" style={{ fontSize: 10 }}>
-              {width} × {breakpoint === 'compact' ? 844 : 900}
-            </span>
-          </div>
+        <div
+          className="frame-fit"
+          style={fit.w ? { width: fit.w, height: fit.h } : undefined}
+        >
           <div
-            className="frame-viewport"
-            ref={viewportRef}
-            style={{ position: 'relative' }}
-            onPointerMove={(e) => {
-              if (drag.active) return;
-              const id = nodeIdFromElement(e.target as Element);
-              if (id === hoverId) return;
-              setHoverId(id);
-              setHoverBox(id ? measure(id) : null);
-            }}
-            onPointerLeave={() => {
-              setHoverId(null);
-              setHoverBox(null);
-            }}
-            onClick={(e) => {
-              if (editing) return;
-              const id = nodeIdFromElement(e.target as Element);
-              if (!id) {
-                select(null);
-                return;
-              }
-              if (id === screen.root.id) {
-                select(null);
-                return;
-              }
-              select(id);
-            }}
-            onDoubleClick={(e) => {
-              const id = nodeIdFromElement(e.target as Element);
-              if (!id) return;
-              const node = findNode(screen.root, id);
-              if (!node || !TEXTISH.has(node.type)) return;
-              const box = measure(id);
-              if (!box) return;
-              setEditing({ id, value: String(node.props.text ?? ''), box });
-            }}
+            className="device-frame"
+            data-bp={breakpoint}
+            ref={frameRef}
+            style={
+              {
+                // Chrome inside the frame reads this so 1px stays 1px on screen.
+                '--mw-fit': String(fit.k),
+                ...(fit.k < 0.999
+                  ? { transform: `scale(${fit.k})`, transformOrigin: 'top left' }
+                  : null),
+              } as CSSProperties
+            }
           >
-            <CanvasStyle doc={doc} />
-            <NodeView doc={doc} screen={screen} mode="edit" />
-
-            {hoverBox && hoverId && hoverId !== selectedId && !drag.active && (
-              <div
-                className="hover-outline"
-                style={{
-                  left: hoverBox.left,
-                  top: hoverBox.top,
-                  width: hoverBox.width,
-                  height: hoverBox.height,
-                }}
-              />
-            )}
-
-            {selBox && (
-              <>
-                <div
-                  className="selection-outline"
-                  style={{
-                    left: selBox.left - 1,
-                    top: selBox.top - 1,
-                    width: selBox.width + 2,
-                    height: selBox.height + 2,
-                  }}
-                />
-                <span
-                  className="id-chip"
-                  style={{ left: selBox.left, top: Math.max(0, selBox.top - 20) }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (selectedId) {
-                      void navigator.clipboard
-                        ?.writeText(selectedId)
-                        .catch(() => undefined);
-                      toast(`Copied ${selectedId}`);
-                    }
-                  }}
-                  title="Click to copy the id"
-                >
-                  {selectedId}
-                </span>
-              </>
-            )}
-
-            {(hoverBox || selBox) && hoverId && hoverId !== screen.root.id && (
-              <button
-                type="button"
-                aria-label="Drag to move"
-                style={{
-                  position: 'absolute',
-                  left: (hoverBox || selBox)!.left - 18,
-                  top: (hoverBox || selBox)!.top,
-                  width: 16,
-                  height: 18,
-                  display: 'grid',
-                  placeItems: 'center',
-                  borderRadius: 4,
-                  border: '1px solid var(--mw-accent)',
-                  background: 'var(--mw-surface)',
-                  color: 'var(--mw-accent)',
-                  cursor: 'grab',
-                  zIndex: 4,
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  useDrag.getState().begin({
-                    kind: 'move',
-                    nodeId: hoverId,
-                    label: 'Move',
-                    x: e.clientX,
-                    y: e.clientY,
-                  });
-                }}
-              >
-                <GripVertical size={11} />
-              </button>
-            )}
-
-            {drag.active && dropBox && drag.target && (
-              <div
-                className={drag.target.mode === 'inside' ? 'drop-inside' : 'drop-line'}
-                style={
-                  drag.target.mode === 'inside'
-                    ? {
-                        left: dropBox.left,
-                        top: dropBox.top,
-                        width: dropBox.width,
-                        height: dropBox.height,
-                      }
-                    : {
-                        left: dropBox.left,
-                        top:
-                          drag.target.mode === 'before'
-                            ? dropBox.top - 1
-                            : dropBox.top + dropBox.height - 1,
-                        width: dropBox.width,
-                      }
+            <div className="frame-chrome">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+              <span className="mono" style={{ marginLeft: 6, fontSize: 10 }}>
+                {screen.id}
+              </span>
+              <span style={{ flex: 1 }} />
+              <span className="mono" style={{ fontSize: 10 }}>
+                {width} × {frameHeight}
+                {fit.k < 0.999 ? ` · ${Math.round(fit.k * 100)}%` : ''}
+              </span>
+            </div>
+            <div
+              className="frame-viewport"
+              ref={viewportRef}
+              style={{ position: 'relative' }}
+              onPointerMove={(e) => {
+                if (drag.active) return;
+                const id = nodeIdFromElement(e.target as Element);
+                if (id === hoverId) return;
+                setHoverId(id);
+                setHoverBox(id ? measure(id) : null);
+              }}
+              onPointerLeave={() => {
+                setHoverId(null);
+                setHoverBox(null);
+              }}
+              onClick={(e) => {
+                if (editing) return;
+                const id = nodeIdFromElement(e.target as Element);
+                if (!id) {
+                  select(null);
+                  return;
                 }
-              />
-            )}
+                if (id === screen.root.id) {
+                  select(null);
+                  return;
+                }
+                select(id);
+              }}
+              onDoubleClick={(e) => {
+                const id = nodeIdFromElement(e.target as Element);
+                if (!id) return;
+                const node = findNode(screen.root, id);
+                if (!node || !TEXTISH.has(node.type)) return;
+                const box = measure(id);
+                if (!box) return;
+                setEditing({ id, value: String(node.props.text ?? ''), box });
+              }}
+            >
+              <CanvasStyle doc={doc} />
+              <NodeView doc={doc} screen={screen} mode="edit" />
 
-            {editing && (
-              <div
-                className="inline-edit"
-                style={{
-                  left: Math.max(4, editing.box.left),
-                  top: editing.box.top,
-                  width: Math.max(140, editing.box.width),
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  className="input"
-                  autoFocus
-                  value={editing.value}
-                  onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                  onBlur={commitEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitEdit();
-                    if (e.key === 'Escape') setEditing(null);
+              {hoverBox && hoverId && hoverId !== selectedId && !drag.active && (
+                <div
+                  className="hover-outline"
+                  style={{
+                    left: hoverBox.left,
+                    top: hoverBox.top,
+                    width: hoverBox.width,
+                    height: hoverBox.height,
                   }}
                 />
-              </div>
-            )}
+              )}
 
-            {dropActive && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'color-mix(in srgb, var(--mw-accent) 8%, transparent)',
-                  border: '2px dashed var(--mw-accent)',
-                  color: 'var(--mw-accent)',
-                  font: 'var(--mw-type-label)',
-                  pointerEvents: 'none',
-                  zIndex: 5,
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <ImagePlus size={14} /> Drop the screenshot to recreate it
-                </span>
-              </div>
-            )}
+              {selBox && (
+                <>
+                  <div
+                    className="selection-outline"
+                    style={{
+                      left: selBox.left - 1,
+                      top: selBox.top - 1,
+                      width: selBox.width + 2,
+                      height: selBox.height + 2,
+                    }}
+                  />
+                  <span
+                    className="id-chip"
+                    style={{ left: selBox.left, top: Math.max(0, selBox.top - 20) }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedId) {
+                        void navigator.clipboard
+                          ?.writeText(selectedId)
+                          .catch(() => undefined);
+                        toast(`Copied ${selectedId}`);
+                      }
+                    }}
+                    title="Click to copy the id"
+                  >
+                    {selectedId}
+                  </span>
+                </>
+              )}
+
+              {(hoverBox || selBox) && hoverId && hoverId !== screen.root.id && (
+                <button
+                  type="button"
+                  aria-label="Drag to move"
+                  style={{
+                    position: 'absolute',
+                    left: (hoverBox || selBox)!.left - 18,
+                    top: (hoverBox || selBox)!.top,
+                    width: 16,
+                    height: 18,
+                    display: 'grid',
+                    placeItems: 'center',
+                    borderRadius: 4,
+                    border: '1px solid var(--mw-accent)',
+                    background: 'var(--mw-surface)',
+                    color: 'var(--mw-accent)',
+                    cursor: 'grab',
+                    zIndex: 4,
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    useDrag.getState().begin({
+                      kind: 'move',
+                      nodeId: hoverId,
+                      label: 'Move',
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
+                >
+                  <GripVertical size={11} />
+                </button>
+              )}
+
+              {drag.active && dropBox && drag.target && (
+                <div
+                  className={drag.target.mode === 'inside' ? 'drop-inside' : 'drop-line'}
+                  style={
+                    drag.target.mode === 'inside'
+                      ? {
+                          left: dropBox.left,
+                          top: dropBox.top,
+                          width: dropBox.width,
+                          height: dropBox.height,
+                        }
+                      : {
+                          left: dropBox.left,
+                          top:
+                            drag.target.mode === 'before'
+                              ? dropBox.top - 1
+                              : dropBox.top + dropBox.height - 1,
+                          width: dropBox.width,
+                        }
+                  }
+                />
+              )}
+
+              {editing && (
+                <div
+                  className="inline-edit"
+                  style={{
+                    left: Math.max(4, editing.box.left),
+                    top: editing.box.top,
+                    width: Math.max(140, editing.box.width),
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    className="input"
+                    autoFocus
+                    value={editing.value}
+                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                    onBlur={commitEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitEdit();
+                      if (e.key === 'Escape') setEditing(null);
+                    }}
+                  />
+                </div>
+              )}
+
+              {dropActive && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'grid',
+                    placeItems: 'center',
+                    background: 'color-mix(in srgb, var(--mw-accent) 8%, transparent)',
+                    border: '2px dashed var(--mw-accent)',
+                    color: 'var(--mw-accent)',
+                    font: 'var(--mw-type-label)',
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <ImagePlus size={14} /> Drop the screenshot to recreate it
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -127,6 +127,49 @@ describe('the shell actually renders', () => {
     expect(frame?.getAttribute('data-bp')).toBe('expanded');
   });
 
+  it('the breakpoint switcher really reframes the artboard', async () => {
+    await boot();
+    act(() => {
+      useUi.getState().setRoute('editor');
+      const doc = useProject.getState().doc;
+      useProject.getState().applyBatch(addScreenBatch(doc, 'Home'), { source: 'user' });
+      useUi.getState().setActiveScreen(useProject.getState().doc.screens[0].id);
+    });
+
+    const frame = () => document.querySelector('.device-frame') as HTMLElement;
+    expect(frame().getAttribute('data-bp')).toBe('compact');
+    // The frame sits in the box that reserves its scaled size, so the canvas
+    // can centre it while the frame itself keeps its true width.
+    expect(frame().parentElement?.className).toBe('frame-fit');
+
+    const chip = document.querySelector('.canvas-toolbar .chip') as HTMLElement;
+    expect(chip).toBeTruthy();
+
+    fireEvent.click(chip);
+    expect(useUi.getState().breakpoint).toBe('medium');
+    expect(frame().getAttribute('data-bp')).toBe('medium');
+
+    fireEvent.click(chip);
+    expect(useUi.getState().breakpoint).toBe('expanded');
+    expect(frame().getAttribute('data-bp')).toBe('expanded');
+    expect(chip.textContent).toMatch(/expanded/i);
+
+    act(() => {
+      useUi.getState().setBreakpoint('compact');
+    });
+    expect(frame().getAttribute('data-bp')).toBe('compact');
+  });
+
+  it('settings says plainly that watch screens are out of scope', async () => {
+    await boot();
+    act(() => {
+      useUi.getState().setModal('settingsOpen', true);
+    });
+    expect(screen.getByText('Screen sizes')).toBeTruthy();
+    expect(screen.getByText(/Watch screens are out of scope/)).toBeTruthy();
+    expect(screen.getByText(/320 px, and that is the floor/)).toBeTruthy();
+  });
+
   it('clicking a palette block adds a node with one op', async () => {
     await boot();
     act(() => {
