@@ -17,9 +17,9 @@ import { Copy, GripVertical, Layers as LayersIcon, Trash2 } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import type { ComponentNode } from '../types/tree';
-import { findNode, findParent, isDescendant } from '../ops/treeUtils';
 import { spec } from '../types/library';
 import { duplicateNodeBatch } from '../ops/screenOps';
+import { layerMoveTarget } from './move';
 import { Icon } from '../canvas/Icon';
 
 interface Row {
@@ -75,29 +75,35 @@ export function Layers() {
   const onDragEnd = (event: DragEndEvent) => {
     const activeId = String(event.active.id);
     const overId = event.over ? String(event.over.id) : null;
-    if (!overId || activeId === overId) return;
-    if (screen.root.id === activeId) return;
-    if (isDescendant(screen.root, activeId, overId)) {
-      toast('A node cannot go inside itself.', 'warn');
+    if (!overId) return;
+    /*
+     * Indent is the nesting gesture: the dragged row's left edge measured
+     * against the row it is over. Dragging right nests, dragging level
+     * reorders — the way every tree list behaves, and the only reading that
+     * makes "drop on a container to nest" true.
+     */
+    const draggedRect = event.active.rect.current.translated;
+    const overRect = event.over?.rect;
+    const indent = draggedRect && overRect ? draggedRect.left - overRect.left : 0;
+    const decision = layerMoveTarget(screen, activeId, overId, indent);
+    if (decision.error) {
+      toast(decision.error, 'warn');
       return;
     }
-    const overNode = findNode(screen.root, overId);
-    if (!overNode) return;
-    let parentId: string;
-    let index: number;
-    if (overNode.id === screen.root.id) {
-      parentId = overNode.id;
-      index = overNode.children.length;
-    } else {
-      const parent = findParent(screen.root, overNode.id);
-      if (!parent) return;
-      parentId = parent.parent.id;
-      index = parent.index;
-    }
-    const res = applyBatch([{ op: 'move', id: activeId, parentId, index }], {
-      source: 'user',
-    });
+    if (!decision.target) return;
+    const res = applyBatch(
+      [
+        {
+          op: 'move',
+          id: activeId,
+          parentId: decision.target.parentId,
+          index: decision.target.index,
+        },
+      ],
+      { source: 'user' },
+    );
     if (res.errors.length) toast(res.errors[0].message, 'warn');
+    else toast('Moved — ⌘Z undoes it', 'ok');
   };
 
   const commitRename = (node: ComponentNode) => {
@@ -174,8 +180,9 @@ export function Layers() {
         </SortableContext>
       </DndContext>
       <p className="field-hint" style={{ marginTop: 10 }}>
-        <LayersIcon size={11} style={{ verticalAlign: -1 }} /> Drag to reorder. Drop on a
-        container row to nest. Layers and canvas share one tree.
+        <LayersIcon size={11} style={{ verticalAlign: -1 }} /> Drag a row to reorder it;
+        drag it right, over a container, to nest it inside. Layers and canvas share one
+        tree.
       </p>
     </div>
   );
@@ -206,7 +213,7 @@ function LayerRow({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } =
     useSortable({
       id: row.node.id,
     });
@@ -223,6 +230,7 @@ function LayerRow({
       style={style}
       className="layer-row"
       data-selected={selected}
+      data-over={isOver || undefined}
       onClick={onSelect}
       onDoubleClick={(e) => {
         e.stopPropagation();
