@@ -388,7 +388,7 @@ function hoverExtra(node: ComponentNode): string {
   const sel = `.${nodeClass(node.id)}`;
   switch (node.type) {
     case 'button':
-      return `${sel}:hover{filter:brightness(0.96)}${sel}:active{transform:translateY(1px)}${sel}:focus-visible{outline:2px solid var(--openui-border-accent);outline-offset:2px}`;
+      return `${sel}:hover{filter:brightness(0.96)}${sel}:active{transform:translateY(1px)}${sel}:focus-visible{outline:2px solid var(--openui-border-accent);outline-offset:2px}${sel}[data-disabled='true']{opacity:.5;cursor:not-allowed}${sel}[data-disabled='true']:hover{filter:none}`;
     case 'link':
       return `${sel}:hover{text-decoration:underline}`;
     case 'fab':
@@ -497,7 +497,11 @@ export const UTILITY_CSS = `.mw-row-item{display:flex;align-items:center;gap:12p
 .mw-chart-bar{flex:1;background:var(--openui-accent);border-radius:6px 6px 2px 2px;min-height:4px;opacity:.92}
 .mw-hero-img{width:100%;height:180px;object-fit:cover;border-radius:calc(var(--radius-card) - 4px);display:block}
 .mw-fill-img{width:100%;height:100%;object-fit:cover;display:block}
-.mw-empty{font-size:12px;color:var(--openui-text-tertiary);padding:10px 0}`;
+.mw-empty{font-size:12px;color:var(--openui-text-tertiary);padding:10px 0}
+.mw-slider{width:100%;accent-color:var(--openui-accent)}
+.mw-slider-field{display:flex;flex-direction:column;gap:6px;width:100%}
+.mw-list-divided .mw-row-item{border:none;border-radius:0;border-bottom:1px solid var(--openui-border-default);background:transparent;padding-inline:0}
+.mw-list-divided .mw-row-item:last-child{border-bottom:none}`;
 
 export function generateFullCss(doc: ProjectDoc): string {
   return `${generateCss(doc)}\n${UTILITY_CSS}`;

@@ -1,6 +1,7 @@
 import {
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { Action, ComponentNode, ProjectDoc } from '../types/tree';
@@ -121,6 +122,25 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
   const editGuard = (e: ReactPointerEvent) => {
     if (mode !== 'run') e.preventDefault();
   };
+  /*
+   * A tap belongs to the block it landed on, not to every ancestor that also
+   * has a tap wired: clicking a Heading inside a tappable Card must not fire
+   * the card's action as well. The nearest `n-<id>` element is the answer, and
+   * it costs one walk up the tree.
+   */
+  const tapProps = {
+    onClick: (e: ReactMouseEvent) => {
+      if (mode !== 'run') return;
+      let cur = e.target as Element | null;
+      while (cur) {
+        const classes = cur.getAttribute?.('class') || '';
+        if (/(^|\s)n-[a-z][a-z0-9_]{2,30}(\s|$)/.test(classes)) break;
+        cur = cur.parentElement;
+      }
+      if (cur !== e.currentTarget) return;
+      fire('tap');
+    },
+  };
   const bind = asText(p.bindKey);
   const value = bind && runtime ? runtime.state[bind] : undefined;
   const sizeIcon = Number(p.size) || 20;
@@ -183,18 +203,22 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'heading':
       return (
-        <div className={cls} style={textAlign ? { textAlign } : undefined}>
+        <div className={cls} style={textAlign ? { textAlign } : undefined} {...tapProps}>
           {subst(p.text, row)}
         </div>
       );
     case 'text':
       return (
-        <div className={cls} style={textAlign ? { textAlign } : undefined}>
+        <div className={cls} style={textAlign ? { textAlign } : undefined} {...tapProps}>
           {subst(p.text, row)}
         </div>
       );
     case 'label':
-      return <div className={cls}>{subst(p.text, row)}</div>;
+      return (
+        <div className={cls} {...tapProps}>
+          {subst(p.text, row)}
+        </div>
+      );
     case 'badge':
       return <span className={cls}>{subst(p.text, row)}</span>;
     case 'divider':
@@ -208,7 +232,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'image': {
       const src = imageSrc || placeholderImage(doc.tokens, { seed: node.id, height: 420 });
       return (
-        <div className={cls} style={{ aspectRatio: '16 / 10' }}>
+        <div className={cls} style={{ aspectRatio: '16 / 10' }} {...tapProps}>
           <img
             className="mw-fill-img"
             src={src}
@@ -225,7 +249,11 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       const initials = asText(p.initials, 'MA');
       const src = imageSrc || avatarPlaceholder(doc.tokens, initials);
       return (
-        <span className={cls} style={{ width: sizeIcon * 2.2, height: sizeIcon * 2.2 }}>
+        <span
+          className={cls}
+          style={{ width: sizeIcon * 2.2, height: sizeIcon * 2.2 }}
+          {...tapProps}
+        >
           <img className="mw-fill-img" src={src} alt={initials} draggable={false} />
         </span>
       );
@@ -257,13 +285,20 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         <button
           type="button"
           className={cls}
+          // Disabled only exists in Run mode: on the canvas it must stay
+          // selectable, and pointer-events:none would make it invisible to the
+          // click that selects it.
+          disabled={mode === 'run' ? Boolean(p.disabled) : undefined}
+          data-disabled={p.disabled ? 'true' : undefined}
           onClick={(e) => {
             // In edit mode the click must bubble: the canvas selects through
             // it. Stopping here made every button unselectable.
             if (mode === 'run') e.stopPropagation();
+            if (p.disabled) return;
             fire('tap');
           }}
         >
+          {p.icon ? <Icon name={p.icon} size={16} /> : null}
           {subst(p.text, row)}
         </button>
       );
@@ -285,6 +320,15 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       return (
         <input
           className={cls}
+          type={
+            p.inputType === 'password'
+              ? 'password'
+              : p.inputType === 'number'
+                ? 'number'
+                : p.inputType === 'phone'
+                  ? 'tel'
+                  : 'text'
+          }
           placeholder={asText(p.placeholder, 'Type here')}
           value={typeof value === 'string' ? value : ''}
           readOnly={mode !== 'run'}
@@ -371,9 +415,10 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       const min = Number(p.min) || 0;
       const max = Number(p.max) || 100;
       const val = typeof value === 'number' ? value : min;
-      return (
+      const caption = subst(p.label, row);
+      const control = (
         <input
-          className={cls}
+          className={caption ? 'mw-slider' : cls}
           type="range"
           min={min}
           max={max}
@@ -385,6 +430,16 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           }}
           onPointerDown={editGuard}
         />
+      );
+      if (!caption) return control;
+      return (
+        <div className={`${cls} mw-slider-field`}>
+          <div className="mw-progress-label">
+            <span>{caption}</span>
+            {mode === 'run' ? <span>{val}</span> : null}
+          </div>
+          {control}
+        </div>
       );
     }
     case 'datepicker':
@@ -448,6 +503,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
                 if (mode !== 'run' || !runtime) return;
                 const target = screenSlugForLabel(runtime.screens, item);
                 if (target) runtime.navigate(target);
+                fire('tap');
               }}
             >
               <Icon name={['home', 'grid', 'settings'][i % 3]} size={20} />
@@ -494,7 +550,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       const rows = dataRows(node, doc, activeScreen);
       const items = (rows.length ? rows : fallbackRows(node)).slice(0, 5);
       return (
-        <div className={cls}>
+        <div className={`${cls}${p.divider ? ' mw-list-divided' : ''}`} {...tapProps}>
           {items.map((r, i) => {
             const keys = Object.keys(r);
             const title = String(r.title ?? r.name ?? r[keys[0]] ?? 'Item');
@@ -516,8 +572,11 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
               <div
                 className="mw-row-item"
                 key={i}
-                onClick={() => {
+                onClick={(e) => {
                   if (mode === 'run' && runtime) {
+                    // The row *is* the tap target here; do not let the list
+                    // above it fire the same action a second time.
+                    e.stopPropagation();
                     runtime.setKey('selected_row', title);
                     runActions(node.events?.tap, runtime);
                   }
@@ -542,7 +601,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       const items = (rows.length ? rows : fallbackRows(node, 3)).slice(0, 10);
       const cols = columns.length ? columns : ['Name', 'Value', 'Status'];
       return (
-        <div className={cls}>
+        <div className={cls} {...tapProps}>
           <div className="mw-table-head">
             {cols.map((c) => (
               <span className="mw-table-cell" key={c}>
@@ -568,7 +627,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'stat':
       return (
-        <div className={cls}>
+        <div className={cls} {...tapProps}>
           <span style={{ fontSize: 12, color: 'var(--openui-text-secondary)' }}>
             {subst(p.label, row)}
           </span>
@@ -610,6 +669,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             viewBox={`0 0 ${w} ${h}`}
             preserveAspectRatio="none"
             style={{ height: 96 }}
+            {...tapProps}
           >
             <path
               d={line}
@@ -629,7 +689,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         );
       }
       return (
-        <div className={cls}>
+        <div className={cls} {...tapProps}>
           <div className="mw-chart">
             {points.map((pt, i) => (
               <div
@@ -645,7 +705,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'hero':
       return (
-        <div className={cls}>
+        <div className={cls} {...tapProps}>
           {imageSrc && (
             <img
               className="mw-hero-img"
@@ -678,7 +738,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       );
     case 'section':
       return (
-        <section className={cls}>
+        <section className={cls} {...tapProps}>
           {Boolean(p.title) && (
             <div
               style={{ fontSize: 16, fontWeight: 700, color: 'var(--openui-text-primary)' }}
@@ -691,7 +751,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       );
     case 'card':
       return (
-        <div className={cls} style={p.pad ? { padding: String(p.pad) } : undefined}>
+        <div className={cls} {...tapProps}>
           {Boolean(p.title) && (
             <div
               style={{ fontSize: 15, fontWeight: 700, color: 'var(--openui-text-primary)' }}
