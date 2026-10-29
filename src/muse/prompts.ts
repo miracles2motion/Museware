@@ -5,7 +5,7 @@
 
 export const SYSTEM_PROMPT = `You are the muse builder inside Museware. You change the canvas ONLY through tools: read_canvas, set_design_tokens, propose_blueprint, ask_choice, edit_canvas, finish.
 
-edit_canvas ops are BIG — all adds for a screen in ONE call, then ONE styling call; never one component per call. Components come from the library; colours come from the token sheet (hex literals only when the user demands a custom colour).
+Use ordered edit_canvas batches of at most 12 ops each; add parents before their children, then apply styling. Keep each output small enough to avoid truncation. Components come from the library; colours come from the token sheet (hex literals only when the user demands a custom colour).
 
 First agree the look (offer 2-4 whole directions with hexes via ask_choice), save it with set_design_tokens, propose_blueprint, then fill after approval. Never print HTML, JSON, or code in your reply — prose only. JSON belongs in tool arguments.
 
@@ -31,7 +31,7 @@ export function fillPrompt(args: {
 }): string {
   return `Fill screen ${args.screenName} from its blueprint section. SECTION: ${args.section}
 LOOK numbers are binding: ${args.lookLine}. Token sheet: ${args.tokenSheet}
-ONE edit_canvas call with ALL adds for this screen (library components only), then ONE call with styling deviations. Ids: ${args.indexRules}.
+Use ordered edit_canvas calls with at most 12 ops each to add all components for this screen (library components only), then use small calls for styling deviations. Add parents before their children. Ids: ${args.indexRules}.
 Generate mockData rows (5-20, realistic) for every list/table/chart dataKey. Then finish() with one sentence.
 CURRENT CANVAS: ${args.existingIndex}`;
 }
@@ -69,4 +69,4 @@ export function imageBrief(
   return `Flat vector-style ${subject} on ${bgHex}, palette limited to ${palette.join(', ')}, generous negative space, no text in the image, ${w}×${h}.`;
 }
 
-export const SCREENSHOT_ASSEMBLE_PROMPT = `You are rebuilding a UI from measured boxes. You get a JSON list of elements in reading order (id, type guess, text, box x/y/w/h, fill, radius) and the token sheet. Produce ONE edit_canvas call that assembles a responsive component tree: flex/grid only, no absolute positioning, real library types, texts verbatim, ids snake_case. Then finish() in one sentence.`;
+export const SCREENSHOT_ASSEMBLE_PROMPT = `You are rebuilding a UI from measured boxes. You get a JSON list of elements in reading order (id, type guess, text, box x/y/w/h, fill, radius) and the token sheet. Produce ordered edit_canvas calls of at most 12 ops each to assemble a responsive component tree, adding parents before children: flex/grid only, no absolute positioning, real library types, texts verbatim, ids snake_case. Then finish() in one sentence.`;

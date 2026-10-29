@@ -41,7 +41,7 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   ask_choice:
     'Ask the user to pick 1 of 2–4 whole directions. Each option has a label and up to 4 hex swatches. The card leaves on tap.',
   edit_canvas:
-    'Apply a batch of ops to the canvas. ALL adds for a screen in ONE call, then ONE styling call. All-or-nothing; ≤40 ops. ' +
+    'Apply a batch of ops to the canvas. Add parents before children and split large screens into ordered batches of at most 12 ops. Each batch is all-or-nothing; the hard limit is 40 ops. ' +
     'Each op = {op:"add",parentId,node:{type,id?,props?,styles?,children?}} | {op:"remove",id} | {op:"move",id,parentId} | ' +
     '{op:"setProps",id,props} | {op:"setStyles",id,styles} | {op:"setText",id,text} | {op:"rename",id,name} | ' +
     '{op:"addScreen",screen:{id,name,root}} | {op:"removeScreen",id} | {op:"renameScreen",id,name} | {op:"setEntry",id} | ' +
@@ -49,7 +49,8 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Nest at most 3 levels inside one add node; deeper structure is more add ops with parentId in the same call. ' +
     'Events ride on setProps: {events:{tap:[{type:"navigate",to:"home"}]}} — types navigate, setState, toggle, toast, openUrl, when. ' +
     'styles keys: gap, align(start|center|end|stretch = align children), justify(start|center|end|space-between = distribute), wrap, grow(1 = fill leftover space), selfAlign, padding, width/height ("match"|"hug"|length), background, color, fontSize, fontWeight, textAlign, borderRadius, boxShadow, opacity. ' +
-    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}.',
+    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}. ' +
+    'Long batches: split them into several edit_canvas calls of at most 12 ops each. An oversized call can be cut off mid-JSON and dropped without being applied.',
   finish: 'End the turn with a two-sentence user-facing summary.',
 };
 
@@ -269,6 +270,105 @@ function stopHeartbeat() {
   heartbeatTimer = null;
 }
 
+/** Repair common incomplete JSON without changing already-valid arguments. */
+export function repairJson(raw: string): string | null {
+  let text = raw.trim();
+  if (text.startsWith('```')) {
+    text = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+  }
+  if (!text) return '{}';
+
+  // Remove commas before a closing bracket, but never edit text inside strings.
+  const removeTrailingCommas = (value: string) => {
+    let output = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < value.length; i += 1) {
+      const ch = value[i];
+      if (inString) {
+        output += ch;
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+      } else {
+        if (ch === '"') inString = true;
+        if (ch === ',' && /^[\s]*[}\]]/.test(value.slice(i + 1))) continue;
+        output += ch;
+      }
+    }
+    return output;
+  };
+
+  const close = (prefix: string): string | null => {
+    const stack: string[] = [];
+    let inString = false;
+    let escaped = false;
+    for (const ch of prefix) {
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+      } else if (ch === '"') inString = true;
+      else if (ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']');
+      else if (ch === '}' || ch === ']') {
+        if (stack.pop() !== ch) return null;
+      }
+    }
+    let result = prefix;
+    if (inString) {
+      if (escaped) result = result.slice(0, -1);
+      result += '"';
+    }
+    result += stack.reverse().join('');
+    return result;
+  };
+  const valid = (candidate: string | null): string | null => {
+    if (candidate === null) return null;
+    for (const attempt of [candidate, removeTrailingCommas(candidate)]) {
+      try {
+        JSON.parse(attempt);
+        return attempt;
+      } catch {
+        /* try the next candidate */
+      }
+    }
+    return null;
+  };
+  const original = valid(text);
+  if (original !== null) return original;
+  const closed = valid(close(text));
+  if (closed !== null) return closed;
+
+  // Fall back at value boundaries, keeping the longest complete prefix.
+  let inString = false;
+  let escaped = false;
+  const boundaries: number[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') {
+        inString = false;
+        boundaries.push(i + 1);
+      }
+    } else if (ch === '"') inString = true;
+    else if (ch === '}' || ch === ']' || ch === ',' || /[0-9eE]/.test(ch))
+      boundaries.push(i + 1);
+  }
+  for (let i = boundaries.length - 1; i >= 0; i -= 1) {
+    const candidate = valid(close(text.slice(0, boundaries[i])));
+    if (candidate !== null) return candidate;
+  }
+  return null;
+}
+
+const TOOL_SPLIT_NUDGE =
+  'Your previous tool call did not arrive complete and was dropped, not applied. Re-send the same work as SEVERAL edit_canvas calls of at most 12 ops each; run finish() only after every op has been applied.';
+
 function history(): ChatMessage[] {
   const rail = useProject.getState().doc.rail;
   const recent = rail
@@ -403,6 +503,16 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
 
     if (result.text) useAgent.getState().resetText();
 
+    if (result.finishReason === 'length') {
+      addSystem(
+        'The model hit the output cap mid-call — that batch was dropped before it could corrupt anything. Asking for smaller chunks.',
+      );
+      messages.push({ role: 'user', content: TOOL_SPLIT_NUDGE });
+      calls += 1;
+      if (calls < opts.maxCalls) continue;
+      break;
+    }
+
     if (!result.toolCalls.length) {
       if (/\{\s*"op"|<\/?[a-z]+>|```/.test(result.text)) {
         addSystem('Correction: prose only — the canvas changes through tools.');
@@ -453,21 +563,35 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
     }
 
     if (result.text) addAgent(result.text);
-    messages.push({
-      role: 'assistant',
-      content: result.text || '',
-      tool_calls: result.toolCalls.map((c) => ({
-        id: c.id || `call_${calls}_${c.name}`,
-        type: 'function' as const,
-        function: { name: c.name, arguments: c.arguments },
-      })),
-    });
+    const repaired = result.toolCalls.map((call, index) => ({
+      call,
+      id: call.id || `call_${calls}_${call.name}_${index}`,
+      args: repairJson(call.arguments || ''),
+    }));
+    const validCalls = repaired.filter(
+      (item): item is typeof item & { args: string } => item.args !== null,
+    );
+    const usable = validCalls.slice(0, Math.max(0, opts.maxCalls - calls));
+    const dropped = repaired.length - usable.length;
+    if (dropped)
+      addSystem(
+        `${dropped} tool call(s) were invalid or exceeded the call limit and were dropped; the rest ran.`,
+      );
+    if (usable.length)
+      messages.push({
+        role: 'assistant',
+        content: result.text || '',
+        tool_calls: usable.map(({ call, id, args }) => ({
+          id,
+          type: 'function' as const,
+          function: { name: call.name, arguments: args },
+        })),
+      });
 
     let endTurn = false;
-    for (const call of result.toolCalls) {
+    for (const { call, id, args: cleanArgs } of usable) {
       calls += 1;
       useAgent.getState().bumpCalls();
-      if (calls > opts.maxCalls) break;
       if (controller?.signal.aborted) {
         stopped = true;
         break;
@@ -475,9 +599,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       const name = call.name as ToolName;
       let outcome: string;
       try {
-        const parsedArgs = call.arguments?.trim()
-          ? (JSON.parse(call.arguments) as unknown)
-          : {};
+        const parsedArgs = JSON.parse(cleanArgs) as unknown;
         const schema = toolSchemas[name];
         if (!schema) throw new Error(`unknown tool ${name}`);
         const args = schema.parse(parsedArgs);
@@ -493,11 +615,16 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       }
       messages.push({
         role: 'tool',
-        tool_call_id: call.id || `call_${calls}_${name}`,
+        tool_call_id: id,
         name,
         content: outcome.slice(0, MAX_RESULT),
       });
       if (endTurn || finished || choiceAsked) break;
+    }
+    if (dropped && !stopped && !endTurn && !finished && !choiceAsked) {
+      messages.push({ role: 'user', content: TOOL_SPLIT_NUDGE });
+      calls += 1;
+      if (calls < opts.maxCalls) continue;
     }
     if (stopped || endTurn || finished || choiceAsked) break;
   }
@@ -675,8 +802,11 @@ async function reviewer(
     if (/^PASS\b/i.test(text)) return { verdict: 'pass', notes: '' };
     if (/^PROBLEMS/i.test(text)) return { verdict: 'problems', notes: text.slice(0, 1200) };
     return { verdict: text ? 'problems' : 'error', notes: text.slice(0, 1200) };
-  } catch {
-    return { verdict: 'error', notes: '' };
+  } catch (err) {
+    return {
+      verdict: 'error',
+      notes: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    };
   }
 }
 
@@ -694,8 +824,10 @@ async function verifyGate(
     return;
   }
   if (first.verdict === 'error') {
-    useAgent.getState().setVerification('unverified');
-    addSystem('Unverified — the reviewer call failed, so the build ships with that label.');
+    useAgent.getState().setVerification('unverified', first.notes);
+    addSystem(
+      `Unverified — the reviewer call failed (${first.notes || 'no detail'}), so the build ships with that label.`,
+    );
     return;
   }
   addSystem('Reviewer saw problems — one rebuild round.');
@@ -715,9 +847,20 @@ async function verifyGate(
   const second = await reviewer(task, canvasOutline(after, screenIds));
   useAgent
     .getState()
-    .setVerification(second.verdict === 'pass' ? 'pass' : 'problems', second.notes);
+    .setVerification(
+      second.verdict === 'pass'
+        ? 'pass'
+        : second.verdict === 'error'
+          ? 'unverified'
+          : 'problems',
+      second.notes,
+    );
   if (second.verdict === 'pass') {
     addSystem('✓ Rebuild verified — PASS');
+  } else if (second.verdict === 'error') {
+    addSystem(
+      `Unverified — the reviewer call failed (${second.notes || 'no detail'}), so the build ships with that label.`,
+    );
   } else {
     addSystem("Shipped with the reviewer's remaining notes below (honest > perfect).");
     useAgent.getState().setError(second.notes || 'Reviewer still saw problems.');
