@@ -32,7 +32,7 @@ export function fillPrompt(args: {
   return `Fill screen ${args.screenName} from its blueprint section. SECTION: ${args.section}
 LOOK numbers are binding: ${args.lookLine}. Token sheet: ${args.tokenSheet}
 Use ordered edit_canvas calls with at most 12 ops each to add all components for this screen (library components only), then use small calls for styling deviations. Add parents before their children. Ids: ${args.indexRules}.
-For visual landing or product pages include a meaningful hero or image node; do not leave them out. Images are generated automatically after the build. Write finished content, never scaffold placeholder text.
+For visual landing or product pages include a meaningful hero or image node; do not leave them out. Images are generated automatically after the build. Never invent image URLs or claim an image was generated when it was not. Write finished content, never scaffold placeholder text.
 Generate mockData rows (5-20, realistic) for every list/table/chart dataKey. Then finish() with one sentence.
 CURRENT CANVAS: ${args.existingIndex}`;
 }

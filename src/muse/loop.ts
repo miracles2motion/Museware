@@ -6,7 +6,7 @@ import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { buildTokenSheet } from './tokenSheet';
 import { buildProjectIndex } from './projectIndex';
-import { canvasOutline } from './canvasOutline';
+import { canvasOutline, subtreeOutline } from './canvasOutline';
 import { parseBlueprint } from './blueprintParse';
 import { parseTypedOptions } from './typedOptions';
 import {
@@ -26,7 +26,9 @@ import {
   reviewerPrompt,
 } from './prompts';
 import type { Action, OpError, ProjectDoc } from '../types/tree';
-import { entryScreen } from '../ops/treeUtils';
+import { entryScreen, findNodeInDoc, clone } from '../ops/treeUtils';
+import { applyOps } from '../ops/apply';
+import { filterScopedOps } from './scope';
 import { lintScreen, type LintFinding } from './qualityLint';
 import { autoIllustrate, illustrateTargets, type ImageTarget } from './imagery';
 
@@ -215,6 +217,15 @@ export function decisionLedger(doc: ProjectDoc): string {
       ? `DECIDED ALREADY — tapped: ${picks.slice(-4).join('; ')}. Never ask for these again.`
       : '',
     `TOKEN SHEET NOW — brand ${theme.brand_color}, secondary ${theme.secondary_color}.`,
+    ...doc.rail
+      .filter(
+        (entry) =>
+          entry.role === 'system' &&
+          entry.text.startsWith('scope:') &&
+          /section .+ (?:redesigned|restyled) at /.test(entry.text),
+      )
+      .slice(-5)
+      .map((entry) => entry.text),
     doc.blueprint?.text
       ? 'A blueprint is on screen awaiting approval.'
       : 'No blueprint yet.',
@@ -431,6 +442,26 @@ function formatErrors(errors: OpError[]): string {
     .join('\n');
 }
 
+interface ScopedDraft {
+  rootId: string;
+  screenId: string;
+  stylesOnly: boolean;
+  initial: string;
+  doc: ProjectDoc;
+  ops: unknown[];
+  dropped: number;
+  receipt: {
+    model: string;
+    promptChars: number;
+    latencyMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    cachedTokens: number;
+    cents: number;
+    toolNames: string[];
+  };
+}
+
 interface ToolLoopOptions {
   messages: ChatMessage[];
   maxCalls: number;
@@ -438,6 +469,8 @@ interface ToolLoopOptions {
   effort?: string;
   model?: string;
   onProgress?: (line: string) => void;
+  scope?: ScopedDraft;
+  repairIds?: string[];
 }
 
 interface ToolLoopResult {
@@ -487,17 +520,32 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         model,
         effort,
         messages,
-        tools: TOOL_DEFS,
+        tools: opts.scope
+          ? TOOL_DEFS.filter((t) =>
+              ['read_canvas', 'edit_canvas', 'finish'].includes(t.function.name),
+            )
+          : TOOL_DEFS,
         signal: controller?.signal,
         onText: (t) => useAgent.getState().appendText(t),
         onNotice: (n) => addSystem(n),
       });
-      recordReceipt(
-        result,
-        contributor ? 'contributor' : opts.role || 'builder',
-        promptChars,
-        result.toolCalls.map((c) => c.name),
-      );
+      if (opts.scope) {
+        const r = opts.scope.receipt;
+        r.model = result.model;
+        r.promptChars += promptChars;
+        r.latencyMs += result.latencyMs;
+        r.inputTokens += result.usage.inputTokens;
+        r.outputTokens += result.usage.outputTokens;
+        r.cachedTokens += result.usage.cachedTokens;
+        r.cents += estimateCents(result.model, result.usage);
+        r.toolNames.push(...result.toolCalls.map((c) => c.name));
+      } else
+        recordReceipt(
+          result,
+          contributor ? 'contributor' : opts.role || 'builder',
+          promptChars,
+          result.toolCalls.map((c) => c.name),
+        );
     } catch (err) {
       if (err instanceof MuseError && err.code === 'aborted') {
         stopped = true;
@@ -526,7 +574,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         calls += 1;
         if (calls < opts.maxCalls) continue;
       }
-      const typed = parseTypedOptions(result.text);
+      const typed = opts.scope || opts.repairIds ? null : parseTypedOptions(result.text);
       if (typed) {
         /*
          * Same loop, typed instead of tool-called: options printed as prose
@@ -563,11 +611,11 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         );
         break;
       }
-      if (result.text) addAgent(result.text);
+      if (result.text && !opts.scope && !opts.repairIds) addAgent(result.text);
       break;
     }
 
-    if (result.text) addAgent(result.text);
+    if (result.text && !opts.scope && !opts.repairIds) addAgent(result.text);
     const repaired = result.toolCalls.map((call, index) => ({
       call,
       id: call.id || `call_${calls}_${call.name}_${index}`,
@@ -608,7 +656,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         const schema = toolSchemas[name];
         if (!schema) throw new Error(`unknown tool ${name}`);
         const args = schema.parse(parsedArgs);
-        const res = await runTool(name, args, {} as ToolLoopOptions);
+        const res = await runTool(name, args, opts);
         outcome = res.text;
         if (res.endTurn) endTurn = true;
         if (res.choiceAsked) choiceAsked = true;
@@ -656,7 +704,7 @@ interface ToolOutcome {
 async function runTool(
   name: ToolName,
   args: unknown,
-  _opts: ToolLoopOptions,
+  opts: ToolLoopOptions,
 ): Promise<ToolOutcome> {
   if (
     smallTalkTurn &&
@@ -668,9 +716,17 @@ async function runTool(
         'no ops. Answer in one or two sentences and call finish().',
     };
   }
-  const doc = useProject.getState().doc;
+  if (opts.scope && !['read_canvas', 'edit_canvas', 'finish'].includes(name))
+    return { text: 'E_SCOPE: this tool is not allowed for scoped work.' };
+  if (opts.repairIds && !['edit_canvas', 'finish'].includes(name))
+    return { text: 'E_SCOPE: quality repair may only edit affected nodes.' };
+  const doc = opts.scope?.doc || useProject.getState().doc;
   switch (name) {
     case 'read_canvas':
+      if (opts.scope) {
+        const hit = findNodeInDoc(doc, opts.scope.rootId);
+        return { text: hit ? subtreeOutline(hit.node) : 'Scoped node no longer exists.' };
+      }
       return { text: buildProjectIndex(doc, { selectionId: useUi.getState().selectedId }) };
 
     case 'set_design_tokens': {
@@ -734,6 +790,58 @@ async function runTool(
 
     case 'edit_canvas': {
       const a = args as { screen_id?: string; ops: unknown[] };
+      if (opts.scope) {
+        const filtered = filterScopedOps(
+          opts.scope.doc,
+          opts.scope.rootId,
+          a.ops,
+          opts.scope.stylesOnly,
+        );
+        opts.scope.dropped += filtered.dropped;
+        if (filtered.dropped)
+          addSystem(
+            `scope:${opts.scope.rootId} — dropped ${filtered.dropped} out-of-scope or unsafe operation(s).`,
+          );
+        if (!filtered.allowed.length)
+          return {
+            text: 'E_SCOPE: no permitted operations; explicit ids are required on added nodes.',
+          };
+        const staged = applyOps(filtered.allowed, opts.scope.doc, { source: 'agent' });
+        if (staged.errors.length)
+          return { text: `REJECTED (nothing staged)\n${formatErrors(staged.errors)}` };
+        opts.scope.doc = staged.doc;
+        opts.scope.ops.push(...filtered.allowed);
+        return {
+          text: `ok: staged ${filtered.allowed.length} scoped operations; ${filtered.dropped} dropped.`,
+        };
+      }
+      if (opts.repairIds) {
+        const ids = new Set(opts.repairIds);
+        const filtered = a.ops.filter((raw) => {
+          const op = raw as {
+            op?: string;
+            id?: string;
+            parentId?: string;
+            node?: { type?: string };
+          };
+          return (
+            (['setProps', 'setStyles', 'setText'].includes(op.op || '') &&
+              !!op.id &&
+              ids.has(op.id)) ||
+            (op.op === 'add' &&
+              !!op.parentId &&
+              ids.has(op.parentId) &&
+              op.node?.type === 'image')
+          );
+        });
+        if (filtered.length !== a.ops.length)
+          addSystem(
+            `Quality repair dropped ${a.ops.length - filtered.length} unrelated operation(s).`,
+          );
+        if (!filtered.length)
+          return { text: 'E_SCOPE: no operations target a reported finding.' };
+        a.ops = filtered;
+      }
       if (
         turnScreenAdds >= 1 &&
         Array.isArray(a.ops) &&
@@ -781,7 +889,7 @@ async function runTool(
 
     case 'finish': {
       const a = args as { summary: string };
-      addAgent(a.summary);
+      if (!opts.scope && !opts.repairIds) addAgent(a.summary);
       return { text: 'ok: turn finished.', finished: true };
     }
 
@@ -850,29 +958,28 @@ export async function verifyGate(
       `Quality lint found ${blocking.length} blocking issue(s); attempting one targeted repair.\n${formatFindings(blocking)}`,
     );
     useAgent.getState().setLive('Repairing quality issues…');
-    const affected = [
-      ...new Set(
-        doc.screens
-          .filter((s) => lintScreen(s, doc.tokens).some((f) => f.severity === 'block'))
-          .map((s) => s.id),
-      ),
-    ];
+    const affected = [...new Set(blocking.map((finding) => finding.nodeId))];
     try {
       await executeToolLoop({
         messages: [
           {
             role: 'system',
             content:
-              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Use small edit_canvas batches then finish.',
+              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Do not invent image URLs: if no real image is available, leave the finding unresolved. Use small edit_canvas batches then finish.',
           },
           {
             role: 'user',
-            content: `FINDINGS:\n${formatFindings(blocking)}\nAFFECTED OUTLINE:\n${canvasOutline(doc, affected)}`,
+            content: `FINDINGS:\n${formatFindings(blocking)}\nAFFECTED OUTLINE:\n${affected
+              .map((id) => findNodeInDoc(doc, id)?.node)
+              .filter((node) => node !== undefined)
+              .map(subtreeOutline)
+              .join('\n')}`,
           },
         ],
         maxCalls: 8,
         role: 'builder',
         effort: 'high',
+        repairIds: [...new Set(blocking.map((f) => f.nodeId))],
       });
     } catch (err) {
       addSystem(
@@ -1131,13 +1238,27 @@ export async function runAgentTurn(
           return !old || JSON.stringify(old) !== JSON.stringify(screen);
         })
         .map((screen) => screen.id);
+      // Routine edits must not spend image credits on pre-existing empty nodes.
+      const newlyAdded = new Set<string>();
+      const collectNew = (node: import('../types/tree').ComponentNode) => {
+        if (!findNodeInDoc(before, node.id)) newlyAdded.add(node.id);
+        node.children.forEach(collectNew);
+      };
+      doc.screens
+        .filter((screen) => ids.includes(screen.id))
+        .forEach((screen) => collectNew(screen.root));
       await autoIllustrate(
         ids,
         userText,
         useAgent.getState().buildImages,
         controller.signal,
+        newlyAdded,
       );
-      await verifyGate(userText, useProject.getState().doc, ids);
+      await verifyGate(
+        userText,
+        useProject.getState().doc,
+        ids.length ? ids : doc.screens.map((screen) => screen.id),
+      );
     }
     if (!result.finished && !result.choiceAsked && !result.stopped) {
       addAgent("That's where this turn landed. Look it over, or tell me the next move.");
@@ -1155,6 +1276,129 @@ export async function runAgentTurn(
     controller = null;
     pickTurn = null;
     smallTalkTurn = false;
+  }
+}
+
+/** One-click redesign is staged and checked before a single atomic commit. */
+export async function runScopedAction(
+  nodeId: string,
+  instruction: string,
+  stylesOnly = false,
+): Promise<void> {
+  if (running) {
+    useUi.getState().toast('muse is already working — Stop first.', 'warn');
+    return;
+  }
+  const before = useProject.getState().doc;
+  const documentEpoch = useProject.getState().documentEpoch;
+  const hit = findNodeInDoc(before, nodeId);
+  if (!hit) {
+    useUi.getState().toast('That selection no longer exists.', 'warn');
+    return;
+  }
+  if (useAgent.getState().demoMode) {
+    addSystem(`scope:${nodeId} — scoped redesign requires a muse key; nothing changed.`);
+    return;
+  }
+  const scope: ScopedDraft = {
+    rootId: nodeId,
+    screenId: hit.screen.id,
+    stylesOnly,
+    initial: JSON.stringify(hit.node),
+    doc: clone(before),
+    ops: [],
+    dropped: 0,
+    receipt: {
+      model: '',
+      promptChars: 0,
+      latencyMs: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedTokens: 0,
+      cents: 0,
+      toolNames: [],
+    },
+  };
+  running = true;
+  controller = new AbortController();
+  turnScreenAdds = 0;
+  changedThisTurn = false;
+  smallTalkTurn = false;
+  pickTurn = null;
+  useAgent.getState().startTurn();
+  startHeartbeat(Date.now());
+  let status: 'success' | 'failed' = 'failed';
+  try {
+    const result = await executeToolLoop({
+      scope,
+      maxCalls: 12,
+      role: 'builder',
+      effort: 'medium',
+      messages: [
+        {
+          role: 'system',
+          content: `You are editing ONLY subtree ${nodeId}. ${stylesOnly ? 'Use setStyles only on this selected widget; preserve structure, content, events and everything else.' : 'Change only nodes inside this subtree; never move or delete the selected root. New nodes MUST have explicit unique ids, including nested children.'} Use edit_canvas in small batches then finish. No other screens, tokens, or nodes may be touched.\nTOKENS:\n${buildTokenSheet(before.tokens)}`,
+        },
+        {
+          role: 'user',
+          content: `Instruction: ${instruction.slice(0, 1000)}\nSELECTED SUBTREE:\n${subtreeOutline(hit.node)}`,
+        },
+      ],
+    });
+    if (result.stopped || controller.signal.aborted) {
+      addSystem(`scope:${nodeId} — stopped; staged changes discarded.`);
+      return;
+    }
+    if (!result.finished) {
+      addSystem(`scope:${nodeId} — action did not finish; staged changes discarded.`);
+      return;
+    }
+    if (!scope.ops.length) {
+      addSystem(`scope:${nodeId} — no permitted changes were made.`);
+      status = 'success';
+      return;
+    }
+    const current = findNodeInDoc(useProject.getState().doc, nodeId);
+    if (
+      !current ||
+      useProject.getState().documentEpoch !== documentEpoch ||
+      current.screen.id !== scope.screenId ||
+      JSON.stringify(current.node) !== scope.initial
+    ) {
+      addSystem(
+        `scope:${nodeId} — selection changed while muse was working; staged changes discarded to protect your edits.`,
+      );
+      return;
+    }
+    const commit = useProject.getState().applyBatch(scope.ops, { source: 'agent' });
+    if (commit.errors.length) {
+      addSystem(
+        `scope:${nodeId} — could not apply the staged changes: ${formatErrors(commit.errors)}`,
+      );
+      return;
+    }
+    status = 'success';
+    addSystem(
+      `scope:${nodeId} — section ${nodeId} ${stylesOnly ? 'restyled' : 'redesigned'} at ${new Date().toISOString()}; ${scope.ops.length} changes in one undo group${scope.dropped ? `, ${scope.dropped} blocked` : ''}.`,
+    );
+  } catch (err) {
+    addSystem(
+      `scope:${nodeId} — action failed; no staged changes applied: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  } finally {
+    useAgent.getState().addReceipt({
+      role: `scope:${nodeId}`,
+      ...scope.receipt,
+      toolNames: [...new Set(scope.receipt.toolNames)],
+      status,
+      key: useAgent.getState().keySource === 'session' ? 'user' : 'house',
+    });
+    stopHeartbeat();
+    useAgent.getState().endTurn();
+    running = false;
+    controller = null;
+    smallTalkTurn = false;
+    pickTurn = null;
   }
 }
 
@@ -1271,12 +1515,19 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
         existingIndex: buildProjectIndex(useProject.getState().doc).slice(0, 1400),
       });
       try {
-        await executeToolLoop({
+        const buildResult = await executeToolLoop({
           messages: contextMessages(useProject.getState().doc, fillText),
           maxCalls: 6,
           role: 'builder',
           effort: options.mode === 'fast' ? 'low' : 'medium',
         });
+        if (buildResult.stopped || controller.signal.aborted) {
+          useAgent.getState().patchPart(target.id, {
+            state: 'stopped',
+            note: 'Stopped before the screen finished.',
+          });
+          break;
+        }
         completed.add(target.id);
         useAgent.getState().patchPart(target.id, { state: 'done' });
       } catch (err) {
@@ -1293,7 +1544,11 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
         kind: 'progress',
         state: stopped ? 'cancelled' : 'answered',
         data: {
-          title: stopped ? 'Stopped' : 'Screens built',
+          title: stopped
+            ? 'Stopped'
+            : completed.size === targets.length
+              ? 'Screens built'
+              : 'Build finished with incomplete screens',
           parts: useAgent.getState().progress?.parts || [],
           startedAt,
         },
@@ -1301,24 +1556,35 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     });
 
     if (!stopped) {
-      const latest = useProject.getState().doc;
       await autoIllustrate(
         [...completed],
         blueprint,
         useAgent.getState().buildImages,
         controller.signal,
       );
-      await verifyGate(blueprint.slice(0, 240), useProject.getState().doc, [...completed]);
+      if (controller.signal.aborted) {
+        addSystem(
+          'Stopped during illustration — finished screens stay, without verification.',
+        );
+      } else if (completed.size) {
+        await verifyGate(blueprint.slice(0, 240), useProject.getState().doc, [
+          ...completed,
+        ]);
+      } else {
+        useAgent.getState().setVerification('problems', 'No screens completed the build.');
+        addSystem('Not verified — no screens completed the build.');
+      }
       for (const id of completed)
         useProject
           .getState()
           .rememberScreenBuild(card.id, id, beforeScreens.get(id) ?? null);
-      const count = latest.screens.length;
-      addAgent(
-        useAgent.getState().verification === 'pass'
-          ? `${count} screen${count === 1 ? '' : 's'} ready — your tokens, real components, and it runs. Hit ▶ Run.`
-          : `${count} screen${count === 1 ? '' : 's'} built, but not verified. See the quality notes above before relying on the result.`,
-      );
+      const count = completed.size;
+      if (!controller.signal.aborted)
+        addAgent(
+          useAgent.getState().verification === 'pass' && count === targets.length
+            ? `${count} screen${count === 1 ? '' : 's'} ready — your tokens, real components, and it runs. Hit ▶ Run.`
+            : `${count} of ${targets.length} screens completed. Check the progress and quality notes above before relying on the result.`,
+        );
     } else {
       for (const id of completed)
         useProject

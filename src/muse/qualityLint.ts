@@ -10,7 +10,11 @@ export interface LintFinding {
 }
 
 /** Deterministic facts, independent of the reviewer and safe on old documents. */
-export function lintScreen(screen: ScreenDoc, tokens?: DesignTokens): LintFinding[] {
+export function lintScreen(
+  screen: ScreenDoc,
+  tokens?: DesignTokens,
+  queuedIds: ReadonlySet<string> = new Set(),
+): LintFinding[] {
   const findings: LintFinding[] = [];
   const colors = new Map<string, string>();
   if (tokens) {
@@ -25,7 +29,10 @@ export function lintScreen(screen: ScreenDoc, tokens?: DesignTokens): LintFindin
     code: LintFinding['code'],
     message: string,
   ) => findings.push({ nodeId: node.id, severity, code, message });
+  let hasImagery = false;
   const visit = (node: ComponentNode) => {
+    if (node.type === 'hero' || node.type === 'image' || Boolean(node.props.image))
+      hasImagery = true;
     for (const key of ['text', 'title', 'subtitle', 'label', 'placeholder']) {
       const value = node.props[key];
       if (typeof value !== 'string' || !value.trim()) continue;
@@ -51,9 +58,9 @@ export function lintScreen(screen: ScreenDoc, tokens?: DesignTokens): LintFindin
     }
     if (
       (node.type === 'image' || node.type === 'hero') &&
-      !node.props.src &&
-      !node.props.image &&
-      node.props.illustrationQueued !== true
+      !(typeof node.props.src === 'string' && node.props.src.trim()) &&
+      !(typeof node.props.image === 'string' && node.props.image.trim()) &&
+      !queuedIds.has(node.id)
     )
       add(node, 'block', 'imagery', `${node.type} has no image`);
     if (
@@ -88,5 +95,12 @@ export function lintScreen(screen: ScreenDoc, tokens?: DesignTokens): LintFindin
     node.children.forEach(visit);
   };
   visit(screen.root);
+  if (/\blanding\b/i.test(screen.name) && !hasImagery)
+    add(
+      screen.root,
+      'warn',
+      'imagery',
+      'Landing has no image or hero node; check whether this visual design needs imagery.',
+    );
   return findings;
 }

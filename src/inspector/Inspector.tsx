@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Copy,
   Layers as LayersIcon,
@@ -13,9 +13,11 @@ import {
   Zap,
 } from 'lucide-react';
 import { useProject } from '../store/useProject';
+import { useAgent } from '../store/useAgent';
+import { runScopedAction } from '../muse/loop';
 import { useUi, type Breakpoint } from '../store/useUi';
 import type { Action, ComponentNode, StyleSet } from '../types/tree';
-import { ICON_NAMES, eventsFor, spec } from '../types/library';
+import { ICON_NAMES, eventsFor, isContainerType, spec } from '../types/library';
 import { StyleTab } from './StyleTab';
 import { boundKeys, findNode, findParent } from '../ops/treeUtils';
 import { parseStateValue } from './stateValue';
@@ -98,13 +100,15 @@ export function Inspector() {
   const selectedId = useUi((s) => s.selectedId);
   const select = useUi((s) => s.select);
   const breakpoint = useUi((s) => s.breakpoint);
-  const startPrompt = useUi((s) => s.startPrompt);
   const toast = useUi((s) => s.toast);
   const propertiesOpen = useUi((s) => s.propertiesOpen);
   const [tab, setTab] = useState<Tab>('props');
   const [saving, setSaving] = useState(false);
   const [compName, setCompName] = useState('');
   const [compNote, setCompNote] = useState('');
+  const [scopeInstruction, setScopeInstruction] = useState('');
+  const agentBusy = useAgent((s) => s.busy);
+  useEffect(() => setScopeInstruction(''), [selectedId]);
 
   const activeScreenId = useUi((s) => s.activeScreenId);
   const screen = doc.screens.find((s) => s.id === activeScreenId) || doc.screens[0];
@@ -641,18 +645,44 @@ export function Inspector() {
       </div>
 
       <div className="inspector-foot">
+        <input
+          className="input"
+          aria-label="Scoped design instruction"
+          placeholder="Optional: describe the change"
+          value={scopeInstruction}
+          maxLength={1000}
+          onChange={(event) => setScopeInstruction(event.target.value)}
+        />
+        {isContainerType(node.type) && (
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary btn-block"
+            disabled={agentBusy}
+            onClick={() =>
+              void runScopedAction(
+                node.id,
+                scopeInstruction.trim() ||
+                  'Redesign this section to be polished, coherent, and appropriate for its content.',
+              )
+            }
+          >
+            <Sparkles size={13} /> Redesign this section
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm btn-secondary btn-block"
-          onClick={() => {
-            const label = node.name || info?.label || node.type;
-            startPrompt(
-              `Restyle ${node.id} (${label}) — keep its structure and text, change only styling.`,
-            );
-            toast('Ask queued in the rail', 'ok');
-          }}
+          disabled={agentBusy}
+          onClick={() =>
+            void runScopedAction(
+              node.id,
+              scopeInstruction.trim() ||
+                'Restyle this widget while preserving its content and structure.',
+              true,
+            )
+          }
         >
-          <Sparkles size={13} /> Ask muse to restyle this
+          <Sparkles size={13} /> Restyle this widget
         </button>
         <div style={{ display: 'flex', gap: 6 }}>
           <button

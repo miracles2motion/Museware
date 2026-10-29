@@ -108,6 +108,13 @@ function renderNode(
   for (const child of node.children || []) renderNode(child, depth + 1, lines, cap, bp);
 }
 
+/** Compact outline of only the selected subtree, for bounded scoped actions. */
+export function subtreeOutline(node: ComponentNode): string {
+  const lines: string[] = [];
+  renderNode(node, 0, lines, CAP, 'compact');
+  return lines.join('\n').slice(0, CAP);
+}
+
 /** The reviewer's eyes: a plain-text render of the changed screens (§8.3). */
 export function canvasOutline(doc: ProjectDoc, screenIds: string[]): string {
   const screens = doc.screens.filter((s) => screenIds.includes(s.id));

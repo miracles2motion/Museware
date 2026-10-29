@@ -14,6 +14,7 @@ export async function illustrateTarget(
   options: { signal?: AbortSignal; onlyEmpty?: boolean } = {},
 ): Promise<ImageOutcome> {
   const doc = useProject.getState().doc;
+  const documentEpoch = useProject.getState().documentEpoch;
   const hit = findNodeInDoc(doc, target.id);
   const node = hit?.node;
   if (!node || !['hero', 'image', 'card'].includes(node.type))
@@ -23,7 +24,7 @@ export async function illustrateTarget(
       message: 'Target must be an existing hero, image, or card.',
     };
   const key = node.type === 'image' ? 'src' : 'image';
-  const previous = node.props[key];
+  const previous = JSON.stringify([node.props.src, node.props.image]);
   if (options.onlyEmpty && (node.props.src || node.props.image))
     return { id: node.id, ok: false, message: 'Already has an image.' };
   const agent = useAgent.getState();
@@ -65,7 +66,7 @@ export async function illustrateTarget(
   const subject =
     target.prompt ||
     `${node.type === 'hero' ? 'Hero' : node.type === 'card' ? 'Product card' : 'Editorial'} image for ${hit.screen.name}, ${doc.name}. ${String(node.props.title || node.props.alt || '')}`;
-  const prompt = `${subject.slice(0, 700)}. Complement this palette: ${palette.join(', ')}. Professional polished visual, no text, no logos.`;
+  const prompt = `${subject.slice(0, 700)}. For ${hit.screen.name}, ${doc.name}. Complement this palette: ${palette.join(', ')}. Professional polished visual, no text, no logos.`;
   try {
     const src = await generateImage(
       prompt,
@@ -76,7 +77,8 @@ export async function illustrateTarget(
       options.signal?.aborted ||
       !current ||
       current.type !== node.type ||
-      current.props[key] !== previous ||
+      useProject.getState().documentEpoch !== documentEpoch ||
+      JSON.stringify([current.props.src, current.props.image]) !== previous ||
       (options.onlyEmpty && (current.props.src || current.props.image))
     )
       return {
@@ -132,11 +134,13 @@ export async function autoIllustrate(
   context: string,
   limit: number,
   signal?: AbortSignal,
+  eligibleIds?: ReadonlySet<string>,
 ): Promise<ImageOutcome[]> {
   const targets: ImageTarget[] = [];
   const visit = (node: ComponentNode, screenName: string) => {
     if (
       (node.type === 'hero' || node.type === 'image') &&
+      (!eligibleIds || eligibleIds.has(node.id)) &&
       !node.props.src &&
       !node.props.image
     )

@@ -12,6 +12,22 @@ const node = (
 ): ComponentNode => ({ id, type, props, styles: {}, children });
 
 describe('exported interactive components', () => {
+  it('exports generated images for hero, image, and card nodes', async () => {
+    const screen = emptyScreen('Home', { id: 'home', entry: true });
+    screen.root.children = [
+      node('hero_one', 'hero', { title: 'Tea', image: 'https://example.com/hero.png' }),
+      node('image_one', 'image', { src: 'https://example.com/product.png' }),
+      node('card_one', 'card', { title: 'Tea', image: 'https://example.com/card.png' }),
+    ];
+    const source = generateProjectFiles({ ...createProject(), screens: [screen] })[
+      'src/screens/Home.tsx'
+    ];
+    expect(source).toContain('https://example.com/hero.png');
+    expect(source).toContain('https://example.com/product.png');
+    expect(source).toContain('https://example.com/card.png');
+    await expect(transform(source, { loader: 'tsx' })).resolves.toBeTruthy();
+  });
+
   it('emits valid TSX for progress, tabs, visibility, card titles and tap events', async () => {
     const screen = emptyScreen('Home', { id: 'home', entry: true });
     const card = node('card_a', 'card', { title: 'Hello' });

@@ -128,6 +128,16 @@ describe('key resolution', () => {
     expect(json.source).toBe('none');
   });
 
+  it('exposes a bounded build image cap with a default of three', async () => {
+    expect((await status()).json.buildImages).toBe(3);
+    env.MUSE_BUILD_IMAGES = '8';
+    expect((await status()).json.buildImages).toBe(8);
+    env.MUSE_BUILD_IMAGES = '999';
+    expect((await status()).json.buildImages).toBe(30);
+    env.MUSE_BUILD_IMAGES = 'nonsense';
+    expect((await status()).json.buildImages).toBe(3);
+  });
+
   it('pings the house key once and reports ok', async () => {
     env.MUSE_API_KEY = 'house-key';
     upstream.body = '{"ok":true}';

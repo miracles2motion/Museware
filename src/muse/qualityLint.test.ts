@@ -52,6 +52,17 @@ describe('quality lint and gate', () => {
     screen.root.children[1].props.image = 'https://example.com/tea.png';
     expect(lintScreen(screen)).toEqual([]);
   });
+  it('warns when a named landing has no imagery at all', () => {
+    const screen = emptyScreen('Tea Landing', { id: 'tea', entry: true });
+    screen.root.children = [node('tea_text', 'text', { text: 'Whole leaf tea' })];
+    expect(lintScreen(screen)).toEqual([
+      expect.objectContaining({
+        severity: 'warn',
+        code: 'imagery',
+        nodeId: screen.root.id,
+      }),
+    ]);
+  });
   it('runs a targeted repair then reports reviewer failure honestly', async () => {
     vi.mocked(chatStream)
       .mockResolvedValueOnce(

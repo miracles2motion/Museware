@@ -91,6 +91,20 @@ describe('build imagery', () => {
       'https://example.com/image.png',
     );
   });
+  it('does not apply an image to a different project opened during generation', async () => {
+    let resolve!: (src: string) => void;
+    vi.mocked(generateImage).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    const pending = illustrateTarget({ id: 'image_0' });
+    useProject.getState().replaceDoc(structuredClone(useProject.getState().doc));
+    resolve('https://example.com/agent.png');
+    expect((await pending).ok).toBe(false);
+    expect(useProject.getState().doc.screens[0].root.children[0].props.src).toBe('');
+  });
+
   it('does not overwrite a user edit made while generation is in flight', async () => {
     let resolve!: (src: string) => void;
     vi.mocked(generateImage).mockReturnValue(

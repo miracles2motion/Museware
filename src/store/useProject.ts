@@ -92,6 +92,7 @@ interface ScreenBuildSnapshot {
 interface ProjectStore {
   doc: ProjectDoc;
   ready: boolean;
+  documentEpoch: number;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
   lastResult: ApplyResult | null;
@@ -122,15 +123,30 @@ interface ProjectStore {
 export const useProject = create<ProjectStore>((set, get) => ({
   doc: createProject(),
   ready: false,
+  documentEpoch: 0,
   undoStack: [],
   redoStack: [],
   lastResult: null,
   screenBuilds: {},
 
   hydrate: (doc) =>
-    set({ doc, ready: true, undoStack: [], redoStack: [], screenBuilds: {} }),
+    set((state) => ({
+      doc,
+      ready: true,
+      documentEpoch: state.documentEpoch + 1,
+      undoStack: [],
+      redoStack: [],
+      screenBuilds: {},
+    })),
 
-  replaceDoc: (doc) => set({ doc, undoStack: [], redoStack: [], screenBuilds: {} }),
+  replaceDoc: (doc) =>
+    set((state) => ({
+      doc,
+      documentEpoch: state.documentEpoch + 1,
+      undoStack: [],
+      redoStack: [],
+      screenBuilds: {},
+    })),
 
   rememberScreenBuild: (cardId, screenId, before) => {
     const after = get().doc.screens.find((screen) => screen.id === screenId);

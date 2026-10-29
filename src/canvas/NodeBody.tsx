@@ -144,7 +144,9 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
   const bind = asText(p.bindKey);
   const value = bind && runtime ? runtime.state[bind] : undefined;
   const sizeIcon = Number(p.size) || 20;
-  const imageSrc = asText(p.src || p.image);
+  const imageSrc = asText(
+    node.type === 'hero' || node.type === 'card' ? p.image || p.src : p.src || p.image,
+  );
   const textAlign =
     typeof node.styles.textAlign === 'string'
       ? (node.styles.textAlign as CSSProperties['textAlign'])

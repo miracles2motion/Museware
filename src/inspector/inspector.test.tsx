@@ -101,6 +101,12 @@ describe('a Row gets the fields a Row needs', () => {
     openTab('Style');
   });
 
+  it('offers scoped redesign and restyle controls for a container', () => {
+    expect(screen.getByRole('button', { name: /Redesign this section/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Restyle this widget/i })).toBeTruthy();
+    expect(screen.getByLabelText('Scoped design instruction')).toBeTruthy();
+  });
+
   it('offers Align children and Distribute children, named for what they do', () => {
     const all = labels();
     expect(all).toContain('Align children');
@@ -183,6 +189,11 @@ describe('a Heading gets type fields, not container fields', () => {
     seed('head_a');
     render(<Inspector />);
     openTab('Style');
+  });
+
+  it('offers widget restyle without a section redesign action', () => {
+    expect(screen.getByRole('button', { name: /Restyle this widget/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Redesign this section/i })).toBeNull();
   });
 
   it('offers text styling', () => {
