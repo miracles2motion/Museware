@@ -2,18 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { TOOL_DEFS, toolParameters } from '../muse/loop';
 import { TOOL_NAMES, opSchema } from './tools';
 import type { Op } from './tree';
-import { editCanvasWire, opWireAt, readCanvasWire } from './wire';
+import { OP_NAMES, editCanvasWire, opWireAt, readCanvasWire } from './wire';
 
-/**
- * The bug this file exists for: Meta refused every turn with
+/*
+ * This file guards the wire schema against BOTH incidents that killed every
+ * turn before a single token (even a bare "Hello" — the tools array rides on
+ * every request):
  *
- *     400 {"message":"Recursive JSON schemas are not currently supported"}
+ * 1. `$ref` recursion -> "Recursive JSON schemas are not currently supported"
+ * 2. nesting depth -> "JSON schema exceeds the maximum nesting depth of 10
+ *    levels" (edit_canvas measured 27 against Meta's cap of 10)
  *
- * because `edit_canvas`'s parameters described a tree with `z.lazy` and the
- * emitter answered with 24 `$ref`s pointing back at the same schema. The turn
- * died before a single token, long after the key had been verified, so it read
- * like a key problem. Nothing in that schema may ever go back to being a
- * reference.
+ * The wire is now deliberately SHALLOW: it names each op and leaves the
+ * payload open; structure lives in TOOL_DESCRIPTIONS and the runtime
+ * validator (`opSchema`) remains the authority.
  */
 
 /** Every `$ref` in the emitted schema, with the path that leads to it. */
@@ -28,78 +30,51 @@ function findRefs(node: unknown, path = '$'): string[] {
   return out;
 }
 
-/** True only for a genuine cycle: an object that contains itself. */
-function hasCycle(root: unknown): boolean {
-  const path = new Set<object>();
-  const walk = (node: unknown): boolean => {
-    if (!node || typeof node !== 'object') return false;
-    if (path.has(node as object)) return true;
-    path.add(node as object);
-    const found = Object.values(node as Record<string, unknown>).some(walk);
-    path.delete(node as object);
-    return found;
-  };
-  return walk(root);
-}
-
-/** Longest chain of nested `children` arrays the emitted schema describes. */
-function childrenDepth(node: unknown, depth = 0): number {
-  if (Array.isArray(node)) {
-    return node.reduce((max, v) => Math.max(max, childrenDepth(v, depth)), depth);
-  }
-  if (!node || typeof node !== 'object') return depth;
-  const record = node as Record<string, unknown>;
-  let max = depth;
-  for (const [key, value] of Object.entries(record)) {
-    max = Math.max(max, childrenDepth(value, key === 'children' ? depth + 1 : depth));
-  }
-  return max;
+/** JSON-Schema nesting depth: objects/arrays on a path each count one level. */
+function schemaDepth(node: unknown, d = 1): number {
+  if (Array.isArray(node)) return Math.max(d, ...node.map((v) => schemaDepth(v, d + 1)));
+  if (node && typeof node === 'object')
+    return Math.max(d, ...Object.values(node).map((v) => schemaDepth(v, d + 1)));
+  return d;
 }
 
 /** Just enough of a JSON Schema to read the emitted document. */
 interface Schema {
   type?: string;
   properties?: Record<string, Schema>;
-  additionalProperties?: boolean | Schema;
   items?: Schema;
   anyOf?: Schema[];
+  enum?: string[];
+  additionalProperties?: unknown;
+  [extra: string]: unknown;
 }
 
-function schemaOf(params: Record<string, unknown>): Schema {
-  return params as unknown as Schema;
-}
-
-/** The `add` op's node schema. */
-function nodeSchemaOf(params: Record<string, unknown>): Schema {
-  const ops = schemaOf(params).properties?.ops?.items?.anyOf ?? [];
-  const branch = ops.find((o) => o.properties?.node);
-  if (!branch?.properties?.node) throw new Error('edit_canvas lost the add op');
-  return branch.properties.node;
-}
-
-/** The op branch that owns a given property, e.g. `setStyles`. */
-function opBranch(params: Record<string, unknown>, key: string): Schema {
-  const ops = schemaOf(params).properties?.ops?.items?.anyOf ?? [];
-  const branch = ops.find((o) => o.properties?.[key]);
-  if (!branch?.properties?.[key])
-    throw new Error(`edit_canvas lost the op carrying ${key}`);
-  return branch.properties[key];
+function editCanvasParams(): Schema & {
+  properties: { ops: Schema & { items: Schema } };
+} {
+  return toolParameters('edit_canvas') as unknown as Schema & {
+    properties: { ops: Schema & { items: Schema } };
+  };
 }
 
 describe('the schemas sent to the model', () => {
-  it('describes every tool the loop can call', () => {
-    expect(TOOL_DEFS.map((d) => d.function.name)).toEqual(TOOL_NAMES);
+  it('covers every tool', () => {
+    expect(TOOL_DEFS.map((t) => t.function.name).sort()).toEqual([...TOOL_NAMES].sort());
     for (const def of TOOL_DEFS) {
       expect(def.function.description.length).toBeGreaterThan(10);
     }
   });
 
-  it('has no $ref and no cycle in any tool', () => {
-    for (const name of TOOL_NAMES) {
-      const params = toolParameters(name);
-      expect(findRefs(params), `${name} still emits a reference`).toEqual([]);
-      expect(hasCycle(params), `${name} contains a cycle`).toBe(false);
-      expect(() => JSON.stringify(params)).not.toThrow();
+  it('carries not a single $ref anywhere', () => {
+    for (const t of TOOL_DEFS) {
+      expect(findRefs(t.function.parameters), t.function.name).toEqual([]);
+    }
+  });
+
+  it('stays under the Meta nesting cap for every tool — headroom 8, cap is 10', () => {
+    for (const t of TOOL_DEFS) {
+      const d = schemaDepth(t.function.parameters);
+      expect(d, `${t.function.name} is ${d} deep`).toBeLessThanOrEqual(8);
     }
   });
 
@@ -125,8 +100,6 @@ describe('the schemas sent to the model', () => {
       0,
     );
     expect(bytes).toBeLessThan(24_000);
-    // edit_canvas is the big one; a runaway nesting bound shows up here first.
-    expect(JSON.stringify(toolParameters('edit_canvas')).length).toBeLessThan(20_000);
   });
 
   it('has no empty sub-schema, which some validators refuse to interpret', () => {
@@ -138,52 +111,13 @@ describe('the schemas sent to the model', () => {
     }
   });
 
-  it('names every op the canvas can perform', () => {
-    const json = JSON.stringify(toolParameters('edit_canvas'));
-    for (const op of [
-      'add',
-      'remove',
-      'move',
-      'setProps',
-      'setStyles',
-      'setText',
-      'rename',
-      'addScreen',
-      'removeScreen',
-      'renameScreen',
-      'setEntry',
-      'setTokens',
-      'saveComponent',
-      'placeComponent',
-    ]) {
-      expect(json, `edit_canvas lost the ${op} op`).toContain(`"${op}"`);
-    }
+  it('names every op on the wire (shallow mirror)', () => {
+    const opEnum = editCanvasParams().properties.ops.items.properties?.op?.enum;
+    expect(opEnum).toEqual([...OP_NAMES]);
   });
 
-  it('bounds nesting, so the schema stays small and deep trees come as more ops', () => {
-    expect(childrenDepth(toolParameters('edit_canvas'))).toBeLessThanOrEqual(5);
-  });
-
-  /*
-   * A schema that says `additionalProperties: false` while the canvas wants
-   * `background`, `padding` or a `tap` handler is worse than no schema: under
-   * constrained decoding the design simply cannot be written. These are the
-   * three places that used to be closed.
-   */
-  it('lets a node carry real style keys, not just responsive overrides', () => {
-    const styles = nodeSchemaOf(toolParameters('edit_canvas')).properties?.styles;
-    expect(styles?.additionalProperties).not.toBe(false);
-    expect(styles?.properties?.responsive?.additionalProperties).not.toBe(false);
-  });
-
-  it('lets setStyles write flat style keys', () => {
-    const styles = opBranch(toolParameters('edit_canvas'), 'styles');
-    expect(styles.additionalProperties).not.toBe(false);
-  });
-
-  it('lets setProps carry events, which is how actions are written', () => {
-    const props = opBranch(toolParameters('edit_canvas'), 'props');
-    expect(props.additionalProperties).not.toBe(false);
+  it('leaves the op payload open at the wire', () => {
+    expect(editCanvasParams().properties.ops.items.additionalProperties).not.toBe(false);
   });
 
   it('still accepts what the canvas really does, and the validator agrees', () => {
@@ -221,25 +155,56 @@ describe('the schemas sent to the model', () => {
     const wire = editCanvasWire.safeParse(real);
     expect(wire.success, wire.success ? '' : JSON.stringify(wire.error.issues)).toBe(true);
 
-    // The wire is guidance; `opSchema` in the runtime is the authority, so
-    // anything it lets through must also survive validation.
+    // The wire is guidance; `opSchema` is the authority — everything that
+    // passes the wire must survive real validation too.
     for (const op of (wire.success ? wire.data.ops : []) as unknown as Op[]) {
       const parsed = opSchema.safeParse(op);
       expect(parsed.success, `validator refused ${op.op}`).toBe(true);
     }
   });
 
-  it('refuses a nested style value, which is how recursion used to sneak in', () => {
-    const nested = { id: 'home_card', styles: { a: { b: { c: '1' } } } };
-    expect(
-      editCanvasWire.safeParse({ ops: [{ op: 'setStyles', ...nested }] }).success,
-    ).toBe(false);
+  it('keeps read_canvas argumentless on purpose', () => {
+    expect(readCanvasWire.safeParse({}).success).toBe(true);
+    // Extras are stripped, not fatal: the runtime ignores them anyway.
+    const parsed = readCanvasWire.safeParse({ extra: 1 });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(Object.keys(parsed.data)).toEqual([]);
   });
 
-  it('keeps op building generic, so depth stays a tunable trade-off', () => {
-    expect(() => opWireAt(1)).not.toThrow();
-    expect(() => opWireAt(4, 2, 2)).not.toThrow();
-    // read_canvas takes no arguments; an empty object keeps the API happy.
-    expect(readCanvasWire.safeParse({}).success).toBe(true);
+  it('keeps op building generic', () => {
+    expect(() => opWireAt()).not.toThrow();
+  });
+});
+
+describe('the runtime authority (what the wire no longer describes)', () => {
+  it('accepts a full add with styles, events and children', () => {
+    const parsed = opSchema.safeParse({
+      op: 'add',
+      parentId: 'col_main',
+      node: {
+        id: 'btn_go',
+        type: 'button',
+        props: { text: 'Go', events: { tap: [{ type: 'navigate', to: 'details' }] } },
+        styles: {
+          background: 'var(--openui-accent)',
+          responsive: { expanded: { gap: '16' } },
+        },
+        children: [],
+      },
+    });
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+  });
+
+  it('accepts setProps as the events channel (§4.2)', () => {
+    const parsed = opSchema.safeParse({
+      op: 'setProps',
+      id: 'order_btn',
+      props: { events: { tap: [{ type: 'navigate', to: 'home' }] } },
+    });
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+  });
+
+  it('still refuses an unknown op name', () => {
+    expect(opSchema.safeParse({ op: 'explode', id: 'x' }).success).toBe(false);
   });
 });

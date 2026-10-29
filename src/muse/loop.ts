@@ -41,17 +41,25 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Ask the user to pick 1 of 2–4 whole directions. Each option has a label and up to 4 hex swatches. The card leaves on tap.',
   edit_canvas:
     'Apply a batch of ops to the canvas. ALL adds for a screen in ONE call, then ONE styling call. All-or-nothing; ≤40 ops. ' +
+    'Each op = {op:"add",parentId,node:{type,id?,props?,styles?,children?}} | {op:"remove",id} | {op:"move",id,parentId} | ' +
+    '{op:"setProps",id,props} | {op:"setStyles",id,styles} | {op:"setText",id,text} | {op:"rename",id,name} | ' +
+    '{op:"addScreen",screen:{id,name,root}} | {op:"removeScreen",id} | {op:"renameScreen",id,name} | {op:"setEntry",id} | ' +
+    '{op:"setTokens",patch} | {op:"saveComponent",name,description,root} | {op:"placeComponent",name,parentId}. ' +
     'Nest at most 3 levels inside one add node; deeper structure is more add ops with parentId in the same call. ' +
     'Events ride on setProps: {events:{tap:[{type:"navigate",to:"home"}]}} — types navigate, setState, toggle, toast, openUrl, when.',
   finish: 'End the turn with a two-sentence user-facing summary.',
 };
 
 /**
- * The wire schema for a tool. `edit_canvas` and `read_canvas` use bounded
- * mirrors from `src/types/wire.ts`, because the truthful schemas in
- * `src/types/tools.ts` are recursive and Meta answers a recursive schema with
- * `400 Recursive JSON schemas are not currently supported` — which killed every
- * turn before the first token.
+ * The wire schema for a tool. `edit_canvas` and `read_canvas` use the shallow
+ * mirrors from `src/types/wire.ts`. Two upstream refusals are why:
+ *
+ * - `400 Recursive JSON schemas are not currently supported` — the truthful
+ *   schemas in `src/types/tools.ts` are recursive.
+ * - `400 JSON schema exceeds the maximum nesting depth of 10 levels` — even a
+ *   bounded tree mirror inlined to ~27 levels. The wire now names the op and
+ *   leaves the payload open; `TOOL_DESCRIPTIONS.edit_canvas` carries the
+ *   grammar and `opSchema` remains the runtime authority.
  */
 function wireSchema(name: ToolName) {
   if (name === 'edit_canvas') return editCanvasWire;
