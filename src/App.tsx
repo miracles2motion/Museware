@@ -1,9 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useProject, createProject } from './store/useProject';
 import { useUi, type Route } from './store/useUi';
 import { useAgent } from './store/useAgent';
-import { loadProject, saveProjectSoon } from './persist/save';
-import { parseProjectDoc } from './persist/schema';
+import {
+  getActiveProjectId,
+  migrateCurrent,
+  openProject,
+  saveProjectSoon,
+} from './persist/save';
 import { fetchStatus } from './muse/client';
 import { offerKey } from './muse/loop';
 import { resolveStaleKeyCards } from './muse/cards';
@@ -11,46 +16,62 @@ import { diagnose, houseKeySentence } from './muse/connection';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
 import { Home } from './shell/Home';
+import { Landing } from './shell/Landing';
 import { Gallery } from './shell/Gallery';
 import { Modals } from './shell/Modals';
 import { RunMode } from './preview/RunMode';
 import { Toasts } from './components/ui';
 
-function routeFromHash(): Route {
-  if (typeof window === 'undefined') return 'landing';
-  if (window.location.hash.startsWith('#/app')) return 'editor';
-  if (window.location.hash.startsWith('#/gallery')) return 'gallery';
-  return 'landing';
+export function routeFromHash(
+  hash = typeof window === 'undefined' ? '' : window.location.hash,
+): { route: Route; projectId: string | null } {
+  if (hash === '#/app') return { route: 'editor', projectId: null };
+  const match = /^#\/app\/(p_[A-Za-z0-9_-]+)$/.exec(hash);
+  if (match) return { route: 'editor', projectId: match[1] };
+  if (hash === '#/projects') return { route: 'projects', projectId: null };
+  if (hash === '#/gallery') return { route: 'gallery', projectId: null };
+  return { route: 'landing', projectId: null };
 }
 
 export default function App() {
+  const [booting, setBooting] = useState(true);
   const route = useUi((s) => s.route);
   const runMode = useUi((s) => s.runMode);
   const theme = useUi((s) => s.theme);
   const doc = useProject((s) => s.doc);
   const ready = useProject((s) => s.ready);
+  const projectId = useProject((s) => s.projectId);
+  const warned = useRef(new Set<string>());
 
   // Boot: restore the local project, then ask the proxy who it is.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      let destination = routeFromHash(window.location.hash);
+      let id: string | null = null;
       let restored = createProject();
       try {
-        const stored = await loadProject();
-        if (stored) {
-          restored = parseProjectDoc(stored);
-          if (!window.location.hash || window.location.hash === '#/')
-            useUi.getState().setRoute('editor');
-        } else if (window.location.hash.startsWith('#/app')) {
-          useUi.getState().setRoute('landing');
+        await migrateCurrent();
+        if (destination.route === 'editor') {
+          id = destination.projectId || (await getActiveProjectId());
+          const stored = id ? await openProject(id) : null;
+          if (stored && id) restored = stored;
+          else {
+            id = null;
+            destination = { route: 'landing', projectId: null };
+          }
         }
-      } catch {
-        restored = createProject();
+      } catch (err) {
+        console.warn('museware: could not read local project', err);
+        destination = { route: 'landing', projectId: null };
+        id = null;
       }
       if (cancelled) return;
-      useProject.getState().hydrate(restored);
+      useProject.getState().hydrate(restored, id);
       const first = restored.screens.find((s) => s.entry) || restored.screens[0];
       if (first) useUi.getState().setActiveScreen(first.id);
+      useUi.getState().setRoute(destination.route, id || undefined);
+      setBooting(false);
 
       const userKey = hasSessionKey();
       try {
@@ -140,7 +161,7 @@ export default function App() {
   // one-screen setup — paste a key, watch the models prove themselves, pick a
   // start. Once only; the Topbar keeps a door to it forever.
   useEffect(() => {
-    if (route !== 'editor') return;
+    if (booting || route !== 'editor') return;
     let seen = false;
     try {
       seen = Boolean(localStorage.getItem('museware/onboarded'));
@@ -154,25 +175,70 @@ export default function App() {
       /* private mode — the modal simply shows again next time */
     }
     useUi.getState().setModal('onboardingOpen', true);
-  }, [route]);
+  }, [route, booting]);
 
-  // Hash routing — deep links work without a router dependency.
+  // Back/forward or an edited URL opens the named project; replaceState emits no hashchange.
   useEffect(() => {
-    const sync = () => useUi.getState().setRoute(routeFromHash());
-    window.addEventListener('hashchange', sync);
-    window.addEventListener('popstate', sync);
-    sync();
-    return () => {
-      window.removeEventListener('hashchange', sync);
-      window.removeEventListener('popstate', sync);
+    if (booting) return;
+    let sequence = 0;
+    const sync = async () => {
+      const ticket = ++sequence;
+      const destination = routeFromHash();
+      if (destination.route !== 'editor') {
+        useUi.setState({ route: destination.route });
+        return;
+      }
+      try {
+        const id = destination.projectId || (await getActiveProjectId());
+        if (!id) {
+          if (ticket === sequence) useUi.getState().setRoute('landing');
+          return;
+        }
+        if (id !== useProject.getState().projectId || useUi.getState().route !== 'editor') {
+          const doc = await openProject(id);
+          if (ticket !== sequence) return;
+          if (!doc) throw new Error('Project no longer exists.');
+          useProject.getState().hydrate(doc, id);
+          const first = doc.screens.find((s) => s.entry) || doc.screens[0];
+          if (first) useUi.getState().setActiveScreen(first.id);
+        }
+        if (ticket !== sequence) return;
+        if (!destination.projectId)
+          window.history.replaceState(null, '', `#/app/${encodeURIComponent(id)}`);
+        useUi.setState({ route: 'editor' });
+      } catch (err) {
+        if (ticket !== sequence) return;
+        console.warn('museware: could not open project', err);
+        useUi.getState().toast('That project could not be opened.', 'warn');
+        useUi.getState().setRoute('projects');
+      }
     };
-  }, []);
+    const onChange = () => {
+      void sync();
+    };
+    window.addEventListener('hashchange', onChange);
+    window.addEventListener('popstate', onChange);
+    return () => {
+      sequence++;
+      window.removeEventListener('hashchange', onChange);
+      window.removeEventListener('popstate', onChange);
+    };
+  }, [booting]);
 
-  // Persist on every change (debounced, IndexedDB).
+  // Autosave is bound to the document's project ID, never a global active pointer.
   useEffect(() => {
-    if (!ready) return;
-    saveProjectSoon(doc);
-  }, [doc, ready]);
+    if (!ready || booting || route !== 'editor' || !projectId) return;
+    saveProjectSoon(projectId, doc, () => {
+      if (warned.current.has(projectId)) return;
+      warned.current.add(projectId);
+      useUi
+        .getState()
+        .toast(
+          'This project could not be saved. It may have been deleted in another tab.',
+          'warn',
+        );
+    });
+  }, [doc, ready, booting, route, projectId]);
 
   // Global shortcuts.
   useEffect(() => {
@@ -220,9 +286,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  if (booting)
+    return (
+      <div className="boot-splash" role="status" aria-label="Loading Museware">
+        <Sparkles size={32} />
+        <strong>museware</strong>
+        <div className="boot-progress">
+          <span />
+        </div>
+      </div>
+    );
+
   return (
     <>
-      {route === 'landing' && <Home />}
+      {route === 'landing' && <Landing />}
+      {route === 'projects' && <Home />}
       {route === 'gallery' && <Gallery />}
       {route === 'editor' && <Editor />}
       {runMode && route === 'editor' && <RunMode />}

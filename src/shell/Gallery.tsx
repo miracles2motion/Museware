@@ -95,7 +95,7 @@ function TemplateCard({
 
 export function Gallery() {
   const setRoute = useUi((s) => s.setRoute);
-  const replaceDoc = useProject((s) => s.replaceDoc);
+  const hydrate = useProject((s) => s.hydrate);
   const setActiveScreen = useUi((s) => s.setActiveScreen);
   const toast = useUi((s) => s.toast);
   const doc = useProject((s) => s.doc);
@@ -106,14 +106,15 @@ export function Gallery() {
       kind: template.kind,
       tokens: doc.tokens,
     };
+    let id: string;
     try {
-      const id = await createSavedProject(fresh);
+      id = await createSavedProject(fresh);
       await openProject(id);
     } catch {
       toast('Could not save this project on this device.', 'danger');
       return;
     }
-    replaceDoc(fresh);
+    hydrate(fresh, id);
     const screens = buildScreensFor(template, fresh.tokens);
     let firstId = '';
     for (let i = 0; i < screens.length; i += 1) {
@@ -131,7 +132,7 @@ export function Gallery() {
       if (!firstId) firstId = screen.id;
     }
     if (firstId) setActiveScreen(firstId);
-    setRoute('editor');
+    setRoute('editor', id);
     toast(`${template.projectName} loaded — every op is yours to undo.`, 'ok');
   };
 
@@ -162,7 +163,7 @@ export function Gallery() {
           </a>
         </nav>
         <div className="lp-nav-actions">
-          <Button variant="accent" onClick={() => setRoute('landing')}>
+          <Button variant="accent" onClick={() => setRoute('projects')}>
             Projects home <ArrowRight size={14} />
           </Button>
         </div>
@@ -200,7 +201,7 @@ export function Gallery() {
           <button
             type="button"
             className="lp-footer-link"
-            onClick={() => setRoute('editor')}
+            onClick={() => setRoute('projects')}
           >
             Editor
           </button>

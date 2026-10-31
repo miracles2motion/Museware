@@ -93,6 +93,7 @@ interface ScreenBuildSnapshot {
 
 interface ProjectStore {
   doc: ProjectDoc;
+  projectId: string | null;
   ready: boolean;
   documentEpoch: number;
   undoStack: Snapshot[];
@@ -101,7 +102,7 @@ interface ProjectStore {
   screenBuilds: Record<string, ScreenBuildSnapshot>;
   rememberScreenBuild: (cardId: string, screenId: string, before: ScreenDoc | null) => void;
   undoScreenBuild: (cardId: string, screenId: string) => string;
-  hydrate: (doc: ProjectDoc) => void;
+  hydrate: (doc: ProjectDoc, projectId?: string | null) => void;
   replaceDoc: (doc: ProjectDoc) => void;
   applyBatch: (
     rawOps: unknown[],
@@ -124,6 +125,7 @@ interface ProjectStore {
 
 export const useProject = create<ProjectStore>((set, get) => ({
   doc: createProject(),
+  projectId: null,
   ready: false,
   documentEpoch: 0,
   undoStack: [],
@@ -131,9 +133,10 @@ export const useProject = create<ProjectStore>((set, get) => ({
   lastResult: null,
   screenBuilds: {},
 
-  hydrate: (doc) =>
+  hydrate: (doc, projectId = null) =>
     set((state) => ({
       doc,
+      projectId,
       ready: true,
       documentEpoch: state.documentEpoch + 1,
       undoStack: [],

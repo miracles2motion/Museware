@@ -63,10 +63,10 @@ async function boot() {
 }
 
 describe('the shell actually renders', () => {
-  it('opens the projects home when no project was open', async () => {
+  it('opens the landing page when no project was requested', async () => {
+    window.history.replaceState(null, '', '#/');
     await boot();
-    expect(screen.getByRole('heading', { name: 'Projects' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'New project' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Describe it/ })).toBeTruthy();
   });
 
   it('shows the landing page as one page: title, one action, no eyebrow', async () => {
@@ -121,6 +121,7 @@ describe('the shell actually renders', () => {
   });
 
   it('creates a project and opens the editor', async () => {
+    window.history.replaceState(null, '', '#/projects');
     await boot();
     fireEvent.click(screen.getByRole('button', { name: 'New project' }));
     await waitFor(() => expect(document.querySelector('.app-shell')).toBeTruthy());

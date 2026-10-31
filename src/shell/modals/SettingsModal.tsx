@@ -515,8 +515,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           size="sm"
           variant="danger"
           onClick={async () => {
-            await wipeProject();
-            replaceDoc(createProject());
+            const projectId = useProject.getState().projectId;
+            const fresh = createProject();
+            if (!projectId) {
+              toast('No open project to wipe', 'warn');
+              return;
+            }
+            try {
+              await wipeProject(projectId, fresh);
+            } catch {
+              toast('Project could not be wiped', 'warn');
+              return;
+            }
+            replaceDoc(fresh);
             setActivePreset(null);
             toast('Local project wiped', 'ok');
             onClose();

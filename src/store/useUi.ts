@@ -1,9 +1,10 @@
 import { create } from 'zustand';
+import { useProject } from './useProject';
 import type { RailEntry } from '../types/tree';
 import type { DesignTokens } from '../types/tokens';
 
 export type Breakpoint = 'compact' | 'medium' | 'expanded';
-export type Route = 'landing' | 'editor' | 'gallery';
+export type Route = 'landing' | 'projects' | 'editor' | 'gallery';
 
 export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
   compact: 390,
@@ -59,7 +60,7 @@ interface UiStore {
   paletteFilter: string;
   draft: string;
   activePreset: string | null;
-  setRoute: (r: Route) => void;
+  setRoute: (r: Route, projectId?: string) => void;
   select: (id: string | null) => void;
   setActiveScreen: (id: string) => void;
   setBreakpoint: (b: Breakpoint) => void;
@@ -174,10 +175,23 @@ export const useUi = create<UiStore>((set, get) => ({
   draft: '',
   activePreset: null,
 
-  setRoute: (route) => {
+  setRoute: (route, projectId) => {
     if (typeof window !== 'undefined') {
-      const hash = route === 'editor' ? '#/app' : route === 'gallery' ? '#/gallery' : '#/';
-      if (window.location.hash !== hash) window.history.pushState(null, '', hash);
+      const hash =
+        route === 'editor'
+          ? projectId || useProject.getState().projectId
+            ? `#/app/${encodeURIComponent(projectId || useProject.getState().projectId!)}`
+            : '#/app'
+          : route === 'projects'
+            ? '#/projects'
+            : route === 'gallery'
+              ? '#/gallery'
+              : '#/';
+      if (window.location.hash !== hash) {
+        if (route === 'editor' && (projectId || useProject.getState().projectId))
+          window.history.replaceState(null, '', hash);
+        else window.history.pushState(null, '', hash);
+      }
     }
     set({ route });
   },

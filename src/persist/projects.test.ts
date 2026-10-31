@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { openDB } from 'idb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createProject } from '../store/useProject';
 import { emptyScreen } from '../ops/screenOps';
 import {
@@ -40,10 +40,10 @@ describe('projects registry migration', () => {
     expect(await database.get('projects', 'current')).toEqual(original);
     database.close();
     const second = await createSavedProject(createProject('Second'));
-    saveProjectSoon({ ...loaded!, name: 'Edited tea' });
+    saveProjectSoon(cards[0].id, { ...loaded!, name: 'Edited tea' });
     await flushProject();
     await openProject(second);
-    saveProjectSoon(createProject('Second edited'));
+    saveProjectSoon(second, createProject('Second edited'));
     await closeProject();
     expect((await openProject(cards[0].id))?.name).toBe('Edited tea');
     expect((await openProject(second))?.name).toBe('Second edited');
@@ -55,5 +55,18 @@ describe('projects registry migration', () => {
     );
     await deleteSavedProject(copy);
     expect((await listProjects()).some((p) => p.id === copy)).toBe(false);
+    const doomed = await createSavedProject(createProject('Deleted elsewhere'));
+    const onError = vi.fn();
+    saveProjectSoon(doomed, createProject('Unsaved changes'), onError);
+    const otherTab = await openDB('museware', 2);
+    const tx = otherTab.transaction(['projects', 'meta'], 'readwrite');
+    await tx.objectStore('projects').delete(doomed);
+    await tx.objectStore('meta').delete(`project:${doomed}`);
+    await tx.done;
+    otherTab.close();
+    await flushProject();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(await openProject(doomed)).toBeNull();
+    expect((await listProjects()).some((p) => p.id === doomed)).toBe(false);
   });
 });

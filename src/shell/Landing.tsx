@@ -12,6 +12,7 @@ import { MUSEWARE_DEFAULT_THEME } from '../design/starter';
 import { Button } from '../components/ui';
 import { applyOps } from '../ops/apply';
 import { runAgentTurn } from '../muse/loop';
+import { createSavedProject, listProjects, openProject } from '../persist/save';
 import type { ComponentNode, ProjectDoc, ScreenDoc } from '../types/tree';
 import type { DesignTokens } from '../types/tokens';
 
@@ -348,17 +349,33 @@ export function Landing() {
     });
   };
 
-  const go = (want?: string) => {
+  const go = async (want?: string, run = false) => {
     setMenuOpen(false);
-    if (want) startPrompt(want);
-    setRoute('editor');
+    try {
+      const projects = await listProjects();
+      if (want) startPrompt(want);
+      if (projects.length) {
+        setRoute('projects');
+        return;
+      }
+      const fresh = createProject();
+      const id = await createSavedProject(fresh);
+      const saved = await openProject(id);
+      if (!saved) throw new Error('Could not open project');
+      useProject.getState().hydrate(saved, id);
+      setRoute('editor', id);
+      if (want && run) {
+        useUi.getState().setDraft('');
+        await runAgentTurn(want);
+      }
+    } catch {
+      useUi.getState().toast('Could not open a project on this device.', 'warn');
+    }
   };
 
   const build = () => {
     const text = prompt.trim();
-    if (!text) return;
-    setRoute('editor');
-    void runAgentTurn(text);
+    if (text) void go(text, true);
   };
 
   const gallery = () => {
@@ -393,10 +410,19 @@ export function Landing() {
             Gallery
           </a>
           <a
-            href="#/app"
+            href="#/projects"
             onClick={(e) => {
               e.preventDefault();
-              go();
+              setRoute('projects');
+            }}
+          >
+            Your projects
+          </a>
+          <a
+            href="#/projects"
+            onClick={(e) => {
+              e.preventDefault();
+              void go();
             }}
           >
             Editor
@@ -404,7 +430,12 @@ export function Landing() {
         </nav>
 
         <div className="lp-nav-actions">
-          <Button variant="accent" onClick={() => go()}>
+          <Button
+            variant="accent"
+            onClick={() => {
+              void go();
+            }}
+          >
             Start building
           </Button>
           <button
@@ -428,7 +459,13 @@ export function Landing() {
           }}
         >
           <div className="lp-sheet" id="lp-sheet" role="dialog" aria-label="Menu">
-            <button type="button" className="lp-sheet-link" onClick={() => go()}>
+            <button
+              type="button"
+              className="lp-sheet-link"
+              onClick={() => {
+                void go();
+              }}
+            >
               Start building
               <ArrowRight size={18} />
             </button>
@@ -440,7 +477,7 @@ export function Landing() {
               className="lp-sheet-link"
               onClick={() => {
                 setMenuOpen(false);
-                setRoute('editor');
+                void go();
               }}
             >
               Editor
@@ -465,7 +502,13 @@ export function Landing() {
             shows you anything.
           </p>
           <div className="lp-actions">
-            <Button variant="accent" size="lg" onClick={() => go()}>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => {
+                void go();
+              }}
+            >
               Start building <ArrowRight size={16} />
             </Button>
             <Button variant="secondary" size="lg" onClick={gallery}>
@@ -679,7 +722,7 @@ export function Landing() {
                     return;
                   }
                   useUi.getState().setActivePreset(preset.id);
-                  go();
+                  void go();
                 }}
               >
                 <span className="lp-preset-render">
@@ -719,7 +762,13 @@ export function Landing() {
           zip.
         </p>
         <div className="lp-actions">
-          <Button variant="accent" size="lg" onClick={() => go()}>
+          <Button
+            variant="accent"
+            size="lg"
+            onClick={() => {
+              void go();
+            }}
+          >
             Start building <ArrowRight size={16} />
           </Button>
           <Button variant="ghost" size="lg" onClick={gallery}>
@@ -734,7 +783,13 @@ export function Landing() {
           <button type="button" className="lp-footer-link" onClick={gallery}>
             Gallery
           </button>
-          <button type="button" className="lp-footer-link" onClick={() => go()}>
+          <button
+            type="button"
+            className="lp-footer-link"
+            onClick={() => {
+              void go();
+            }}
+          >
             Editor
           </button>
         </span>

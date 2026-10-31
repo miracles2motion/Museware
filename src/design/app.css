@@ -4883,3 +4883,112 @@ button.how-card .field-hint {
   place-items: stretch;
   background: var(--mw-bg);
 }
+
+.boot-splash {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mw-space-3);
+  color: var(--mw-accent);
+  background: var(--mw-bg);
+}
+.boot-progress {
+  width: var(--mw-boot-progress-width);
+  height: var(--mw-boot-progress-height);
+  background: var(--mw-border);
+  border-radius: var(--mw-radius-pill);
+  overflow: hidden;
+}
+.boot-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--mw-accent);
+  animation: boot-progress 1.2s ease-in-out infinite alternate;
+}
+@keyframes boot-progress {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(150%);
+  }
+}
+.projects-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mw-space-4);
+  flex-wrap: wrap;
+}
+.projects-filters {
+  display: flex;
+  gap: var(--mw-space-3);
+  flex-wrap: wrap;
+  align-items: end;
+}
+.projects-filters label {
+  display: grid;
+  gap: var(--mw-space-1);
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-12);
+}
+.projects-brand {
+  margin-bottom: var(--mw-space-4);
+}
+.projects-card {
+  transition:
+    transform var(--mw-motion-base),
+    box-shadow var(--mw-motion-base);
+}
+.projects-card:hover {
+  transform: translateY(calc(-1 * var(--mw-space-1)));
+  box-shadow: var(--mw-shadow-e2);
+}
+.projects-home :focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: var(--mw-space-1);
+}
+.project-preview {
+  height: var(--mw-project-preview-height);
+  overflow: hidden;
+  border-radius: var(--mw-radius-md);
+  background: var(--mw-surface-2);
+}
+.project-preview-frame {
+  width: var(--mw-project-preview-width);
+  height: var(--mw-project-preview-frame-height);
+  border: 0;
+  transform: scale(var(--mw-project-preview-scale));
+  transform-origin: top left;
+  pointer-events: none;
+}
+.project-preview-empty {
+  display: grid;
+  place-items: center;
+  color: var(--mw-ink-2);
+}
+.projects-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mw-space-3);
+  margin: var(--mw-space-4) 0;
+}
+.projects-starter {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--mw-space-2);
+  padding: var(--mw-space-4);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-lg);
+  color: var(--mw-ink);
+  background: var(--mw-surface);
+  cursor: pointer;
+}
+.projects-starter span {
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-12);
+}

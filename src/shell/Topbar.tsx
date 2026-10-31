@@ -213,8 +213,8 @@ export function Topbar() {
             aria-label="Projects home"
             disabled={busy}
             onClick={() => {
-              void closeProject()
-                .then(() => setRoute('landing'))
+              void closeProject(useProject.getState().projectId)
+                .then(() => setRoute('projects'))
                 .catch(() => toast('Could not save this project.', 'warn'));
             }}
           >
