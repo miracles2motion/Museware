@@ -4751,3 +4751,19 @@ button.how-card .field-hint {
   margin-top: var(--mw-space-twohalf);
   text-align: center;
 }
+
+/* Chat no longer occupies a dock; reclaim its reserved canvas and inspector space. */
+.workspace[data-rail='absent'] .inspector-peek {
+  right: var(--mw-space-2);
+}
+@media (max-width: 1023px) {
+  .workspace[data-rail='absent'] .canvas-area {
+    padding-bottom: 0;
+  }
+  .workspace[data-rail='absent'] .inspector {
+    bottom: var(--mw-space-2);
+  }
+  .workspace[data-rail='absent'] .inspector-peek {
+    bottom: var(--mw-space-4);
+  }
+}

@@ -91,7 +91,7 @@ interface UiStore {
 
 let toastSeq = 0;
 
-export const useUi = create<UiStore>((set) => ({
+export const useUi = create<UiStore>((set, get) => ({
   route: (typeof window !== 'undefined' && window.location.hash.startsWith('#/app')
     ? 'editor'
     : typeof window !== 'undefined' && window.location.hash.startsWith('#/gallery')
@@ -174,7 +174,10 @@ export const useUi = create<UiStore>((set) => ({
   setLeftFlyout: (leftFlyout) => set({ leftFlyout }),
   toggleLeft: () => set((s) => ({ leftCollapsed: !s.leftCollapsed })),
   toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
-  setMobileRail: (mobileRailOpen) => set({ mobileRailOpen }),
+  setMobileRail: (mobileRailOpen) => {
+    set({ mobileRailOpen });
+    if (mobileRailOpen) get().setChatExpanded(true);
+  },
   setRunMode: (runMode, screenId) =>
     set((s) => ({
       runMode,
@@ -223,7 +226,10 @@ export const useUi = create<UiStore>((set) => ({
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setPaletteFilter: (paletteFilter) => set({ paletteFilter }),
-  startPrompt: (text) => set({ draft: text, railCollapsed: false, mobileRailOpen: true }),
+  startPrompt: (text) => {
+    set({ draft: text, railCollapsed: false, mobileRailOpen: true });
+    get().setChatExpanded(true);
+  },
   setDraft: (draft) => set({ draft }),
   setActivePreset: (activePreset) => set({ activePreset }),
 }));

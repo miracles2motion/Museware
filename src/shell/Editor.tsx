@@ -5,7 +5,6 @@ import {
   Play,
   SlidersHorizontal,
   Sparkles,
-  X,
 } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
@@ -19,18 +18,17 @@ import { ChatHost } from '../rail/ChatHost';
 export function Editor() {
   const setLeftTab = useUi((s) => s.setLeftTab);
   const setLeftFlyout = useUi((s) => s.setLeftFlyout);
-  const setMobileRail = useUi((s) => s.setMobileRail);
+  const setChatExpanded = useUi((s) => s.setChatExpanded);
   const setRunMode = useUi((s) => s.setRunMode);
   const startPrompt = useUi((s) => s.startPrompt);
   const activeScreenId = useUi((s) => s.activeScreenId);
   const screens = useProject((s) => s.doc.screens);
-  const railCollapsed = useUi((s) => s.railCollapsed);
   const leftTab = useUi((s) => s.leftTab);
   const leftFlyout = useUi((s) => s.leftFlyout);
   const propertiesOpen = useUi((s) => s.propertiesOpen);
   const inspectorWide = useUi((s) => s.inspectorWide);
   const restoreInspector = useUi((s) => s.restoreInspector);
-  const mobileRailOpen = useUi((s) => s.mobileRailOpen);
+  const chatExpanded = useUi((s) => s.chatExpanded);
 
   // Three states for the one panel: docked, docked wide, or out of the way.
   const panelState = propertiesOpen ? (inspectorWide ? 'wide' : 'open') : 'closed';
@@ -39,11 +37,7 @@ export function Editor() {
   return (
     <div className="app-shell">
       <Topbar />
-      <div
-        className="workspace"
-        data-rail={railCollapsed ? 'collapsed' : 'open'}
-        data-inspector={panelState}
-      >
+      <div className="workspace" data-rail="absent" data-inspector={panelState}>
         <LeftPanel />
         <Canvas />
         <Inspector />
@@ -95,10 +89,10 @@ export function Editor() {
         </button>
         <button
           type="button"
-          data-active={mobileRailOpen}
-          onClick={() => setMobileRail(!mobileRailOpen)}
+          data-active={chatExpanded}
+          onClick={() => setChatExpanded(true)}
         >
-          {mobileRailOpen ? <X size={18} /> : <Sparkles size={18} />}
+          <Sparkles size={18} />
           <span>muse</span>
         </button>
         <button
