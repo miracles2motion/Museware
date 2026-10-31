@@ -275,9 +275,20 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     container: true,
     icon: 'list',
     hint: 'A titled group of blocks, with more space around it than inside.',
-    defaultProps: { title: 'Section' },
+    defaultProps: { title: 'Section', align: 'start', surface: 'plain', bleed: false },
     styles: { gap: 'var(--gap-item)' },
-    props: [p('title', 'Title', 'text', 'Content', 'Optional label above the group.')],
+    props: [
+      p('eyebrow', 'Eyebrow', 'text', 'Content', 'Optional pill above the title.'),
+      p('title', 'Title', 'text', 'Content', 'Optional label above the group.'),
+      p('subtitle', 'Subtitle', 'longtext', 'Content', 'Supporting section text.'),
+      p('align', 'Heading alignment', 'select', 'Content', 'Align the section heading.', {
+        options: ['start', 'center'],
+      }),
+      p('surface', 'Surface', 'select', 'Content', 'Background treatment.', {
+        options: ['plain', 'sunk', 'elevated', 'accent', 'glow'],
+      }),
+      p('bleed', 'Bleed', 'toggle', 'Content', 'Extend the surface to the screen edges.'),
+    ],
   },
   {
     type: 'form',
@@ -679,7 +690,11 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     container: false,
     icon: 'menu',
     hint: 'Top bar. Each item jumps to a screen with a matching name.',
-    defaultProps: { items: ['Home', 'Features', 'Pricing'], brand: 'Museware' },
+    defaultProps: {
+      items: ['Home', 'Features', 'Pricing'],
+      brand: 'Museware',
+      variant: 'glass',
+    },
     props: [
       p(
         'items',
@@ -689,8 +704,58 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'Links, comma separated. Each should match a screen name.',
       ),
       p('brand', 'Brand', 'text', 'Content', 'The wordmark on the left.'),
+      p('variant', 'Variant', 'select', 'Content', 'Navigation surface treatment.', {
+        options: ['glass', 'floating', 'minimal'],
+      }),
       p('cta', 'CTA label', 'text', 'Content', 'Optional call to action.'),
       p('ctaTo', 'CTA screen', 'screen', 'Behavior', 'Screen opened by the CTA.'),
+    ],
+  },
+  {
+    type: 'marquee',
+    label: 'Marquee',
+    group: 'Data',
+    container: false,
+    icon: 'arrow-right',
+    hint: 'Scrolling social proof with reduced-motion support.',
+    defaultProps: {
+      label: 'Trusted by',
+      items: 'One, Two, Three, Four',
+      variant: 'wordmarks',
+      speed: 30,
+    },
+    props: [
+      p('label', 'Label', 'text', 'Content', 'Optional label above the strip.'),
+      p('items', 'Items', 'text', 'Content', 'Comma-separated items.'),
+      p('variant', 'Variant', 'select', 'Content', 'Item presentation.', {
+        options: ['wordmarks', 'pills', 'metrics'],
+      }),
+      p('speed', 'Speed', 'number', 'Behavior', 'Seconds per cycle.', { min: 5, max: 120 }),
+    ],
+  },
+  {
+    type: 'accordion',
+    label: 'Accordion',
+    group: 'Data',
+    container: false,
+    icon: 'chevron-down',
+    hint: 'Accessible questions and answers using native details.',
+    defaultProps: { items: 'What is this? | An answer.' },
+    props: [
+      p(
+        'items',
+        'Questions and answers',
+        'longtext',
+        'Content',
+        'One Question | Answer per line.',
+      ),
+      p(
+        'dataKey',
+        'Data key',
+        'data',
+        'Content',
+        'Optional mock data rows with question and answer.',
+      ),
     ],
   },
   {

@@ -21,7 +21,7 @@ ART DIRECTION — MOBILE FIRST: Build the PHONE layout in base styles: everythin
 
 Batches are all-or-nothing: check ids and token names before you send. When you have made screens, STOP and call finish — the user chooses how to fill.`;
 
-const WEB_ARCHETYPE = `WEB ARCHETYPE (adapt to the brief; use only available library types): navbar → split hero with primary and secondary CTA row → social-proof strip → asymmetric feature grid mixing card/stat/chart/image → one LIVE interactive section wired with bindKey and visibleWhen or tabs → FAQ → multi-column footer. Build from existing components where marquee, accordion, and bento spans are not available; never invent unsupported types or claim unwired interactivity.`;
+const WEB_ARCHETYPE = `WEB ARCHETYPE (adapt to the brief; use only available library types): navbar → split hero with primary and secondary CTA row → marquee social-proof strip → asymmetric bento grid mixing card/stat/chart/image → one LIVE interactive section wired with bindKey and visibleWhen or tabs → accordion FAQ → multi-column footer. Use marquee, accordion, and bento spans per the archetype; never invent unsupported types or claim unwired interactivity.`;
 
 export const BLUEPRINT_PROMPT = `${WEB_ARCHETYPE}\nYou are the lead architect. One builder will fill every screen later, so decide EVERYTHING now. Output plain text only. RULES: id style, ONE shared state namespace, the screen list. Name real sections as actual component nodes (navbar, hero and others), never claim a section without building it. Then per screen use the canonical header 'SCREEN: Tea Landing' (replace Tea Landing with a plain product name; no ids or parentheticals) and one line per component '- <id> (<type>) <what it does; use "opens X" for navigation>', then 'LOOK: <n>dp outer padding, <n>dp between sections, card radius <n>, title <n>px, body <n>px, colours by token name'. Then 'STATE:' every cross-screen key, then 'WIRING:' every connection. ≤ 600 words total. Colours come from the token sheet — never invent hexes.`;
 
@@ -35,6 +35,7 @@ export function fillPrompt(args: {
 }): string {
   return `Fill screen ${args.screenName} from its blueprint section. SECTION: ${args.section}
 ${WEB_ARCHETYPE}
+In a 3-column grid, the lead card spans 2 (styles.colSpan: 2).
 LOOK numbers are binding: ${args.lookLine}. Token sheet: ${args.tokenSheet}
 Use ordered edit_canvas calls with at most 12 ops each to add all components for this screen (library components only), then use small calls for styling deviations. Add parents before their children. Ids: ${args.indexRules}.
 For visual landing or product pages include a meaningful hero or image node; do not leave them out. Images are generated automatically after the build. Never invent image URLs or claim an image was generated when it was not. Write finished content, never scaffold placeholder text.

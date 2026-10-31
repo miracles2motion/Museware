@@ -431,7 +431,12 @@ function responsiveBlocks(node: ComponentNode): string[] {
   const medium = node.styles.responsive?.medium;
   const expanded = node.styles.responsive?.expanded;
   if (medium && Object.keys(medium).length) {
-    const decls = [...userDeclarations(medium)];
+    const decls = [
+      ...userDeclarations(medium),
+      ...(['image', 'hero', 'card'].includes(node.type) && medium.aspectRatio
+        ? [`aspect-ratio:${String(medium.aspectRatio)}`]
+        : []),
+    ];
     if (node.type === 'grid' && medium.columns) {
       decls.push(`grid-template-columns:repeat(${Number(medium.columns)}, minmax(0, 1fr))`);
     }
@@ -441,7 +446,12 @@ function responsiveBlocks(node: ComponentNode): string[] {
     out.push(`@container mw (min-width:600px){${renderRule(sel, decls)}}`);
   }
   if (expanded && Object.keys(expanded).length) {
-    const decls = [...userDeclarations(expanded)];
+    const decls = [
+      ...userDeclarations(expanded),
+      ...(['image', 'hero', 'card'].includes(node.type) && expanded.aspectRatio
+        ? [`aspect-ratio:${String(expanded.aspectRatio)}`]
+        : []),
+    ];
     if (node.type === 'grid' && expanded.columns) {
       decls.push(
         `grid-template-columns:repeat(${Number(expanded.columns)}, minmax(0, 1fr))`,
@@ -487,6 +497,9 @@ export function generateCss(doc: ProjectDoc): string {
           ? ['width:auto', 'align-self:auto']
           : []),
         ...legacyLayoutDeclarations(node),
+        ...(['image', 'hero', 'card'].includes(node.type) && node.styles.aspectRatio
+          ? [`aspect-ratio:${String(node.styles.aspectRatio)}`]
+          : []),
         ...userDeclarations(node.styles).filter((decl) => {
           if (node.type === 'grid' && /^grid-template-columns\s*:/i.test(decl))
             return false;
@@ -574,6 +587,46 @@ export function generateCss(doc: ProjectDoc): string {
         rules.push(
           `@container mw (min-width:1024px){${sel}{grid-template-columns:repeat(${cols}, minmax(0, 1fr))}}`,
         );
+        const mediumCols = Math.max(
+          1,
+          Math.min(6, Number(node.styles.responsive?.medium?.columns) || Math.min(2, cols)),
+        );
+        const expandedCols = Math.max(
+          1,
+          Math.min(
+            6,
+            Number(node.styles.responsive?.expanded?.columns) ||
+              Number(node.styles.responsive?.medium?.columns) ||
+              cols,
+          ),
+        );
+        for (const child of node.children) {
+          const childSel = `.${nodeClass(child.id)}`;
+          const mdSpan = child.styles.responsive?.medium?.colSpan ?? child.styles.colSpan;
+          const lgSpan = child.styles.responsive?.expanded?.colSpan ?? mdSpan;
+          if (mdSpan === 'full' || Number(mdSpan) >= 1) {
+            const span =
+              mdSpan === 'full' ? mediumCols : Math.min(mediumCols, 2, Number(mdSpan));
+            rules.push(
+              `@container mw (min-width:600px){${childSel}{grid-column:span ${span}}}`,
+            );
+          }
+          if (lgSpan === 'full' || Number(lgSpan) >= 1) {
+            const span =
+              lgSpan === 'full' ? expandedCols : Math.min(expandedCols, Number(lgSpan));
+            rules.push(
+              `@container mw (min-width:1024px){${childSel}{grid-column:span ${span}}}`,
+            );
+          }
+          const rowSpan =
+            child.styles.responsive?.expanded?.rowSpan ??
+            child.styles.responsive?.medium?.rowSpan ??
+            child.styles.rowSpan;
+          if (Number(rowSpan) >= 1)
+            rules.push(
+              `@container mw (min-width:1024px){${childSel}{grid-row:span ${Number(rowSpan)}}}`,
+            );
+        }
       }
       rules.push(...responsiveBlocks(node));
     });
@@ -588,6 +641,10 @@ export function screenCssClass(screenId: string): string {
 /** Utility classes shared by canvas, Run mode and exported code. */
 export const UTILITY_CSS = `@container mw (min-width:600px){.mw-app{--type-display:var(--type-display-md);--type-title:var(--type-title-md);--gap-section:var(--gap-section-md);--pad-screen:var(--pad-screen-md)}}
 @container mw (min-width:1024px){.mw-app{--type-display:var(--type-display-lg);--type-title:var(--type-title-lg);--gap-section:var(--gap-section-lg);--pad-screen:var(--pad-screen-lg)}}
+.mw-sec-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px}.mw-section[data-align="center"] .mw-sec-head{align-items:center;text-align:center}.mw-sec-eyebrow{display:inline-flex;padding:5px 10px;border:1px solid currentColor;border-radius:999px;font-size:12px}.mw-sec-title{margin:0;font-family:var(--font-heading);font-size:var(--type-title);line-height:1.15;text-wrap:balance}.mw-sec-sub{margin:0;max-width:60ch;font-size:var(--type-body);line-height:1.6}.mw-section[data-surface="sunk"]{background:var(--openui-sunk)}.mw-section[data-surface="elevated"]{background:var(--openui-elevated)}.mw-section[data-surface="accent"]{background:var(--openui-accent);color:var(--openui-text-on-accent)}.mw-section[data-surface="glow"]{background:radial-gradient(circle at 80% 10%,var(--openui-accent-subtle),transparent 60%),var(--openui-elevated)}.mw-section[data-surface]:not([data-surface="plain"]){padding:var(--pad-card);border-radius:var(--radius-card)}.mw-section[data-bleed="true"]{margin-inline:calc(-1 * var(--pad-screen))!important;width:calc(100% + 2 * var(--pad-screen));max-width:none!important}
+.mw-nav[data-variant="minimal"]{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;border:0}.mw-nav[data-variant="floating"]{width:calc(100% - 24px);margin-inline:12px;border:1px solid var(--openui-border-default);border-radius:8px;-webkit-backdrop-filter:blur(14px)}@container mw (min-width:600px){.mw-nav[data-variant="floating"]{width:calc(100% - 24px);max-width:960px;margin-inline:auto;border-radius:999px}}
+.mw-marquee{overflow:hidden;mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent);-webkit-mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent)}.mw-marquee-track{display:flex;width:max-content;animation:mw-marquee-scroll var(--marquee-speed,30s) linear infinite}.mw-marquee:hover .mw-marquee-track{animation-play-state:paused}.mw-marquee-group{display:flex;align-items:center;gap:32px;padding-right:32px}.mw-marquee-item{white-space:nowrap;font-weight:700}.mw-marquee[data-variant="pills"] .mw-marquee-item{padding:8px 14px;border:1px solid var(--openui-border-default);border-radius:999px}.mw-marquee[data-variant="metrics"] .mw-marquee-item{font-size:var(--type-heading)}@keyframes mw-marquee-scroll{to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.mw-marquee{mask-image:none;-webkit-mask-image:none}.mw-marquee-track{animation:none;width:auto}.mw-marquee-group{flex-wrap:wrap}.mw-marquee-group[aria-hidden="true"]{display:none}}
+.mw-accordion details{border-bottom:1px solid var(--openui-border-default);padding:14px 0}.mw-accordion summary{cursor:pointer;font-weight:700}.mw-accordion-answer{max-width:65ch;line-height:1.6;padding-top:10px}
 .mw-row-item{display:flex;align-items:center;gap:12px;padding:12px var(--pad-card);background:var(--openui-elevated);border:1px solid var(--openui-border-default);border-radius:var(--radius-card)}
 .mw-row-main{flex:1;min-width:0}
 .mw-row-title{font-size:14px;font-weight:600;color:var(--openui-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

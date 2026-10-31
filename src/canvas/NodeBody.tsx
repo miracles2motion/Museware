@@ -10,6 +10,7 @@ import { nodeClass } from './cssGen';
 import { avatarPlaceholder, placeholderImage } from './placeholder';
 import { Icon } from './Icon';
 import { defaultPropsFor } from '../types/library';
+import { marqueeItems, accordionItems } from '../types/editorial';
 import { useAgent } from '../store/useAgent';
 import { useProject } from '../store/useProject';
 
@@ -496,7 +497,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         </button>
       );
       return (
-        <nav className={cls}>
+        <nav className={`${cls} mw-nav`} data-variant={asText(p.variant, 'glass')}>
           <span className="mw-nav-brand">{asText(p.brand, doc.name)}</span>
           <span className="mw-nav-items">
             {items.map(navItem)}
@@ -835,17 +836,71 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'section':
       return (
-        <section className={cls} {...tapProps}>
-          {Boolean(p.title) && (
-            <div
-              style={{ fontSize: 16, fontWeight: 700, color: 'var(--openui-text-primary)' }}
-            >
-              {subst(p.title, row)}
+        <section
+          className={`${cls} mw-section`}
+          data-surface={asText(p.surface, 'plain')}
+          data-align={asText(p.align, 'start')}
+          data-bleed={Boolean(p.bleed)}
+          {...tapProps}
+        >
+          {Boolean(p.eyebrow || p.title || p.subtitle) && (
+            <div className="mw-sec-head">
+              {Boolean(p.eyebrow) && (
+                <span className="mw-sec-eyebrow">{subst(p.eyebrow, row)}</span>
+              )}
+              {Boolean(p.title) && <h2 className="mw-sec-title">{subst(p.title, row)}</h2>}
+              {Boolean(p.subtitle) && (
+                <p className="mw-sec-sub">{subst(p.subtitle, row)}</p>
+              )}
             </div>
           )}
           {renderChildren()}
         </section>
       );
+    case 'marquee': {
+      const items = marqueeItems(p.items);
+      return (
+        <div
+          className={`${cls} mw-marquee`}
+          data-variant={asText(p.variant, 'wordmarks')}
+          style={
+            {
+              '--marquee-speed': `${Math.min(120, Math.max(5, Number(p.speed) || 30))}s`,
+            } as CSSProperties
+          }
+        >
+          {Boolean(p.label) && <div>{asText(p.label)}</div>}
+          <div className="mw-marquee-track">
+            {[0, 1].map((copy) => (
+              <div
+                key={copy}
+                className="mw-marquee-group"
+                aria-hidden={copy === 1 ? true : undefined}
+              >
+                {items.map((item, i) => (
+                  <span className="mw-marquee-item" key={i}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case 'accordion': {
+      const items = accordionItems(p.items, dataRows(node, doc, activeScreen));
+      return (
+        <div className={`${cls} mw-accordion`}>
+          {items.map((item, i) => (
+            <details key={i}>
+              <summary>{item.question}</summary>
+              <div className="mw-accordion-answer">{item.answer}</div>
+            </details>
+          ))}
+        </div>
+      );
+    }
     case 'card':
       return (
         <div

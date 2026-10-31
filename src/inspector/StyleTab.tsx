@@ -108,7 +108,13 @@ function Field({
 }) {
   const value = writers.valueOf(field.key);
   const overridden = writers.isOverridden(field.key);
-  const write = (next: string) => writers.writeStyle(field.key, next);
+  const write = (next: string) =>
+    writers.writeStyle(
+      field.key,
+      (field.key === 'colSpan' || field.key === 'rowSpan') && next !== 'full'
+        ? Number(next)
+        : next,
+    );
 
   if (field.kind === 'size') {
     return <SizeField field={field} value={value} onCommit={write} />;

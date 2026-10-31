@@ -2,6 +2,7 @@ import type { ComponentNode, ProjectDoc, ScreenDoc, Action } from '../types/tree
 import { materializeCss, screenLookVariables } from '../design/materialize';
 import { generateFullCss, nodeClass } from '../canvas/cssGen';
 import { ICON_NAMES } from '../types/library';
+import { accordionItems, marqueeItems } from '../types/editorial';
 
 const pascal = (id: string) =>
   id
@@ -41,8 +42,15 @@ function attrEvents(node: ComponentNode, event: 'tap' | 'change' | 'submit'): st
   return code ? code : '';
 }
 
-function renderChildren(node: ComponentNode, indent: number, screens: ScreenDoc[]): string {
-  return node.children.map((child) => renderNode(child, indent, screens)).join('\n');
+function renderChildren(
+  node: ComponentNode,
+  indent: number,
+  screens: ScreenDoc[],
+  screen?: ScreenDoc,
+): string {
+  return node.children
+    .map((child) => renderNode(child, indent, screens, screen))
+    .join('\n');
 }
 
 function renderLeaf(
@@ -56,7 +64,12 @@ function renderLeaf(
   const p = node.props as Record<string, unknown>;
   const tap = attrEvents(node, 'tap');
   const change = attrEvents(node, 'change');
-  const bind = typeof p.bindKey === 'string' ? p.bindKey : '';
+  const bind =
+    typeof p.dataKey === 'string'
+      ? p.dataKey
+      : typeof p.bindKey === 'string'
+        ? p.bindKey
+        : '';
   const data = bind && screen.mockData ? screen.mockData[bind] : undefined;
   switch (node.type) {
     case 'heading':
@@ -125,11 +138,26 @@ function renderLeaf(
       const cta = p.cta
         ? `<button type="button" className="mw-nav-cta" onClick={() => go(${str(p.ctaTo || '')})}>${jsxText(p.cta)}</button>`
         : '';
-      return `${pad}<nav className={${str(cls)}}>
+      return `${pad}<nav className={${str(`${cls} mw-nav`)}} data-variant=${str(p.variant || 'glass')}>
 ${pad}  <span className="mw-nav-brand">${jsxText(p.brand)}</span>
 ${pad}  <span className="mw-nav-items">${links}${cta}</span>
 ${pad}  <details className="mw-nav-menu"><summary aria-label="Toggle navigation menu">Menu</summary><div className="mw-nav-dropdown">${links}${cta}</div></details>
 ${pad}</nav>`;
+    }
+    case 'marquee': {
+      const items = marqueeItems(p.items);
+      const itemMarkup = items
+        .map((item) => `<span className="mw-marquee-item">${jsxText(item)}</span>`)
+        .join('');
+      const speed = Math.min(120, Math.max(5, Number(p.speed) || 30));
+      return `${pad}<div className={${str(`${cls} mw-marquee`)}} data-variant=${str(p.variant || 'wordmarks')} style={{ '--marquee-speed': '${speed}s' } as CSSProperties}>${p.label ? `<div>${jsxText(p.label)}</div>` : ''}<div className="mw-marquee-track"><div className="mw-marquee-group">${itemMarkup}</div><div className="mw-marquee-group" aria-hidden="true">${itemMarkup}</div></div></div>`;
+    }
+    case 'accordion': {
+      const items = accordionItems(
+        p.items,
+        (data as Array<Record<string, unknown>> | undefined) || [],
+      );
+      return `${pad}<div className={${str(`${cls} mw-accordion`)}}>${items.map((item) => `<details><summary>${jsxText(item.question)}</summary><div className="mw-accordion-answer">${jsxText(item.answer)}</div></details>`).join('')}</div>`;
     }
     case 'bottomnav': {
       const items = Array.isArray(p.items) ? (p.items as unknown[]).map(String) : [];
@@ -221,14 +249,14 @@ ${pad}  <div className="mw-hero-copy">
 ${p.badge ? `${pad}    <span className="mw-hero-badge">${jsxText(p.badge)}</span>` : ''}
 ${pad}    <h1 className="mw-hero-title">${jsxText(p.title)}</h1>
 ${pad}    <p className="mw-hero-sub">${jsxText(p.subtitle)}</p>
-${copy.map((child) => renderNode(child, indent + 2, screens)).join('\n')}
+${copy.map((child) => renderNode(child, indent + 2, screens, screen)).join('\n')}
 ${pad}  </div>
 ${
   hasMedia
     ? `${pad}  <div className="mw-hero-media"><div${browser ? ' className="mw-browser-frame"' : ''}>
 ${browser ? `${pad}    <div className="mw-browser-bar" aria-hidden="true"><span className="mw-browser-dot"/><span className="mw-browser-dot"/><span className="mw-browser-dot"/><span className="mw-browser-url"/></div>` : ''}
 ${p.image || p.src ? `${pad}    <img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} />` : ''}
-${media.map((child) => renderNode(child, indent + 2, screens)).join('\n')}
+${media.map((child) => renderNode(child, indent + 2, screens, screen)).join('\n')}
 ${pad}  </div></div>`
     : ''
 }
@@ -247,7 +275,7 @@ function renderNode(
 ): string {
   const pad = '  '.repeat(indent);
   const cls = nodeClass(node.id);
-  const children = renderChildren(node, indent + 1, screens);
+  const children = renderChildren(node, indent + 1, screens, screen);
   const visible = node.visibleWhen
     ? `{${node.visibleWhen.equals === undefined ? `Boolean(state[${str(node.visibleWhen.key)}])` : `matchesValue(state[${str(node.visibleWhen.key)}], ${JSON.stringify(node.visibleWhen.equals)})`} && (`
     : '';
@@ -268,8 +296,16 @@ function renderNode(
             : ''
         }>\n${children}\n${pad}</${node.type === 'form' ? 'form' : 'section'}>`,
       );
-    case 'card':
     case 'section': {
+      const head =
+        p.eyebrow || p.title || p.subtitle
+          ? `<div className="mw-sec-head">${p.eyebrow ? `<span className="mw-sec-eyebrow">${jsxText(p.eyebrow)}</span>` : ''}${p.title ? `<h2 className="mw-sec-title">${jsxText(p.title)}</h2>` : ''}${p.subtitle ? `<p className="mw-sec-sub">${jsxText(p.subtitle)}</p>` : ''}</div>`
+          : '';
+      return wrap(
+        `<section className={${str(`${cls} mw-section`)}} data-surface=${str(p.surface || 'plain')} data-align=${str(p.align || 'start')} data-bleed={${str(Boolean(p.bleed))}}>${head}\n${children}\n${pad}</section>`,
+      );
+    }
+    case 'card': {
       const tag = node.type === 'card' ? 'div' : 'section';
       const tap = attrEvents(node, 'tap');
       const title = p.title

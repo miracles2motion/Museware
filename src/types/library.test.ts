@@ -39,7 +39,12 @@ describe('every property explains itself', () => {
     const offenders: string[] = [];
     for (const component of COMPONENT_SPECS) {
       for (const def of component.props) {
-        if (['gap', 'align', 'justify', 'wrap', 'grow', 'selfAlign', 'padding'].includes(def.key)) {
+        if (
+          ['gap', 'align', 'justify', 'wrap', 'grow', 'selfAlign', 'padding'].includes(
+            def.key,
+          ) &&
+          !(component.type === 'section' && def.key === 'align')
+        ) {
           offenders.push(`${component.type}.${def.key}`);
         }
       }

@@ -59,3 +59,39 @@ describe('run interactions', () => {
     expect(runtime.toast).not.toHaveBeenCalledWith('parent');
   });
 });
+
+describe('PR-A live components', () => {
+  it('renders native accordion details and toggles without a state key', () => {
+    const runtime = setup(
+      n('faq_a', 'accordion', { items: 'Why tea? | It is delicious.\nHow? | Steep it.' }),
+    );
+    const summary = screen.getByText('Why tea?');
+    const details = summary.closest('details');
+    expect(details?.open).toBe(false);
+    fireEvent.click(summary);
+    expect(details?.open).toBe(true);
+    expect(runtime.setKey).not.toHaveBeenCalled();
+  });
+  it('renders an editorial header and two marquee groups', () => {
+    setup(
+      n(
+        'section_a',
+        'section',
+        {
+          eyebrow: 'Handmade',
+          title: 'Tea time',
+          subtitle: 'Our selection',
+          surface: 'glow',
+          align: 'center',
+        },
+        [n('mq_a', 'marquee', { items: 'One,Two,Three,Four', variant: 'pills' })],
+      ),
+    );
+    expect(screen.getByText('Handmade')).toBeTruthy();
+    expect(screen.getByText('Tea time')).toBeTruthy();
+    expect(document.querySelectorAll('.mw-marquee-group')).toHaveLength(2);
+    expect(document.querySelector('.mw-section')?.getAttribute('data-surface')).toBe(
+      'glow',
+    );
+  });
+});

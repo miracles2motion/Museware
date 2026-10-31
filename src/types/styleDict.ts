@@ -63,8 +63,10 @@ export const OVERFLOW_VALUES = ['visible', 'hidden', 'auto'] as const;
 export const TEXT_ALIGN_VALUES = ['start', 'center', 'end'] as const;
 export const SIZE_WORDS = ['match', 'hug'] as const;
 
-const choice = (values: readonly string[], labels?: Record<string, string>): StyleOption[] =>
-  values.map((value) => ({ value, label: labels?.[value] || value }));
+const choice = (
+  values: readonly string[],
+  labels?: Record<string, string>,
+): StyleOption[] => values.map((value) => ({ value, label: labels?.[value] || value }));
 
 const ALIGN_CSS: Record<string, string> = {
   start: 'flex-start',
@@ -81,7 +83,14 @@ const JUSTIFY_CSS: Record<string, string> = {
 
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
 
-const UNITLESS = new Set(['fontWeight', 'opacity', 'lineHeight', 'zIndex', 'order', 'grow']);
+const UNITLESS = new Set([
+  'fontWeight',
+  'opacity',
+  'lineHeight',
+  'zIndex',
+  'order',
+  'grow',
+]);
 
 export const camelToKebab = (key: string) =>
   key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -206,12 +215,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     kind: 'spacing',
     group: 'Space',
     scope: 'every',
-    suggestions: [
-      'var(--radius-card)',
-      'var(--radius-button)',
-      'var(--radius-chip)',
-      '0',
-    ],
+    suggestions: ['var(--radius-card)', 'var(--radius-button)', 'var(--radius-chip)', '0'],
   },
 
   /* ---------- Size: Sketchware's match / hug / length ---------- */
@@ -381,6 +385,67 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     options: choice(OVERFLOW_VALUES),
     emit: (v) => [`overflow:${String(v)}`],
   },
+  {
+    key: 'colSpan',
+    label: 'Column span',
+    hint: 'Grid columns occupied on larger screens; phone always stacks.',
+    kind: 'choice',
+    group: 'Layout',
+    scope: 'every',
+    options: choice(['1', '2', '3', '4', 'full']),
+    emit: () => [],
+  },
+  {
+    key: 'rowSpan',
+    label: 'Row span',
+    hint: 'Grid rows occupied on expanded screens.',
+    kind: 'choice',
+    group: 'Layout',
+    scope: 'every',
+    options: choice(['1', '2', '3']),
+    emit: () => [],
+  },
+  {
+    key: 'backdropBlur',
+    label: 'Backdrop blur',
+    hint: 'Blur the background behind this surface.',
+    kind: 'choice',
+    group: 'Effects',
+    scope: 'every',
+    options: choice(['none', 'sm', 'md', 'lg']),
+    emit: (v) => {
+      const blur = (
+        { none: 'none', sm: 'blur(4px)', md: 'blur(12px)', lg: 'blur(24px)' } as Record<
+          string,
+          string
+        >
+      )[String(v)];
+      return blur ? [`backdrop-filter:${blur}`, `-webkit-backdrop-filter:${blur}`] : [];
+    },
+  },
+  {
+    key: 'aspectRatio',
+    label: 'Aspect ratio',
+    hint: 'Shape of media blocks.',
+    kind: 'choice',
+    group: 'Size',
+    scope: 'every',
+    options: choice(['auto', '1/1', '4/3', '16/9', '4/5', '21/9']),
+    emit: () => [],
+  },
+  {
+    key: 'position',
+    label: 'Position',
+    hint: 'Sticky pins the block at the top while scrolling.',
+    kind: 'choice',
+    group: 'Layout',
+    scope: 'every',
+    options: choice(['static', 'relative', 'sticky']),
+    emit: (v) =>
+      v === 'sticky'
+        ? ['position:sticky', 'top:0', 'z-index:20']
+        : [`position:${String(v)}`],
+  },
 ];
 
 export const STYLE_BY_KEY = new Map(STYLE_FIELDS.map((f) => [f.key, f]));
@@ -474,6 +539,15 @@ export function styleValueIssue(key: string, value: unknown): string | null {
         : 'grow is 0 or 1 (1 fills the leftover space)';
     }
     return typeof value === 'boolean' ? null : `${key} is true or false`;
+  }
+  if (key === 'colSpan' || key === 'rowSpan') {
+    if (key === 'colSpan' && value === 'full') return null;
+    return typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= 1 &&
+      value <= (key === 'colSpan' ? 4 : 3)
+      ? null
+      : `${key} must be ${key === 'colSpan' ? '1–4 or full' : '1–3'}`;
   }
   if (field.kind === 'choice' && field.options) {
     // Options are labels; CSS accepts the same word as a number (fontWeight).

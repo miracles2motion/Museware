@@ -29,6 +29,29 @@ function demoDoc(): ProjectDoc {
     if (res.errors.length) throw new Error(res.errors[0].message);
     doc = res.doc;
   }
+  doc.screens[0].root.children.push(
+    {
+      id: 'pr_a_marquee',
+      type: 'marquee',
+      props: { items: 'Tea, Coffee, Cocoa, Spice', variant: 'pills', speed: 30 },
+      styles: {},
+      children: [],
+    },
+    {
+      id: 'pr_a_faq',
+      type: 'accordion',
+      props: { items: 'Why tea? | It tastes good.' },
+      styles: {},
+      children: [],
+    },
+    {
+      id: 'pr_a_section',
+      type: 'section',
+      props: { eyebrow: 'Hello', title: 'Tea', subtitle: 'For you', surface: 'glow' },
+      styles: {},
+      children: [],
+    },
+  );
   return doc;
 }
 

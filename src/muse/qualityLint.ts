@@ -1,4 +1,5 @@
 import { SCAFFOLD_STRINGS } from '../types/library';
+import { marqueeItems } from '../types/editorial';
 import type { DesignTokens } from '../types/tokens';
 import type { ComponentNode, ScreenDoc } from '../types/tree';
 
@@ -43,6 +44,9 @@ export function lintScreen(
   let hasResponsive = false;
   let hasNavbar = false;
   let heroCount = 0;
+  let marqueeCount = 0;
+  let accentSections = 0;
+  let glowSections = 0;
   const rawPixels = (value: unknown): number[] => {
     if (typeof value === 'number') return [value];
     if (typeof value !== 'string' || /var\(|calc\(/i.test(value)) return [];
@@ -68,6 +72,80 @@ export function lintScreen(
   }
   const visit = (node: ComponentNode) => {
     if (node.type === 'navbar') hasNavbar = true;
+    if (node.type === 'section') {
+      const title = String(node.props.title || '')
+        .trim()
+        .toLowerCase();
+      const first = node.children[0];
+      if (
+        title &&
+        first?.type === 'heading' &&
+        String(first.props.text || '')
+          .trim()
+          .toLowerCase() === title
+      )
+        add(node, 'block', 'markup', 'Section title duplicates its first child heading.');
+      if (node.props.surface === 'accent' && ++accentSections > 1)
+        add(node, 'warn', 'token', 'More than one accent section on this screen.');
+      if (node.props.surface === 'glow' && ++glowSections > 2)
+        add(node, 'warn', 'token', 'More than two glow sections on this screen.');
+    }
+    if (node.type === 'marquee') {
+      if (++marqueeCount > 2)
+        add(node, 'block', 'markup', 'More than two marquees on this screen.');
+      if (marqueeItems(node.props.items).length < 4)
+        add(node, 'warn', 'cramped', 'Marquee has fewer than four items.');
+    }
+    if (node.type === 'accordion') {
+      const key = String(node.props.dataKey || node.props.bindKey || '');
+      const rows = screen.mockData?.[key];
+      const lines =
+        typeof node.props.items === 'string'
+          ? node.props.items.split(/\r?\n/).filter((line) => line.trim())
+          : [];
+      if (!rows?.length && (!lines.length || lines.some((line) => !line.includes('|'))))
+        add(
+          node,
+          'block',
+          'markup',
+          'Accordion requires Question | Answer lines or mock data rows.',
+        );
+    }
+    if (
+      (node.styles.aspectRatio ||
+        node.styles.responsive?.medium?.aspectRatio ||
+        node.styles.responsive?.expanded?.aspectRatio) &&
+      !['image', 'hero', 'card'].includes(node.type)
+    )
+      add(
+        node,
+        'warn',
+        'responsive',
+        'Aspect ratio is only applied to media blocks, not text containers.',
+      );
+    if (node.type === 'grid' && node.children.length) {
+      const cols = Math.max(
+        1,
+        Math.min(
+          6,
+          Number(
+            node.styles.responsive?.expanded?.columns ??
+              node.styles.columns ??
+              node.props.columns,
+          ) || 2,
+        ),
+      );
+      const total = node.children.reduce(
+        (sum, child) =>
+          sum +
+          (child.styles.colSpan === 'full'
+            ? cols
+            : Math.max(1, Math.min(cols, Number(child.styles.colSpan) || 1))),
+        0,
+      );
+      if (cols > 1 && total > cols && total % cols === 1)
+        add(node, 'warn', 'responsive', 'Grid has an orphan cell in the final row.');
+    }
     if (node.type === 'hero') {
       heroCount++;
       if (heroCount > 1)

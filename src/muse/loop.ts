@@ -58,7 +58,8 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Nest at most 3 levels inside one add node; deeper structure is more add ops with parentId in the same call. ' +
     'Events ride on setProps: {events:{tap:[{type:"navigate",to:"home"}]}} — types navigate, setState, toggle, toast, openUrl, when. ' +
     'styles keys: gap, align(start|center|end|stretch = align children), justify(start|center|end|space-between = distribute), wrap, grow(1 = fill leftover space), selfAlign, padding, width/height ("match"|"hug"|length), background, color, fontSize, fontWeight, textAlign, borderRadius, boxShadow, opacity. ' +
-    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}. ' +
+    'styles also include colSpan(1–4|full), rowSpan(1–3), backdropBlur(none|sm|md|lg), aspectRatio(auto|1/1|4/3|16/9|4/5|21/9), position(static|relative|sticky). ' +
+    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}, section{eyebrow,title,subtitle,align,surface,bleed}, marquee{label,items comma string,variant,speed}, accordion{items Question | Answer lines or dataKey}, navbar{variant}. ' +
     'Long batches: split them into several edit_canvas calls of at most 12 ops each. An oversized call can be cut off mid-JSON and dropped without being applied.',
   illustrate_images:
     'Generate images for up to six existing hero, image or card nodes: targets [{id, prompt?}]. One image per target, with palette-aware prompts.',
@@ -2030,18 +2031,16 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
       const planned = parsed.screens.find((item) => item.id === id);
       if (screen && planned && beforeScreens.has(id)) {
         const { lookTitle, lookBody, lookPad, lookGap } = planned.root.props;
-        const result = useProject
-          .getState()
-          .applyBatch(
-            [
-              {
-                op: 'setProps',
-                id: screen.root.id,
-                props: { lookTitle, lookBody, lookPad, lookGap },
-              },
-            ],
-            { source: 'agent' },
-          );
+        const result = useProject.getState().applyBatch(
+          [
+            {
+              op: 'setProps',
+              id: screen.root.id,
+              props: { lookTitle, lookBody, lookPad, lookGap },
+            },
+          ],
+          { source: 'agent' },
+        );
         if (result.errors.length)
           addSystem(
             `Could not apply screen typography: ${result.errors.map((error) => error.message).join(', ')}`,

@@ -42,6 +42,8 @@ export const LEAF_TYPES = [
   'table',
   'stat',
   'chart',
+  'marquee',
+  'accordion',
 ] as const;
 
 export type ContainerType = (typeof CONTAINER_TYPES)[number];
