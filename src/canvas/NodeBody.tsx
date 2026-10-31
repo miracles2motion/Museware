@@ -9,6 +9,7 @@ import { isVisible, runActions, screenSlugForLabel, useRuntime } from '../previe
 import { nodeClass } from './cssGen';
 import { avatarPlaceholder, placeholderImage } from './placeholder';
 import { Icon } from './Icon';
+import { MotionCanvas } from './MotionCanvas';
 import { defaultPropsFor } from '../types/library';
 import { marqueeItems, accordionItems } from '../types/editorial';
 import { useAgent } from '../store/useAgent';
@@ -834,6 +835,55 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         </div>
       );
     }
+    case 'scene3d':
+      return (
+        <div className={`${cls} mw-motion`}>
+          <MotionCanvas
+            preset={asText(p.preset, 'globe')}
+            speed={Number(p.speed)}
+            interactive={Boolean(p.interactive)}
+          />
+          <div className="mw-motion-overlay">
+            {Boolean(p.title) && <h2>{asText(p.title)}</h2>}
+            {Boolean(p.subtitle) && <p>{asText(p.subtitle)}</p>}
+          </div>
+        </div>
+      );
+    case 'video':
+      return (
+        <div className={cls}>
+          <div className="mw-motion">
+            {p.src ? (
+              <video
+                controls
+                src={asText(p.src)}
+                poster={asText(p.poster) || undefined}
+                autoPlay={Boolean(p.autoplayMuted)}
+                muted={Boolean(p.autoplayMuted)}
+                playsInline
+              />
+            ) : (
+              <>
+                <MotionCanvas preset="reel" />
+                <div className="mw-reel-controls">
+                  <button type="button" data-reel-toggle>
+                    Pause
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue="0"
+                    aria-label="Reel position"
+                    data-reel-scrub
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          {Boolean(p.caption) && <p>{asText(p.caption)}</p>}
+        </div>
+      );
     case 'section':
       return (
         <section

@@ -44,6 +44,8 @@ export const LEAF_TYPES = [
   'chart',
   'marquee',
   'accordion',
+  'scene3d',
+  'video',
 ] as const;
 
 export type ContainerType = (typeof CONTAINER_TYPES)[number];

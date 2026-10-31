@@ -1,3 +1,4 @@
+import motionSource from '../canvas/motion.js?raw';
 import type { ComponentNode, ProjectDoc, ScreenDoc, Action } from '../types/tree';
 import { materializeCss, screenLookVariables } from '../design/materialize';
 import { generateFullCss, nodeClass } from '../canvas/cssGen';
@@ -144,6 +145,10 @@ ${pad}  <span className="mw-nav-items">${links}${cta}</span>
 ${pad}  <details className="mw-nav-menu"><summary aria-label="Toggle navigation menu">Menu</summary><div className="mw-nav-dropdown">${links}${cta}</div></details>
 ${pad}</nav>`;
     }
+    case 'scene3d':
+      return `${pad}<div className={${str(`${cls} mw-motion`)}}><MotionCanvas preset=${str(p.preset || 'globe')} speed={${Number(p.speed) || 1}} interactive={${Boolean(p.interactive)}} /><div className="mw-motion-overlay">${p.title ? `<h2>${jsxText(p.title)}</h2>` : ''}${p.subtitle ? `<p>${jsxText(p.subtitle)}</p>` : ''}</div></div>`;
+    case 'video':
+      return `${pad}<div className={${str(cls)}}><div className="mw-motion">${p.src ? `<video controls src=${str(p.src)}${p.poster ? ` poster=${str(p.poster)}` : ''} autoPlay={${Boolean(p.autoplayMuted)}} muted={${Boolean(p.autoplayMuted)}} playsInline />` : '<><MotionCanvas preset="reel"/><div className="mw-reel-controls"><button type="button" data-reel-toggle>Pause</button><input type="range" min="0" max="100" defaultValue="0" aria-label="Reel position" data-reel-scrub /></div></>'}</div>${p.caption ? `<p>${jsxText(p.caption)}</p>` : ''}</div>`;
     case 'marquee': {
       const items = marqueeItems(p.items);
       const itemMarkup = items
@@ -353,6 +358,7 @@ function screenModule(doc: ProjectDoc, screen: ScreenDoc): string {
   return `import type { CSSProperties } from 'react';
 import { useApp, TabsBlock, matchesValue } from '../runtime';
 import { Icon } from '../icons';
+import { MotionCanvas } from '../MotionCanvas';
 
 export function ${name}Screen() {
   const { state, setKey, run, go } = useApp();
@@ -370,6 +376,13 @@ ${body}
 
 export function generateProjectFiles(doc: ProjectDoc): Record<string, string> {
   const files: Record<string, string> = {};
+  files['src/motion.js'] = motionSource;
+  files['src/motion.d.ts'] =
+    'export function mountMotion(canvas: HTMLCanvasElement, options?: { preset?: string; speed?: number; interactive?: boolean }): () => void;';
+  files['src/MotionCanvas.tsx'] = `import { useEffect, useRef } from 'react';
+import { mountMotion } from './motion';
+export function MotionCanvas({preset,speed,interactive}:{preset:string;speed?:number;interactive?:boolean}) { const ref=useRef<HTMLCanvasElement>(null); useEffect(()=>ref.current ? mountMotion(ref.current,{preset,speed,interactive}) : undefined,[preset,speed,interactive]); return <canvas ref={ref} aria-hidden="true"/>; }`;
+
   const entry = doc.screens.find((s) => s.entry) || doc.screens[0];
   const usedIcons = new Set<string>(['star']);
   for (const screen of doc.screens) {

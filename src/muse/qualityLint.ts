@@ -45,6 +45,7 @@ export function lintScreen(
   let hasNavbar = false;
   let heroCount = 0;
   let marqueeCount = 0;
+  let sceneCount = 0;
   let accentSections = 0;
   let glowSections = 0;
   const rawPixels = (value: unknown): number[] => {
@@ -72,6 +73,8 @@ export function lintScreen(
   }
   const visit = (node: ComponentNode) => {
     if (node.type === 'navbar') hasNavbar = true;
+    if (node.type === 'scene3d' && ++sceneCount > 1)
+      add(node, 'block', 'markup', 'More than one scene3d on this screen.');
     if (node.type === 'section') {
       const title = String(node.props.title || '')
         .trim()
@@ -115,7 +118,7 @@ export function lintScreen(
       (node.styles.aspectRatio ||
         node.styles.responsive?.medium?.aspectRatio ||
         node.styles.responsive?.expanded?.aspectRatio) &&
-      !['image', 'hero', 'card'].includes(node.type)
+      !['image', 'hero', 'card', 'video'].includes(node.type)
     )
       add(
         node,

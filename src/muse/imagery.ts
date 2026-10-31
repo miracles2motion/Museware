@@ -173,15 +173,18 @@ export async function illustrateTarget(
     return outcome;
   };
   const node = hit?.node;
-  if (!node || !['hero', 'image', 'card'].includes(node.type))
+  if (!node || !['hero', 'image', 'card', 'video'].includes(node.type))
     return finish({
       id: target.id,
       ok: false,
-      message: 'Target must be an existing hero, image, or card.',
+      message: 'Target must be an existing hero, image, card, or video.',
     });
-  const key = node.type === 'image' ? 'src' : 'image';
-  const previous = JSON.stringify([node.props.src, node.props.image]);
-  if (options.onlyEmpty && (node.props.src || node.props.image))
+  const key = node.type === 'image' ? 'src' : node.type === 'video' ? 'poster' : 'image';
+  const previous = JSON.stringify([node.props.src, node.props.image, node.props.poster]);
+  if (
+    options.onlyEmpty &&
+    (node.type === 'video' ? node.props.poster : node.props.src || node.props.image)
+  )
     return finish({ id: node.id, ok: false, message: 'Already has an image.' });
   const agent = useAgent.getState();
   if (agent.demoMode)
@@ -271,8 +274,12 @@ export async function illustrateTarget(
       !current ||
       current.type !== node.type ||
       useProject.getState().documentEpoch !== documentEpoch ||
-      JSON.stringify([current.props.src, current.props.image]) !== previous ||
-      (options.onlyEmpty && (current.props.src || current.props.image))
+      JSON.stringify([current.props.src, current.props.image, current.props.poster]) !==
+        previous ||
+      (options.onlyEmpty &&
+        (current.type === 'video'
+          ? current.props.poster
+          : current.props.src || current.props.image))
     )
       return finish({
         id: node.id,

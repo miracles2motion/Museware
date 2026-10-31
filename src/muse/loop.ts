@@ -1,3 +1,4 @@
+import { videoSourceViolation } from './videoGuard';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { editCanvasWire, readCanvasWire, illustrateImagesWire } from '../types/wire';
 import { TOOL_NAMES, toolSchemas, type ToolName } from '../types/tools';
@@ -864,6 +865,11 @@ async function runTool(
 
     case 'edit_canvas': {
       const a = args as { screen_id?: string; ops: unknown[] };
+      const userPrompt =
+        [...useProject.getState().doc.rail].reverse().find((entry) => entry.role === 'user')
+          ?.text || '';
+      if (videoSourceViolation(a.ops, opts.scope?.doc || doc, userPrompt))
+        return { text: 'REJECTED: video source must appear exactly in the user’s prompt.' };
       if (opts.scope) {
         const filtered = filterScopedOps(
           opts.scope.doc,

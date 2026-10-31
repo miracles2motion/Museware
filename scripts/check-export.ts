@@ -31,6 +31,20 @@ function demoDoc(): ProjectDoc {
   }
   doc.screens[0].root.children.push(
     {
+      id: 'motion_scene',
+      type: 'scene3d',
+      props: { preset: 'globe', title: 'Tea' },
+      styles: {},
+      children: [],
+    },
+    {
+      id: 'motion_video',
+      type: 'video',
+      props: { src: '', caption: 'Reel' },
+      styles: {},
+      children: [],
+    },
+    {
       id: 'pr_a_marquee',
       type: 'marquee',
       props: { items: 'Tea, Coffee, Cocoa, Spice', variant: 'pills', speed: 30 },

@@ -184,7 +184,8 @@ export function tokenRefIssue(
   const strings: unknown[] = [];
   const collect = (value: unknown) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      for (const inner of Object.values(value as Record<string, unknown>)) strings.push(inner);
+      for (const inner of Object.values(value as Record<string, unknown>))
+        strings.push(inner);
       return;
     }
     strings.push(value);
@@ -257,9 +258,7 @@ function propIssues(n: ComponentNode, requireAll: boolean): OpError[] {
     }
     if (def.kind === 'number') {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
-        errors.push(
-          error('E_BAD_OP', `${n.id}: ${def.key} must be a number`, def.hint),
-        );
+        errors.push(error('E_BAD_OP', `${n.id}: ${def.key} must be a number`, def.hint));
       } else if (
         (def.min !== undefined && value < def.min) ||
         (def.max !== undefined && value > def.max)
@@ -276,9 +275,7 @@ function propIssues(n: ComponentNode, requireAll: boolean): OpError[] {
     }
     if (def.kind === 'toggle') {
       if (typeof value !== 'boolean') {
-        errors.push(
-          error('E_BAD_OP', `${n.id}: ${def.key} is true or false`, def.hint),
-        );
+        errors.push(error('E_BAD_OP', `${n.id}: ${def.key} is true or false`, def.hint));
       }
       continue;
     }
@@ -297,9 +294,7 @@ function propIssues(n: ComponentNode, requireAll: boolean): OpError[] {
         typeof value === 'number' ||
         (Array.isArray(value) && value.every((v) => typeof v === 'string'));
       if (!ok) {
-        errors.push(
-          error('E_BAD_OP', `${n.id}: ${def.key} must be text`, def.hint),
-        );
+        errors.push(error('E_BAD_OP', `${n.id}: ${def.key} must be text`, def.hint));
       }
     }
   }
@@ -356,6 +351,25 @@ export function fieldIssues(
           `use one of: ${ICON_NAMES.slice(0, 10).join(', ')}…`,
         ),
       );
+    }
+  }
+  if (n.type === 'video') {
+    for (const [key, allowed] of [
+      ['src', /^https:\/\//i],
+      ['poster', /^(https:\/\/|data:image\/)/i],
+    ] as const) {
+      const value = n.props[key];
+      if (
+        value !== undefined &&
+        value !== '' &&
+        (typeof value !== 'string' || !allowed.test(value))
+      )
+        errors.push(
+          error(
+            'E_BAD_OP',
+            `${n.id}: video ${key} must be ${key === 'src' ? 'HTTPS' : 'HTTPS or image data'}.`,
+          ),
+        );
     }
   }
   if ((n.type === 'image' || n.type === 'avatar') && n.props.src) {

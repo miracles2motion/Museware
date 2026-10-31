@@ -433,7 +433,7 @@ function responsiveBlocks(node: ComponentNode): string[] {
   if (medium && Object.keys(medium).length) {
     const decls = [
       ...userDeclarations(medium),
-      ...(['image', 'hero', 'card'].includes(node.type) && medium.aspectRatio
+      ...(['image', 'hero', 'card', 'video'].includes(node.type) && medium.aspectRatio
         ? [`aspect-ratio:${String(medium.aspectRatio)}`]
         : []),
     ];
@@ -448,7 +448,7 @@ function responsiveBlocks(node: ComponentNode): string[] {
   if (expanded && Object.keys(expanded).length) {
     const decls = [
       ...userDeclarations(expanded),
-      ...(['image', 'hero', 'card'].includes(node.type) && expanded.aspectRatio
+      ...(['image', 'hero', 'card', 'video'].includes(node.type) && expanded.aspectRatio
         ? [`aspect-ratio:${String(expanded.aspectRatio)}`]
         : []),
     ];
@@ -497,7 +497,8 @@ export function generateCss(doc: ProjectDoc): string {
           ? ['width:auto', 'align-self:auto']
           : []),
         ...legacyLayoutDeclarations(node),
-        ...(['image', 'hero', 'card'].includes(node.type) && node.styles.aspectRatio
+        ...(['image', 'hero', 'card', 'video'].includes(node.type) &&
+        node.styles.aspectRatio
           ? [`aspect-ratio:${String(node.styles.aspectRatio)}`]
           : []),
         ...userDeclarations(node.styles).filter((decl) => {
@@ -645,6 +646,7 @@ export const UTILITY_CSS = `@container mw (min-width:600px){.mw-app{--type-displ
 .mw-nav[data-variant="minimal"]{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;border:0}.mw-nav[data-variant="floating"]{width:calc(100% - 24px);margin-inline:12px;border:1px solid var(--openui-border-default);border-radius:8px;-webkit-backdrop-filter:blur(14px)}@container mw (min-width:600px){.mw-nav[data-variant="floating"]{width:calc(100% - 24px);max-width:960px;margin-inline:auto;border-radius:999px}}
 .mw-marquee{overflow:hidden;mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent);-webkit-mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent)}.mw-marquee-track{display:flex;width:max-content;animation:mw-marquee-scroll var(--marquee-speed,30s) linear infinite}.mw-marquee:hover .mw-marquee-track{animation-play-state:paused}.mw-marquee-group{display:flex;align-items:center;gap:32px;padding-right:32px}.mw-marquee-item{white-space:nowrap;font-weight:700}.mw-marquee[data-variant="pills"] .mw-marquee-item{padding:8px 14px;border:1px solid var(--openui-border-default);border-radius:999px}.mw-marquee[data-variant="metrics"] .mw-marquee-item{font-size:var(--type-heading)}@keyframes mw-marquee-scroll{to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.mw-marquee{mask-image:none;-webkit-mask-image:none}.mw-marquee-track{animation:none;width:auto}.mw-marquee-group{flex-wrap:wrap}.mw-marquee-group[aria-hidden="true"]{display:none}}
 .mw-accordion details{border-bottom:1px solid var(--openui-border-default);padding:14px 0}.mw-accordion summary{cursor:pointer;font-weight:700}.mw-accordion-answer{max-width:65ch;line-height:1.6;padding-top:10px}
+.mw-motion{position:relative;overflow:hidden;min-height:240px;border-radius:var(--radius-card);background:var(--openui-sunk)}.mw-motion canvas,.mw-motion video{display:block;width:100%;height:100%;min-height:240px;object-fit:cover;border-radius:inherit}.mw-motion-overlay{position:absolute;inset:20px;pointer-events:none}.mw-reel-controls{display:flex;gap:10px;align-items:center;padding:8px}.mw-reel-controls input{flex:1;min-width:0}
 .mw-row-item{display:flex;align-items:center;gap:12px;padding:12px var(--pad-card);background:var(--openui-elevated);border:1px solid var(--openui-border-default);border-radius:var(--radius-card)}
 .mw-row-main{flex:1;min-width:0}
 .mw-row-title{font-size:14px;font-weight:600;color:var(--openui-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
