@@ -150,8 +150,8 @@ export async function answerBlueprint(
   markCard(cardId, 'answered');
   const doc = useProject.getState().doc;
   if (!doc.blueprint) return;
-  system('✓ Blueprint approved');
   if (useAgent.getState().demoMode) {
+    system('✓ Blueprint approved');
     await startDemoBuild('steady');
   } else {
     await approveBlueprint('steady');

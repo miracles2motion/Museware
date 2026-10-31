@@ -128,6 +128,18 @@ function applyLook(node: ComponentNode, look: LookNumbers): void {
   for (const child of node.children) applyLook(child, look);
 }
 
+// The architect sometimes puts the screen name before the colon.
+export const SCREEN_HEAD = /^\s*(?:#{1,6}\s*)?SCREEN\s*\d*\b[^\n:]*:/i;
+
+/** Return each original section in parser order; fallback keeps the whole plan. */
+export function blueprintScreenSections(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const starts = lines.flatMap((line, index) => (SCREEN_HEAD.test(line) ? [index] : []));
+  return starts.map((start, index) =>
+    lines.slice(start, starts[index + 1] ?? lines.length).join('\n'),
+  );
+}
+
 interface Frame {
   indent: number;
   node: ComponentNode;
@@ -138,7 +150,7 @@ export function parseBlueprint(text: string, tokens: DesignTokens): ParsedBluepr
   const lines = text.split(/\r?\n/);
   const screenStarts: number[] = [];
   lines.forEach((l, i) => {
-    if (/^\s*SCREEN:\s*\S/i.test(l)) screenStarts.push(i);
+    if (SCREEN_HEAD.test(l)) screenStarts.push(i);
   });
   const rulesEnd = screenStarts.length ? screenStarts[0] : lines.length;
   const rules = lines
@@ -176,12 +188,26 @@ export function parseBlueprint(text: string, tokens: DesignTokens): ParsedBluepr
   for (let s = 0; s < screenStarts.length; s += 1) {
     const start = screenStarts[s];
     const end = s + 1 < screenStarts.length ? screenStarts[s + 1] : lines.length;
-    const name = (lines[start].match(/^\s*SCREEN:\s*(.+)$/i)?.[1] || `Screen ${s + 1}`)
-      .replace(/[#*]/g, '')
-      .trim()
-      .slice(0, 40);
-    let slug = slugify(name);
-    while (usedScreenSlugs.has(slug)) slug = `${slug}_${s + 1}`;
+    const header = lines[start].replace(/[#*`]/g, '').trim();
+    const canonical = header.match(/^SCREEN\s*\d*\s*:\s*(.+)$/i);
+    const between = header.match(/^SCREEN\s*\d*\s*[-–—.]?\s*([^:]+):\s*$/i)?.[1] || '';
+    const name =
+      (
+        canonical?.[1] ||
+        between.replace(/^\d*\s*[-–—.:]?\s*/, '').trim() ||
+        `Screen ${s + 1}`
+      )
+        .replace(/[#*`]/g, '')
+        .trim()
+        .slice(0, 40) || `Screen ${s + 1}`;
+    // Root IDs add "_root" and must remain at most 31 characters.
+    const baseSlug = slugify(name).slice(0, 26);
+    let slug = baseSlug;
+    let suffix = 2;
+    while (usedScreenSlugs.has(slug)) {
+      const ending = `_${suffix++}`;
+      slug = `${baseSlug.slice(0, 26 - ending.length)}${ending}`;
+    }
     usedScreenSlugs.add(slug);
 
     const root: ComponentNode = {

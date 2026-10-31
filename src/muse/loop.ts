@@ -7,7 +7,7 @@ import { useUi } from '../store/useUi';
 import { buildTokenSheet } from './tokenSheet';
 import { buildProjectIndex } from './projectIndex';
 import { canvasOutline, subtreeOutline } from './canvasOutline';
-import { parseBlueprint } from './blueprintParse';
+import { parseBlueprint, blueprintScreenSections } from './blueprintParse';
 import { parseTypedOptions } from './typedOptions';
 import {
   MuseError,
@@ -25,7 +25,7 @@ import {
   rebuildNote,
   reviewerPrompt,
 } from './prompts';
-import type { Action, OpError, ProjectDoc } from '../types/tree';
+import type { Action, OpError, ProjectDoc, ScreenDoc } from '../types/tree';
 import { entryScreen, findNodeInDoc, clone } from '../ops/treeUtils';
 import { applyOps } from '../ops/apply';
 import { filterScopedOps } from './scope';
@@ -227,7 +227,7 @@ export function decisionLedger(doc: ProjectDoc): string {
       .slice(-5)
       .map((entry) => entry.text),
     doc.blueprint?.text
-      ? 'A blueprint is on screen awaiting approval.'
+      ? `BUILD STATE — blueprint ${doc.blueprint.decided ? 'APPROVED' : 'not yet approved'}; screens in doc: ${doc.screens.length}; last verification: ${useAgent.getState().verification}. Never claim a build is waiting for approval when this line says APPROVED.`
       : 'No blueprint yet.',
   ]
     .filter(Boolean)
@@ -1424,9 +1424,26 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
   startHeartbeat(startedAt);
 
   const parsed = parseBlueprint(blueprint, doc.tokens);
-  const targets = parsed.screens.length
-    ? parsed.screens
-    : doc.screens.map((s) => ({ id: s.id, name: s.name, root: s.root }));
+  const targets: ScreenDoc[] = parsed.screens.length ? parsed.screens : [...doc.screens];
+  const sections = blueprintScreenSections(blueprint);
+  if (!targets.length) {
+    const name = doc.name.trim().slice(0, 40) || 'Landing';
+    targets.push({
+      id: 'screen_plan',
+      name,
+      entry: true,
+      root: {
+        id: 'screen_plan_root',
+        type: 'screen',
+        props: { layout: 'flex-col', scroll: true },
+        styles: {},
+        children: [],
+      },
+    });
+    addSystem(
+      "The plan's screen headers were not in a format I could split — building it as ONE screen from the whole plan.",
+    );
+  }
   const card = addCard(
     'progress',
     {
@@ -1499,12 +1516,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           },
         },
       });
-      const section =
-        parsed.text
-          .split(/^\s*SCREEN:/im)
-          .find((chunk) =>
-            chunk.trim().toLowerCase().startsWith(target.name.toLowerCase()),
-          ) || target.name;
+      const section = sections[i] || blueprint;
       const fillText = fillPrompt({
         screenName: target.name,
         section: section.slice(0, 1600),
@@ -1538,6 +1550,16 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
       }
     }
 
+    // The model may have removed a screen after its fill round. Never review or
+    // report a non-existent screen as completed.
+    const builtIds = new Set(useProject.getState().doc.screens.map((screen) => screen.id));
+    for (const id of completed)
+      if (!builtIds.has(id)) {
+        completed.delete(id);
+        useAgent
+          .getState()
+          .patchPart(id, { state: 'failed', note: 'Screen no longer exists.' });
+      }
     const stopped = controller.signal.aborted;
     useProject.getState().patchRail(card.id, {
       card: {
