@@ -513,7 +513,37 @@ export function Canvas() {
                   />
                   <span
                     className="id-chip"
-                    style={{ left: selBox.left, top: Math.max(0, selBox.top - 20) }}
+                    style={{
+                      left: Math.max(
+                        4,
+                        Math.min(
+                          selBox.left,
+                          (viewportRef.current?.clientWidth || width) - 100,
+                        ),
+                      ),
+                      top:
+                        selBox.top >= 20
+                          ? selBox.top - 20
+                          : Math.min(
+                              selBox.top + 22,
+                              Math.max(
+                                0,
+                                (viewportRef.current?.clientHeight || frameHeight) - 18,
+                              ),
+                            ),
+                      maxWidth: Math.max(
+                        0,
+                        (viewportRef.current?.clientWidth || width) -
+                          Math.max(
+                            4,
+                            Math.min(
+                              selBox.left,
+                              (viewportRef.current?.clientWidth || width) - 100,
+                            ),
+                          ) -
+                          4,
+                      ),
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (selectedId) {
@@ -612,9 +642,35 @@ export function Canvas() {
                 <div
                   className="inline-edit"
                   style={{
-                    left: Math.max(4, editing.box.left),
-                    top: editing.box.top,
-                    width: Math.max(140, editing.box.width),
+                    left: Math.max(
+                      4,
+                      Math.min(
+                        editing.box.left,
+                        (viewportRef.current?.clientWidth || width) - 144,
+                      ),
+                    ),
+                    top: Math.max(
+                      4,
+                      Math.min(
+                        editing.box.top,
+                        (viewportRef.current?.clientHeight || frameHeight) - 48,
+                      ),
+                    ),
+                    width: Math.min(
+                      Math.max(140, editing.box.width),
+                      Math.max(
+                        0,
+                        (viewportRef.current?.clientWidth || width) -
+                          Math.max(
+                            4,
+                            Math.min(
+                              editing.box.left,
+                              (viewportRef.current?.clientWidth || width) - 144,
+                            ),
+                          ) -
+                          4,
+                      ),
+                    ),
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >

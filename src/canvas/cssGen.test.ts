@@ -306,3 +306,37 @@ describe('responsive defaults and image shape', () => {
     expect(ruleFor(css, 'img_a')).toContain('max-width:900px');
   });
 });
+
+describe('Wave 3 responsive defaults', () => {
+  it('respects explicit and full-width buttons including in rows', () => {
+    const css = cssOf(
+      node('auto', 'button'),
+      node('full', 'button', {}, { widthMode: 'full' }),
+      node('fixed', 'button', { width: '250px' }),
+      node('row', 'row', {}, {}, [
+        node('inrow', 'button'),
+        node('rowfull', 'button', {}, { widthMode: 'full' }),
+      ]),
+    );
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-auto{width:auto;align-self:flex-start}}',
+    );
+    expect(css).not.toContain('@container mw (min-width:600px){.n-full{width:auto');
+    expect(css).not.toContain('@container mw (min-width:600px){.n-fixed{width:auto');
+    expect(ruleFor(css, 'inrow')).toContain('width:auto');
+    expect(ruleFor(css, 'rowfull')).not.toContain('width:auto');
+  });
+  it('splits hero child media without forcing a background or custom padding', () => {
+    const css = cssOf(
+      node('hero', 'hero', { background: 'pink', padding: '40px' }, { surface: 'glow' }, [
+        node('media', 'card'),
+      ]),
+    );
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-hero{display:grid;grid-template-columns:1fr 1fr',
+    );
+    expect(ruleFor(css, 'hero')).toContain('background:pink');
+    expect(ruleFor(css, 'hero')).toContain('padding:40px');
+    expect(UTILITY_CSS).toContain('mw-browser-frame');
+  });
+});

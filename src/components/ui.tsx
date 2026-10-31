@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -189,6 +190,31 @@ export function Menu({
       window.removeEventListener('keydown', onKey);
     };
   }, [open, onClose]);
+  useLayoutEffect(() => {
+    if (!open || !ref.current) return;
+    const clamp = () => {
+      const el = ref.current;
+      if (!el) return;
+      el.style.transform = '';
+      const rect = el.getBoundingClientRect();
+      const dx =
+        rect.left < 8
+          ? 8 - rect.left
+          : rect.right > window.innerWidth - 8
+            ? window.innerWidth - 8 - rect.right
+            : 0;
+      const dy =
+        rect.top < 8
+          ? 8 - rect.top
+          : rect.bottom > window.innerHeight - 8
+            ? window.innerHeight - 8 - rect.bottom
+            : 0;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    };
+    clamp();
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
+  }, [open, align, children]);
   if (!open) return null;
   return (
     <div

@@ -47,6 +47,31 @@ beforeEach(() => {
   });
 });
 describe('quality lint and gate', () => {
+  it('warns on Wave 3 composition and raw sizes without confusing tokens with pixels', () => {
+    const s = useProject.getState().doc.screens[0];
+    s.root.styles = { padding: '12px 32px', gap: 'var(--gap-section)' };
+    const h1 = node('h1_test', 'heading', { level: 1 });
+    h1.styles.fontSize = '48px';
+    const second = node('hero_two', 'hero', { surface: 'glow' });
+    second.styles.color = 'var(--openui-text-on-accent)';
+    const grid = node('grid_test', 'grid', {});
+    grid.children = [
+      node('card_a', 'card', { variant: 'spotlight' }),
+      node('card_b', 'card', { variant: 'accent' }),
+    ];
+    s.root.children.push(h1, second, grid);
+    const messages = lintScreen(s, undefined, new Set(), 'web').map((f) => f.message);
+    expect(messages.some((m) => m.includes('below 24px'))).toBe(true);
+    expect(messages.some((m) => m.includes('raw pixel font'))).toBe(true);
+    expect(messages.some((m) => m.includes('More than one hero'))).toBe(true);
+    expect(messages.some((m) => m.includes('on-accent text'))).toBe(true);
+    expect(messages.some((m) => m.includes('more than one spotlight'))).toBe(true);
+    expect(
+      lintScreen(s, undefined, new Set(), 'app').some((f) =>
+        f.message.includes('below 24px'),
+      ),
+    ).toBe(false);
+  });
   it('warns a web build when responsive overrides or navbar are absent', () => {
     const s = useProject.getState().doc.screens[0];
     const warnings = lintScreen(s, undefined, new Set(), 'web');

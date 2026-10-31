@@ -219,7 +219,7 @@ export function Topbar() {
           >
             <LayoutGrid size={14} />
           </IconButton>
-          <Menu open={menu === 'screen'} onClose={() => setMenu(null)}>
+          <Menu open={menu === 'screen'} onClose={() => setMenu(null)} align="left">
             <button
               type="button"
               onClick={() => {

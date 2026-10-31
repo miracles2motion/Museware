@@ -84,8 +84,10 @@ const scaleLines = (s: DerivedScales): string[] => [
   `--radius-input:${s.radiusInput}px`,
   `--radius-chip:${s.radiusChip}px`,
   `--radius-tag:${s.radiusTag}px`,
-  `--pad-screen:${s.padScreen}px`,
-  `--gap-section:${s.gapSection}px`,
+  `--pad-screen-base:${s.padScreen}px`,
+  `--gap-section-base:${s.gapSection}px`,
+  '--pad-screen:var(--pad-screen-base)',
+  '--gap-section:var(--gap-section-base)',
   `--pad-card:${s.padCard}px`,
   `--gap-item:${s.gapItem}px`,
   `--pad-control-x:${Math.max(12, Math.round(s.padCard * 0.9))}px`,
@@ -94,8 +96,21 @@ const scaleLines = (s: DerivedScales): string[] => [
   `--h-chip:${s.hChip}px`,
   `--h-row:${s.hRow}px`,
   `--h-nav:${s.hNav}px`,
-  `--type-display:${Math.round(28 + s.padScreen * 0.2)}px`,
-  `--type-title:${Math.round(20 + s.padScreen * 0.1)}px`,
+  `--type-display-base:${Math.round(28 + s.padScreen * 0.2)}px`,
+  `--type-title-base:${Math.round(20 + s.padScreen * 0.1)}px`,
+  '--type-display:var(--type-display-base)',
+  '--type-title:var(--type-title-base)',
+  `--type-display-md:${Math.round(Math.round(28 + s.padScreen * 0.2) * 1.375)}px`,
+  `--type-display-lg:${Math.round(Math.round(28 + s.padScreen * 0.2) * 1.75)}px`,
+  `--type-title-md:${Math.round(Math.round(20 + s.padScreen * 0.1) * 1.27)}px`,
+  `--type-title-lg:${Math.round(Math.round(20 + s.padScreen * 0.1) * 1.55)}px`,
+  `--gap-section-md:${Math.round(s.gapSection * 2)}px`,
+  `--gap-section-lg:${Math.round(s.gapSection * 3)}px`,
+  `--pad-screen-md:${Math.round(s.padScreen * 1.8)}px`,
+  `--pad-screen-lg:${Math.round(s.padScreen * 2.8)}px`,
+  '--shadow-card:0 2px 6px rgba(0,0,0,.07), 0 12px 28px rgba(0,0,0,.08)',
+  '--shadow-raised:0 4px 10px rgba(0,0,0,.10), 0 20px 40px rgba(0,0,0,.12)',
+  '--shadow-glow:0 4px 14px rgba(0,0,0,.08), 0 18px 44px rgba(0,0,0,.12)',
   `--type-heading:${Math.round(16 + s.gapSection * 0.06)}px`,
   `--type-body:14px`,
   `--type-label:12px`,
@@ -138,6 +153,42 @@ export function materializeCss(tokens: DesignTokens, scope = ':root'): string {
   lines.push(...colorBlock(dark).map((l) => `${l};`));
   lines.push('}');
   return lines.join('\n');
+}
+
+/** Screen-specific LOOK typography, without hard-coding leaf font sizes. */
+export function screenLookVariables(
+  props: Record<string, unknown>,
+): Record<string, string> {
+  const title = Number(props.lookTitle);
+  const body = Number(props.lookBody);
+  if (!Number.isFinite(title) || title <= 0 || !Number.isFinite(body) || body <= 0)
+    return {};
+  const display = title + 8;
+  const pad = Number(props.lookPad);
+  const gap = Number(props.lookGap);
+  return {
+    ...(Number.isFinite(pad) && pad >= 0 && props.lookPad !== undefined
+      ? {
+          '--pad-screen-base': `${pad}px`,
+          '--pad-screen-md': `${Math.round(pad * 1.8)}px`,
+          '--pad-screen-lg': `${Math.round(pad * 2.8)}px`,
+        }
+      : {}),
+    ...(Number.isFinite(gap) && gap >= 0 && props.lookGap !== undefined
+      ? {
+          '--gap-section-base': `${gap}px`,
+          '--gap-section-md': `${Math.round(gap * 2)}px`,
+          '--gap-section-lg': `${Math.round(gap * 3)}px`,
+        }
+      : {}),
+    '--type-display-base': `${display}px`,
+    '--type-title-base': `${title}px`,
+    '--type-body': `${body}px`,
+    '--type-display-md': `${Math.round(display * 1.375)}px`,
+    '--type-display-lg': `${Math.round(display * 1.75)}px`,
+    '--type-title-md': `${Math.round(title * 1.27)}px`,
+    '--type-title-lg': `${Math.round(title * 1.55)}px`,
+  };
 }
 
 /** The component tokens that actually apply — preset overrides else core defaults. */
@@ -197,6 +248,7 @@ export function knownTokenNames(tokens: DesignTokens): Set<string> {
   names.add('type-heading');
   names.add('type-body');
   names.add('type-label');
+  for (const name of ['shadow-card', 'shadow-raised', 'shadow-glow']) names.add(name);
   names.add('font-heading');
   names.add('font-body');
   return names;

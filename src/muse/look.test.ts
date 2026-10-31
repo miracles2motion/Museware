@@ -1,11 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import { MUSEWARE_DEFAULT_THEME } from '../design/starter';
 import { emptyScreen } from '../ops/screenOps';
-import { defaultLook, parseLook } from './blueprintParse';
+import { defaultLook, parseBlueprint, parseLook } from './blueprintParse';
+import {
+  materializeCss,
+  screenLookVariables,
+  knownTokenNames,
+} from '../design/materialize';
 import { lintScreen } from './qualityLint';
 
 const parse = (text: string) => parseLook(text, MUSEWARE_DEFAULT_THEME);
 describe('LOOK measurements cannot crush a viewport', () => {
+  it('keeps LOOK responsive and screen-scoped instead of leaf pixels', () => {
+    const parsed = parseBlueprint(
+      'LOOK: pad 24, gap 18, title 30, body 16\nSCREEN: Home\n- title_home (heading) Welcome\n- body_home (text) Hello',
+      MUSEWARE_DEFAULT_THEME,
+    );
+    const root = parsed.screens[0].root;
+    expect(root.props).toMatchObject({
+      lookTitle: 30,
+      lookBody: 16,
+      lookPad: 24,
+      lookGap: 18,
+    });
+    expect(root.styles.padding).toBe('var(--pad-screen)');
+    expect(root.children.every((child) => child.styles.fontSize === undefined)).toBe(true);
+    const vars = screenLookVariables(root.props);
+    expect(vars['--type-title-base']).toBe('30px');
+    expect(vars['--type-title-md']).toBe('38px');
+    expect(vars['--pad-screen-lg']).toBe('67px');
+    expect(materializeCss(MUSEWARE_DEFAULT_THEME)).toContain(
+      '--shadow-card:0 2px 6px rgba',
+    );
+    expect(knownTokenNames(MUSEWARE_DEFAULT_THEME).has('shadow-glow')).toBe(true);
+  });
   it('never uses the compact viewport width as padding when no LOOK padding exists', () => {
     const plan =
       'RULES: Compact-first 390px, expanded 1280px.\nSCREEN: Tea Landing\n- hero_tea (hero) Tea\nLOOK: warm artisan palette; modern editorial styling\nSTATE: menu_open';

@@ -95,6 +95,7 @@ function baseDeclarations(node: ComponentNode): string[] {
         `font-size:${sizes[level] || sizes[2]}`,
         'font-weight:700',
         'line-height:1.22',
+        'text-wrap:balance',
         'letter-spacing:-0.015em',
         'color:var(--openui-text-primary)',
         'margin:0',
@@ -107,6 +108,7 @@ function baseDeclarations(node: ComponentNode): string[] {
         'line-height:1.58',
         'color:var(--openui-text-secondary)',
         'white-space:pre-wrap',
+        'max-width:65ch',
       );
       break;
     case 'label':
@@ -457,6 +459,7 @@ function responsiveBlocks(node: ComponentNode): string[] {
 export function generateCss(doc: ProjectDoc): string {
   const rules: string[] = [
     '.mw-css-root,.mw-app{container-type:inline-size;container-name:mw;font-family:var(--font-body);color:var(--openui-text-primary);background:var(--openui-bg);-webkit-font-smoothing:antialiased}',
+    '.mw-app{--type-display:var(--type-display-base);--type-title:var(--type-title-base);--pad-screen:var(--pad-screen-base);--gap-section:var(--gap-section-base)}',
     '.mw-app *{box-sizing:border-box}',
     '.mw-app button{font-family:inherit}',
     '.mw-app img{max-width:100%}',
@@ -473,16 +476,66 @@ export function generateCss(doc: ProjectDoc): string {
           .forEach((child) => rowButtons.add(child.id));
       }
     });
+    if (doc.kind === 'web')
+      rules.push(
+        `@container mw (min-width:1024px){.mw-app > .${nodeClass(screen.root.id)} > *{max-width:1120px;margin-inline:auto}}`,
+      );
     walk(screen.root, (node) => {
       const decls = [
         ...baseDeclarations(node),
-        ...(rowButtons.has(node.id) ? ['width:auto', 'align-self:auto'] : []),
+        ...(rowButtons.has(node.id) && node.props.widthMode !== 'full'
+          ? ['width:auto', 'align-self:auto']
+          : []),
         ...legacyLayoutDeclarations(node),
-        ...userDeclarations(node.styles).filter(
-          (decl) => node.type !== 'grid' || !/^grid-template-columns\s*:/i.test(decl),
-        ),
+        ...userDeclarations(node.styles).filter((decl) => {
+          if (node.type === 'grid' && /^grid-template-columns\s*:/i.test(decl))
+            return false;
+          // Keep explicit customization; do not let library defaults mask variant surfaces.
+          if (
+            node.type === 'card' &&
+            node.props.variant &&
+            node.styles.background === 'var(--openui-elevated)' &&
+            decl === 'background:var(--openui-elevated)'
+          )
+            return false;
+          if (
+            node.type === 'hero' &&
+            node.props.surface &&
+            typeof node.styles.background === 'string' &&
+            node.styles.background.startsWith(
+              'linear-gradient(135deg, var(--openui-accent)',
+            ) &&
+            decl.startsWith('background:')
+          )
+            return false;
+          if (
+            node.type === 'hero' &&
+            node.props.surface &&
+            node.props.surface !== 'gradient' &&
+            node.styles.color === 'var(--openui-text-on-accent)' &&
+            decl === 'color:var(--openui-text-on-accent)'
+          )
+            return false;
+          if (
+            node.type === 'hero' &&
+            node.styles.padding === 'var(--pad-card)' &&
+            decl === 'padding:var(--pad-card)'
+          )
+            return false;
+          return true;
+        }),
       ];
       rules.push(renderRule(`.${nodeClass(node.id)}`, decls));
+      if (
+        node.type === 'button' &&
+        !rowButtons.has(node.id) &&
+        node.styles.width === undefined &&
+        node.props.widthMode !== 'full'
+      ) {
+        rules.push(
+          `@container mw (min-width:600px){.${nodeClass(node.id)}{width:auto;align-self:flex-start}}`,
+        );
+      }
       const hover = hoverExtra(node);
       if (hover) rules.push(hover);
       if (node.type === 'hero' && Number(node.props.assetWidth) > 0) {
@@ -493,7 +546,9 @@ export function generateCss(doc: ProjectDoc): string {
       if (
         node.type === 'hero' &&
         (!node.props.layout || node.props.layout === 'split') &&
-        (node.props.image || node.props.src)
+        (node.props.image ||
+          node.props.src ||
+          node.children.some((child) => ['image', 'card'].includes(child.type)))
       ) {
         const sel = `.${nodeClass(node.id)}`;
         rules.push(
@@ -531,7 +586,9 @@ export function screenCssClass(screenId: string): string {
 }
 
 /** Utility classes shared by canvas, Run mode and exported code. */
-export const UTILITY_CSS = `.mw-row-item{display:flex;align-items:center;gap:12px;padding:12px var(--pad-card);background:var(--openui-elevated);border:1px solid var(--openui-border-default);border-radius:var(--radius-card)}
+export const UTILITY_CSS = `@container mw (min-width:600px){.mw-app{--type-display:var(--type-display-md);--type-title:var(--type-title-md);--gap-section:var(--gap-section-md);--pad-screen:var(--pad-screen-md)}}
+@container mw (min-width:1024px){.mw-app{--type-display:var(--type-display-lg);--type-title:var(--type-title-lg);--gap-section:var(--gap-section-lg);--pad-screen:var(--pad-screen-lg)}}
+.mw-row-item{display:flex;align-items:center;gap:12px;padding:12px var(--pad-card);background:var(--openui-elevated);border:1px solid var(--openui-border-default);border-radius:var(--radius-card)}
 .mw-row-main{flex:1;min-width:0}
 .mw-row-title{font-size:14px;font-weight:600;color:var(--openui-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mw-row-sub{font-size:12px;color:var(--openui-text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -561,6 +618,28 @@ export const UTILITY_CSS = `.mw-row-item{display:flex;align-items:center;gap:12p
 .mw-hero-copy{display:flex;flex-direction:column;gap:var(--gap-item);min-width:0}.mw-hero-media{min-width:0}.mw-hero[data-layout="centered"] .mw-hero-copy{text-align:center;align-items:center}.mw-hero[data-layout="immersive"][data-has-media="true"]{overflow:hidden;isolation:isolate}.mw-hero[data-layout="immersive"][data-has-media="true"] .mw-hero-media{position:absolute;inset:0;z-index:-1}.mw-hero[data-layout="immersive"] .mw-hero-img{height:100%;border-radius:0;filter:brightness(.55)}@container mw (min-width:600px){.mw-hero[data-layout="split"] .mw-hero-img{height:auto;aspect-ratio:15 / 8}}
 .mw-nav-item{font-size:13px;font-weight:500;color:var(--openui-text-secondary);cursor:pointer;background:none;border:none;padding:0}
 .mw-nav-item:hover{color:var(--openui-text-primary)}
+.mw-nav-cta{border:0;border-radius:999px;padding:9px 16px;background:var(--openui-accent);color:var(--openui-text-on-accent);font-weight:600;cursor:pointer}
+:where(.mw-hero){padding:var(--pad-card);color:var(--openui-text-on-accent)}
+.mw-hero-badge{display:inline-flex;align-self:flex-start;border:1px solid currentColor;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;letter-spacing:.04em}
+.mw-hero-sub{font-size:var(--type-body);line-height:1.55;opacity:.88;max-width:65ch}
+.mw-hero-title{font-family:var(--font-heading);font-size:clamp(var(--type-title),4cqw + 12px,var(--type-display));font-weight:700;line-height:1.12;letter-spacing:-.025em;text-wrap:balance}
+:where(.mw-hero[data-surface="gradient"]){background:linear-gradient(135deg,var(--openui-accent),var(--openui-secondary))}
+:where(.mw-hero[data-surface="glow"]){background:radial-gradient(circle at 80% 20%,var(--openui-accent-subtle),transparent 60%),var(--openui-elevated);color:var(--openui-text-primary)}
+:where(.mw-hero[data-surface="mesh"]){background:radial-gradient(circle at 20% 20%,var(--openui-accent-subtle),transparent 50%),radial-gradient(circle at 80% 80%,var(--openui-secondary),transparent 55%),var(--openui-elevated);color:var(--openui-text-primary)}
+:where(.mw-hero[data-surface="sunk"]){background:var(--openui-sunk);color:var(--openui-text-primary)}
+@container mw (min-width:600px){:where(.mw-hero){padding:calc(var(--pad-card) * 1.5)}}
+@container mw (min-width:1024px){:where(.mw-hero){padding:calc(var(--pad-card) * 2)}}
+:where(.mw-card[data-variant="elevated"]){background:var(--openui-elevated);box-shadow:var(--shadow-card)}
+:where(.mw-card[data-variant="sunk"]){background:var(--openui-sunk)}
+:where(.mw-card[data-variant="glass"]){background:color-mix(in srgb,var(--openui-elevated) 72%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+:where(.mw-card[data-variant="outline"]){background:transparent;border:1px solid var(--openui-border-default)}
+:where(.mw-card[data-variant="spotlight"]){background:var(--openui-accent-subtle);box-shadow:var(--shadow-glow)}
+:where(.mw-card[data-variant="accent"]){background:var(--openui-accent);color:var(--openui-text-on-accent)}
+.mw-card-icon{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:var(--openui-accent-subtle);color:var(--openui-text-brand)}
+.mw-card[data-clickable="true"]{transition:transform .2s ease,box-shadow .2s ease;cursor:pointer}.mw-card[data-clickable="true"]:hover{transform:translateY(-3px);box-shadow:var(--shadow-raised)}
+.mw-browser-frame{border:1px solid var(--openui-border-default);border-radius:var(--radius-card);overflow:hidden;box-shadow:var(--shadow-raised);background:var(--openui-elevated)}
+.mw-browser-bar{display:flex;gap:5px;align-items:center;padding:9px 12px;background:var(--openui-sunk)}.mw-browser-dot{width:7px;height:7px;border-radius:50%;background:var(--openui-text-tertiary)}.mw-browser-url{margin-left:8px;flex:1;border-radius:999px;background:var(--openui-elevated);height:13px}
+
 .mw-chart{display:flex;align-items:flex-end;gap:6px;height:96px;width:100%}
 .mw-chart-bar{flex:1;background:var(--openui-accent);border-radius:6px 6px 2px 2px;min-height:4px;opacity:.92}
 .mw-hero-img{width:100%;height:180px;object-fit:cover;border-radius:calc(var(--radius-card) - 4px);display:block}

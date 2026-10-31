@@ -146,20 +146,14 @@ function normalizeType(raw: string): string {
 }
 
 function applyLook(node: ComponentNode, look: LookNumbers): void {
-  if (node.type === 'heading') {
-    const level = Number(node.props.level) || 2;
-    const size =
-      level === 1
-        ? look.title + 8
-        : level === 2
-          ? look.title
-          : level === 3
-            ? look.title - 4
-            : look.body + 2;
-    node.styles = { ...node.styles, fontSize: `${Math.max(12, size)}px` };
-  }
-  if (node.type === 'text' || node.type === 'label') {
-    node.styles = { ...node.styles, fontSize: `${look.body}px` };
+  if (node.type === 'screen') {
+    node.props = {
+      ...node.props,
+      lookTitle: look.title,
+      lookBody: look.body,
+      lookPad: look.pad,
+      lookGap: look.gap,
+    };
   }
   if (node.type === 'card') {
     node.styles = { ...node.styles, borderRadius: `${look.cardRadius}px` };
@@ -260,8 +254,8 @@ export function parseBlueprint(text: string, tokens: DesignTokens): ParsedBluepr
       props: { title: name, layout: 'flex-col', scroll: true },
       styles: {
         ...defaultStylesFor('screen'),
-        padding: `${look.pad}px`,
-        gap: `${look.gap}px`,
+        padding: 'var(--pad-screen)',
+        gap: 'var(--gap-section)',
       },
       children: [],
     };

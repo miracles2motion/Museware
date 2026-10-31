@@ -1,5 +1,5 @@
 import type { ComponentNode, ProjectDoc, ScreenDoc, Action } from '../types/tree';
-import { materializeCss } from '../design/materialize';
+import { materializeCss, screenLookVariables } from '../design/materialize';
 import { generateFullCss, nodeClass } from '../canvas/cssGen';
 import { ICON_NAMES } from '../types/library';
 
@@ -123,7 +123,7 @@ function renderLeaf(
         )
         .join('');
       const cta = p.cta
-        ? `<button type="button" className="mw-nav-item" onClick={() => go(${str(p.ctaTo || '')})}>${jsxText(p.cta)}</button>`
+        ? `<button type="button" className="mw-nav-cta" onClick={() => go(${str(p.ctaTo || '')})}>${jsxText(p.cta)}</button>`
         : '';
       return `${pad}<nav className={${str(cls)}}>
 ${pad}  <span className="mw-nav-brand">${jsxText(p.brand)}</span>
@@ -207,16 +207,33 @@ ${pad}</div>`;
         )
         .join('')}</div></div>`;
     }
-    case 'hero':
-      return `${pad}<div className={${str(`${cls} mw-hero`)}} data-layout=${str(p.layout || 'split')} data-has-media={${str(Boolean(p.image || p.src))}}>
+    case 'hero': {
+      const media = node.children.filter(
+        (child) => child.type === 'image' || child.type === 'card',
+      );
+      const copy = node.children.filter(
+        (child) => child.type !== 'image' && child.type !== 'card',
+      );
+      const hasMedia = Boolean(p.image || p.src || media.length);
+      const browser = p.frame === 'browser';
+      return `${pad}<div className={${str(`${cls} mw-hero`)}} data-layout=${str(p.layout || 'split')} data-surface=${str(p.surface || 'gradient')} data-frame=${str(p.frame || 'none')} data-has-media={${str(hasMedia)}}>
 ${pad}  <div className="mw-hero-copy">
 ${p.badge ? `${pad}    <span className="mw-hero-badge">${jsxText(p.badge)}</span>` : ''}
-${pad}    <h1 className="hero-title">${jsxText(p.title)}</h1>
-${pad}    <p className="hero-sub">${jsxText(p.subtitle)}</p>
-${pad}    ${renderChildren(node, indent + 2, screens)}
+${pad}    <h1 className="mw-hero-title">${jsxText(p.title)}</h1>
+${pad}    <p className="mw-hero-sub">${jsxText(p.subtitle)}</p>
+${copy.map((child) => renderNode(child, indent + 2, screens)).join('\n')}
 ${pad}  </div>
-${p.image || p.src ? `${pad}  <div className="mw-hero-media"><img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} /></div>` : ''}
+${
+  hasMedia
+    ? `${pad}  <div className="mw-hero-media"><div${browser ? ' className="mw-browser-frame"' : ''}>
+${browser ? `${pad}    <div className="mw-browser-bar" aria-hidden="true"><span className="mw-browser-dot"/><span className="mw-browser-dot"/><span className="mw-browser-dot"/><span className="mw-browser-url"/></div>` : ''}
+${p.image || p.src ? `${pad}    <img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} />` : ''}
+${media.map((child) => renderNode(child, indent + 2, screens)).join('\n')}
+${pad}  </div></div>`
+    : ''
+}
 ${pad}</div>`;
+    }
     default:
       return `${pad}<div className={${str(cls)}}>${jsxText(p.text)}</div>`;
   }
@@ -239,7 +256,7 @@ function renderNode(
   const p = node.props as Record<string, unknown>;
   switch (node.type) {
     case 'screen':
-      return renderChildren(node, indent, screens);
+      return wrap(`<div className={${str(cls)}}>\n${children}\n${pad}</div>`);
     case 'row':
     case 'col':
     case 'grid':
@@ -262,8 +279,16 @@ function renderNode(
         node.type === 'card' && (p.image || p.src)
           ? `<img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || 'Card image')} />`
           : '';
+      const cardAttrs =
+        node.type === 'card'
+          ? ` data-variant=${str(p.variant || 'elevated')} data-clickable={${str(Boolean(node.events?.tap?.length))}}`
+          : '';
+      const icon =
+        node.type === 'card' && p.icon
+          ? `<span className="mw-card-icon"><Icon name=${str(iconName(node))} size={20} /></span>`
+          : '';
       return wrap(
-        `<${tag} className={${str(cls)}}${tap ? ` onClick={() => ${tap}}` : ''}>\n${image}\n${title}\n${children}\n${pad}</${tag}>`,
+        `<${tag} className={${str(node.type === 'card' ? `${cls} mw-card` : cls)}}${cardAttrs}${tap ? ` onClick={() => ${tap}}` : ''}>\n${icon}\n${image}\n${title}\n${children}\n${pad}</${tag}>`,
       );
     }
     case 'tabs': {
@@ -287,16 +312,20 @@ function renderNode(
 
 function screenModule(doc: ProjectDoc, screen: ScreenDoc): string {
   const name = pascal(screen.id);
-  const body = renderNode(screen.root, 2, doc.screens, screen);
-  return `import { useApp, TabsBlock, matchesValue } from '../runtime';
+  const body = renderNode(screen.root, 3, doc.screens, screen);
+  const vars = screenLookVariables(screen.root.props);
+  return `import type { CSSProperties } from 'react';
+import { useApp, TabsBlock, matchesValue } from '../runtime';
 import { Icon } from '../icons';
 
 export function ${name}Screen() {
   const { state, setKey, run, go } = useApp();
   void go;
   return (
-    <div className="mw-app">
+    <div className="mw-site-frame">
+      <div className="mw-app" style={${JSON.stringify(vars)} as CSSProperties}>
 ${body}
+      </div>
     </div>
   );
 }
@@ -312,6 +341,7 @@ export function generateProjectFiles(doc: ProjectDoc): Record<string, string> {
       if (node.type === 'icon' || node.type === 'iconbutton' || node.type === 'fab')
         usedIcons.add(iconName(node));
       if (node.type === 'list') usedIcons.add('chevron-right');
+      if (node.type === 'card' && node.props.icon) usedIcons.add(iconName(node));
       node.children.forEach(walk);
     };
     walk(screen.root);
@@ -509,7 +539,7 @@ if ('serviceWorker' in navigator) {
   files['src/tokens.css'] =
     `${materializeCss(doc.tokens)}\n:root{color-scheme:light dark}\n[data-theme="dark"],html.dark{color-scheme:dark}\n`;
   files['src/nodes.css'] =
-    `/* Generated from the Museware tree — do not hand-edit. */\n.mw-app{${doc.kind === 'web' ? 'min-height:100vh' : 'height:100vh;overflow-y:auto'};margin:0 auto;width:100%;max-width:${doc.kind === 'web' ? '1280px' : '480px'};background:var(--openui-bg);color:var(--openui-text-primary);container-type:inline-size;container-name:mw;font-family:var(--font-body)}\n${generateFullCss(doc)}\n`;
+    `/* Generated from the Museware tree — do not hand-edit. */\n.mw-site-frame{width:100%;max-width:${doc.kind === 'web' ? '1280px' : '480px'};margin:0 auto;container-type:inline-size;container-name:mw}.mw-app{${doc.kind === 'web' ? 'min-height:100vh' : 'height:100vh;overflow-y:auto'};margin:0 auto;width:100%;max-width:${doc.kind === 'web' ? '1280px' : '480px'};background:var(--openui-bg);color:var(--openui-text-primary);container-type:inline-size;container-name:mw;font-family:var(--font-body)}\n${generateFullCss(doc)}\n`;
   files['src/app.css'] =
     `.hero-title{font-family:var(--font-heading);font-size:clamp(24px,4cqw + 14px,40px);font-weight:700;line-height:1.12;letter-spacing:-0.02em;margin:0;color:inherit}\n.hero-sub{font-size:15px;line-height:1.55;margin:0;opacity:.9;max-width:560px}\n.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--openui-elevated);color:var(--openui-text-primary);border:1px solid var(--openui-border-default);border-radius:12px;padding:10px 16px;font-size:13px;box-shadow:0 12px 32px rgba(0,0,0,.22);z-index:50}\nbody{margin:0}\n`;
 

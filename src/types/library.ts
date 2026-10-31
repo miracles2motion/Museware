@@ -199,7 +199,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     container: true,
     icon: 'tag',
     hint: 'A rounded surface that groups what is inside it.',
-    defaultProps: { title: '' },
+    defaultProps: { title: '', variant: 'elevated' },
     styles: {
       padding: 'var(--pad-card)',
       background: 'var(--openui-elevated)',
@@ -213,8 +213,12 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'Title',
         'text',
         'Content',
-        'Optional heading rendered above the children. Leave blank for a plain surface.',
+        'Optional heading rendered above the children.',
       ),
+      p('variant', 'Variant', 'select', 'Content', 'Surface treatment.', {
+        options: ['elevated', 'sunk', 'glass', 'outline', 'spotlight', 'accent'],
+      }),
+      p('icon', 'Icon', 'icon', 'Content', 'Optional icon badge.'),
     ],
   },
   {
@@ -228,6 +232,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
       title: 'A hero headline',
       subtitle: 'One line about why this exists.',
       layout: 'split',
+      frame: 'none',
     },
     styles: {
       background: 'linear-gradient(135deg, var(--openui-accent), var(--openui-secondary))',
@@ -240,6 +245,17 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
       p('title', 'Title', 'text', 'Content', 'The big line. Keep it under eight words.'),
       p('subtitle', 'Subtitle', 'text', 'Content', 'One sentence under the title.'),
       p('badge', 'Badge', 'text', 'Content', 'Optional eyebrow above the headline.'),
+      p(
+        'frame',
+        'Media frame',
+        'select',
+        'Content',
+        'Optional browser chrome around the media.',
+        { options: ['none', 'browser'] },
+      ),
+      p('surface', 'Surface', 'select', 'Content', 'Optional hero surface treatment.', {
+        options: ['gradient', 'glow', 'mesh', 'sunk'],
+      }),
       p('layout', 'Layout', 'select', 'Content', 'Split, centered or immersive hero.', {
         options: ['split', 'centered', 'immersive'],
       }),
@@ -463,6 +479,14 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: { text: 'Button', variant: 'primary', icon: '', disabled: false },
     props: [
       p('text', 'Text', 'text', 'Content', 'The word on the button.', { required: true }),
+      p(
+        'widthMode',
+        'Width mode',
+        'select',
+        'Content',
+        'Full width or adaptive on larger screens.',
+        { options: ['auto', 'full'] },
+      ),
       p('variant', 'Variant', 'select', 'Content', 'How loud the button is.', {
         options: ['primary', 'secondary', 'ghost', 'danger'],
       }),

@@ -503,7 +503,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             {Boolean(p.cta) && (
               <button
                 type="button"
-                className="mw-nav-item"
+                className="mw-nav-cta"
                 onClick={() => {
                   if (mode === 'run' && runtime && p.ctaTo)
                     runtime.navigate(asText(p.ctaTo));
@@ -766,49 +766,73 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         </div>
       );
     }
-    case 'hero':
+    case 'hero': {
+      const media = node.children.filter(
+        (child) => child.type === 'image' || child.type === 'card',
+      );
+      const copy = node.children.filter(
+        (child) => child.type !== 'image' && child.type !== 'card',
+      );
+      const hasMedia = Boolean(imageSrc || media.length);
       return (
         <div
           className={`${cls} mw-hero`}
           data-layout={asText(p.layout, 'split')}
-          data-has-media={Boolean(imageSrc)}
+          data-surface={asText(p.surface, 'gradient')}
+          data-frame={asText(p.frame, 'none')}
+          data-has-media={hasMedia}
           {...tapProps}
         >
           <div className="mw-hero-copy">
             {Boolean(p.badge) && <span className="mw-hero-badge">{asText(p.badge)}</span>}
-            {Boolean(p.title) && (
-              <div
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontSize: 'clamp(24px, 3.4cqw + 12px, 40px)',
-                  fontWeight: 700,
-                  lineHeight: 1.12,
-                  letterSpacing: '-0.025em',
-                  color: 'inherit',
-                }}
-              >
-                {subst(p.title, row)}
-              </div>
-            )}
+            {Boolean(p.title) && <div className="mw-hero-title">{subst(p.title, row)}</div>}
             {Boolean(p.subtitle) && (
-              <div style={{ fontSize: 15, lineHeight: 1.55, opacity: 0.88, maxWidth: 560 }}>
-                {subst(p.subtitle, row)}
-              </div>
+              <div className="mw-hero-sub">{subst(p.subtitle, row)}</div>
             )}
-            {renderChildren()}
-          </div>
-          {imageSrc && (
-            <div className="mw-hero-media">
-              <img
-                className="mw-hero-img"
-                src={imageSrc}
-                alt={asText(p.title, 'Hero')}
-                draggable={false}
+            {copy.map((child) => (
+              <NodeBody
+                key={child.id}
+                node={child}
+                doc={doc}
+                mode={mode}
+                screenId={activeScreen}
               />
+            ))}
+          </div>
+          {hasMedia && (
+            <div className="mw-hero-media">
+              <div className={p.frame === 'browser' ? 'mw-browser-frame' : undefined}>
+                {p.frame === 'browser' && (
+                  <div className="mw-browser-bar" aria-hidden="true">
+                    <span className="mw-browser-dot" />
+                    <span className="mw-browser-dot" />
+                    <span className="mw-browser-dot" />
+                    <span className="mw-browser-url" />
+                  </div>
+                )}
+                {imageSrc && (
+                  <img
+                    className="mw-hero-img"
+                    src={imageSrc}
+                    alt={asText(p.title, 'Hero')}
+                    draggable={false}
+                  />
+                )}
+                {media.map((child) => (
+                  <NodeBody
+                    key={child.id}
+                    node={child}
+                    doc={doc}
+                    mode={mode}
+                    screenId={activeScreen}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
       );
+    }
     case 'section':
       return (
         <section className={cls} {...tapProps}>
@@ -824,7 +848,17 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       );
     case 'card':
       return (
-        <div className={cls} {...tapProps}>
+        <div
+          className={`${cls} mw-card`}
+          data-variant={asText(p.variant, 'elevated')}
+          data-clickable={Boolean(node.events?.tap?.length)}
+          {...tapProps}
+        >
+          {Boolean(p.icon) && (
+            <span className="mw-card-icon">
+              <Icon name={p.icon} size={20} />
+            </span>
+          )}
           {imageSrc && (
             <img
               className="mw-hero-img"

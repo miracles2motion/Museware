@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import type { ProjectDoc, ScreenDoc } from '../types/tree';
 import { NodeBody } from './NodeBody';
 import { generateFullCss } from './cssGen';
-import { materializeCss } from '../design/materialize';
+import { materializeCss, screenLookVariables } from '../design/materialize';
 import { useResolvedCanvasTheme } from '../design/theme';
 import { RuntimeContext, type RuntimeApi } from '../preview/runtime';
 
@@ -27,14 +27,21 @@ export function NodeView({
 }) {
   const theme = useResolvedCanvasTheme();
   return (
-    <div className="mw-app" data-theme={theme} data-screen-id={screen.id}>
-      {mode === 'run' && runtime ? (
-        <RuntimeContext.Provider value={runtime}>
-          <NodeBody node={screen.root} doc={doc} mode="run" screenId={screen.id} />
-        </RuntimeContext.Provider>
-      ) : (
-        <NodeBody node={screen.root} doc={doc} mode="edit" screenId={screen.id} />
-      )}
+    <div className="mw-css-root">
+      <div
+        className="mw-app"
+        data-theme={theme}
+        data-screen-id={screen.id}
+        style={screenLookVariables(screen.root.props) as CSSProperties}
+      >
+        {mode === 'run' && runtime ? (
+          <RuntimeContext.Provider value={runtime}>
+            <NodeBody node={screen.root} doc={doc} mode="run" screenId={screen.id} />
+          </RuntimeContext.Provider>
+        ) : (
+          <NodeBody node={screen.root} doc={doc} mode="edit" screenId={screen.id} />
+        )}
+      </div>
     </div>
   );
 }

@@ -42,8 +42,67 @@ export function lintScreen(
   let hasImagery = false;
   let hasResponsive = false;
   let hasNavbar = false;
+  let heroCount = 0;
+  const rawPixels = (value: unknown): number[] => {
+    if (typeof value === 'number') return [value];
+    if (typeof value !== 'string' || /var\(|calc\(/i.test(value)) return [];
+    return value
+      .trim()
+      .split(/\s+/)
+      .filter((part) => /^-?\d+(?:\.\d+)?(?:px)?$/i.test(part))
+      .map(Number.parseFloat);
+  };
+  if (kind === 'web') {
+    for (const [key, value] of Object.entries(screen.root.styles)) {
+      if (
+        /^(padding|gap|rowGap|columnGap)/i.test(key) &&
+        rawPixels(value).some((n) => n < 24)
+      )
+        add(
+          screen.root,
+          'warn',
+          'spacing',
+          `Web screen root ${key} uses raw spacing below 24px.`,
+        );
+    }
+  }
   const visit = (node: ComponentNode) => {
     if (node.type === 'navbar') hasNavbar = true;
+    if (node.type === 'hero') {
+      heroCount++;
+      if (heroCount > 1)
+        add(node, 'warn', 'responsive', 'More than one hero on this screen.');
+      if (
+        ['glow', 'sunk'].includes(String(node.props.surface)) &&
+        String(node.styles.color || '').includes('openui-text-on-accent')
+      )
+        add(
+          node,
+          'warn',
+          'token',
+          'Glow or sunk hero uses on-accent text; check contrast.',
+        );
+    }
+    if (
+      node.type === 'heading' &&
+      Number(node.props.level || 2) === 1 &&
+      rawPixels(node.styles.fontSize).length
+    )
+      add(
+        node,
+        'warn',
+        'responsive',
+        'H1 uses a raw pixel font size instead of a fluid type token.',
+      );
+    if (
+      node.type === 'grid' &&
+      node.children.filter(
+        (child) =>
+          child.type === 'card' &&
+          ['spotlight', 'accent'].includes(String(child.props.variant)),
+      ).length > 1
+    )
+      add(node, 'warn', 'responsive', 'Grid has more than one spotlight or accent card.');
     if (
       kind === 'web' &&
       node.type === 'grid' &&

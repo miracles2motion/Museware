@@ -2023,6 +2023,31 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           .getState()
           .patchPart(id, { state: 'failed', note: 'Screen no longer exists.' });
       }
+    // Existing screens were not created from the parsed provisional root. Apply
+    // the same screen-scoped LOOK only to screens that actually completed.
+    for (const id of completed) {
+      const screen = useProject.getState().doc.screens.find((item) => item.id === id);
+      const planned = parsed.screens.find((item) => item.id === id);
+      if (screen && planned && beforeScreens.has(id)) {
+        const { lookTitle, lookBody, lookPad, lookGap } = planned.root.props;
+        const result = useProject
+          .getState()
+          .applyBatch(
+            [
+              {
+                op: 'setProps',
+                id: screen.root.id,
+                props: { lookTitle, lookBody, lookPad, lookGap },
+              },
+            ],
+            { source: 'agent' },
+          );
+        if (result.errors.length)
+          addSystem(
+            `Could not apply screen typography: ${result.errors.map((error) => error.message).join(', ')}`,
+          );
+      }
+    }
     const stopped = controller.signal.aborted;
     useProject.getState().patchRail(card.id, {
       card: {

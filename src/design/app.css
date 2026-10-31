@@ -492,8 +492,10 @@ a {
   color: var(--mw-bg);
   font: var(--mw-type-label);
   font-weight: 500;
-  white-space: nowrap;
-  max-width: 240px;
+  white-space: normal;
+  width: max-content;
+  max-width: 200px;
+  overflow-wrap: anywhere;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--mw-motion-fast) 400ms;
@@ -503,6 +505,21 @@ a {
 .tip:hover::after {
   opacity: 1;
   transform: translateX(-50%);
+}
+
+.topbar .tip::after {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+.topbar > .tip:first-child::after,
+.topbar > :first-child .tip::after {
+  left: 0;
+  transform: none;
+}
+.topbar-right .tip::after {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 /* ---------- shell ---------- */
@@ -1012,6 +1029,7 @@ a {
  * Scoped to the canvas viewport and the run frame, so the landing-page previews
  * (which crop to their own box) keep their auto height.
  */
+.frame-viewport > .mw-css-root,
 .frame-viewport .mw-app {
   height: 100%;
 }
@@ -1085,6 +1103,8 @@ a {
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
   z-index: var(--mw-z-popover);
 }
@@ -1143,7 +1163,8 @@ a {
 .inline-edit {
   position: absolute;
   z-index: var(--mw-z-tooltip);
-  min-width: 180px;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 6px;
   border-radius: var(--mw-radius-md);
   border: 1px solid var(--mw-accent);
@@ -1880,6 +1901,9 @@ a {
 
 .menu {
   position: absolute;
+  max-height: calc(100dvh - 72px);
+  max-width: calc(100vw - 16px);
+  overflow-y: auto;
   min-width: var(--mw-menu-w);
   padding: 5px;
   border-radius: var(--mw-radius-md);
@@ -2031,7 +2055,9 @@ a {
   display: flex;
   justify-content: center;
 }
-.run-stage[data-scroll='false'] { overflow: auto; }
+.run-stage[data-scroll='false'] {
+  overflow: auto;
+}
 
 .run-frame {
   width: 100%;
@@ -2050,6 +2076,7 @@ a {
   max-width: 1280px;
 }
 
+.run-frame .mw-css-root,
 .run-frame .mw-app {
   height: 100%;
 }
@@ -4269,12 +4296,47 @@ button.how-card .field-hint {
   }
 }
 
-@keyframes image-spin { to { transform: rotate(360deg); } }
-.image-spinner { animation: image-spin .8s linear infinite; }
+@keyframes image-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.image-spinner {
+  animation: image-spin 0.8s linear infinite;
+}
 
-.painting-badge { position:absolute; inset:auto auto 8px 8px; z-index:1; padding:4px 8px; border-radius:999px; color:var(--mw-ink); background:var(--mw-surface); font-size:11px; animation:painting-pulse 1.2s ease-in-out infinite alternate; pointer-events:none; }
-@keyframes painting-pulse { from { opacity:.55; } to { opacity:1; } }
-.asset-progress { padding:8px 12px; font-size:11px; }
-.asset-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.painting-badge {
+  position: absolute;
+  inset: auto auto 8px 8px;
+  z-index: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--mw-ink);
+  background: var(--mw-surface);
+  font-size: 11px;
+  animation: painting-pulse 1.2s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes painting-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.asset-progress {
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.asset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
 
-.image-warning { animation:none; color:var(--mw-danger); }
+.image-warning {
+  animation: none;
+  color: var(--mw-danger);
+}
