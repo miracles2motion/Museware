@@ -4368,6 +4368,23 @@ button.how-card .field-hint {
     transform: scale(1);
   }
 }
+/* Shrink toward the centre of the bottom-right launcher so its destination is clear. */
+.chat-focus[data-minimizing='true'] {
+  pointer-events: none;
+  transform-origin: calc(100% - var(--mw-space-4) - var(--mw-space-6) - var(--mw-space-1))
+    calc(100% - var(--mw-space-4) - var(--mw-space-6) - var(--mw-space-1));
+  animation: chat-minimize-out var(--mw-chat-minimize-motion) var(--mw-ease-out) forwards;
+}
+@keyframes chat-minimize-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.06);
+  }
+}
 .chat-focus-column {
   width: 100%;
   height: 100%;
@@ -4594,7 +4611,8 @@ button.how-card .field-hint {
   font-size: var(--mw-fs-11);
 }
 @media (prefers-reduced-motion: reduce) {
-  .chat-focus {
+  .chat-focus,
+  .chat-focus[data-minimizing='true'] {
     animation: none;
   }
   .chat-card--work[aria-busy='true']::after {

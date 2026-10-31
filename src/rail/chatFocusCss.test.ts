@@ -35,4 +35,14 @@ describe('fullscreen chat CSS', () => {
       /\.chat-focus \.composer > \.composer-box[\s\S]*?max-width:\s*860px[\s\S]*?margin-inline:\s*auto/,
     );
   });
+  it('animates minimization toward the launcher and respects reduced motion', () => {
+    const closing = rule(".chat-focus[data-minimizing='true']");
+    expect(closing).toContain('transform-origin:');
+    expect(closing).toContain('chat-minimize-out');
+    expect(closing).toContain('pointer-events: none');
+    expect(css).toMatch(/@keyframes chat-minimize-out[\s\S]*?scale\(0\.06\)/);
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?chat-focus\[data-minimizing='true'\][\s\S]*?animation: none/,
+    );
+  });
 });

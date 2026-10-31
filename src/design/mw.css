@@ -210,6 +210,7 @@
   --mw-z-chat: 25;
   --mw-blur-chat: 18px;
   --mw-chat-motion: 160ms;
+  --mw-chat-minimize-motion: 240ms;
   --mw-chat-launcher-size: 56px;
   --mw-chat-preview-width: 260px;
   --mw-shell-rename-width: 110px;

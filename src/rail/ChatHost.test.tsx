@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { ChatHost } from './ChatHost';
 import { useUi } from '../store/useUi';
@@ -18,7 +18,11 @@ beforeEach(() => {
   useAgent.setState({ receipts: [], busy: false });
   localStorage.removeItem('museware/chatExpanded');
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 describe('muse focus', () => {
   it('expands, minimizes, marks unread, and reopens without mounting two rails', () => {
     render(<ChatHost />);
@@ -29,6 +33,17 @@ describe('muse focus', () => {
     expect(document.querySelectorAll('aside.rail')).toHaveLength(1);
     expect(document.querySelector('.chat-bubble')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
+    const closing = document.querySelector<HTMLElement>(
+      '.chat-focus[data-minimizing="true"]',
+    )!;
+    expect(closing).toBeTruthy();
+    expect(document.querySelectorAll('aside.rail')).toHaveLength(1);
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Open muse chat' }),
+    );
+    const animationEnd = new Event('animationend', { bubbles: true });
+    Object.defineProperty(animationEnd, 'animationName', { value: 'chat-minimize-out' });
+    fireEvent(closing, animationEnd);
     expect(document.querySelectorAll('aside.rail')).toHaveLength(0);
     expect(localStorage.getItem('museware/chatExpanded')).toBe('0');
     act(() => {
@@ -46,18 +61,16 @@ describe('muse focus', () => {
     render(<ChatHost />);
     expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
     act(() =>
-      useProject
-        .getState()
-        .hydrate({
-          ...createProject(),
-          screens: [
-            {
-              id: 'blank',
-              name: 'Blank',
-              root: { id: 'root', type: 'screen', props: {}, styles: {}, children: [] },
-            },
-          ],
-        }),
+      useProject.getState().hydrate({
+        ...createProject(),
+        screens: [
+          {
+            id: 'blank',
+            name: 'Blank',
+            root: { id: 'root', type: 'screen', props: {}, styles: {}, children: [] },
+          },
+        ],
+      }),
     );
     expect(screen.getByRole('dialog', { name: 'Muse focus' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
@@ -73,18 +86,16 @@ describe('muse focus', () => {
       styles: {},
       children: [],
     };
-    useProject
-      .getState()
-      .replaceDoc({
-        ...createProject(),
-        screens: [
-          {
-            id: 'filled',
-            name: 'Filled',
-            root: { id: 'root', type: 'screen', props: {}, styles: {}, children: [child] },
-          },
-        ],
-      });
+    useProject.getState().replaceDoc({
+      ...createProject(),
+      screens: [
+        {
+          id: 'filled',
+          name: 'Filled',
+          root: { id: 'root', type: 'screen', props: {}, styles: {}, children: [child] },
+        },
+      ],
+    });
     render(<ChatHost />);
     expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
     expect(document.querySelector('aside.rail')).toBeNull();
@@ -103,6 +114,33 @@ describe('muse focus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
     act(() => useUi.getState().setMobileRail(true));
     expect(screen.getByRole('dialog', { name: 'Muse focus' })).toBeTruthy();
+  });
+  it('finishes the minimizing animation if animationend is unavailable', () => {
+    vi.useFakeTimers();
+    render(<ChatHost />);
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
+    expect(document.querySelector('.chat-focus[data-minimizing="true"]')).toBeTruthy();
+    act(() => vi.advanceTimersByTime(350));
+    expect(document.querySelector('.chat-focus')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
+  });
+  it('minimizes immediately with reduced motion', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    render(<ChatHost />);
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
+    expect(document.querySelector('.chat-focus')).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Open muse chat' }),
+    );
+  });
+  it('cancels minimization when the user reopens immediately', () => {
+    vi.useFakeTimers();
+    render(<ChatHost />);
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open muse chat' }));
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.getByRole('dialog', { name: 'Muse focus' })).toBeTruthy();
+    expect(document.querySelectorAll('aside.rail')).toHaveLength(1);
   });
   it('Escape minimizes and receipt arrivals mark the bubble unread', () => {
     render(<ChatHost />);

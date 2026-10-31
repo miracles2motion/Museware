@@ -28,6 +28,9 @@ export function ChatHost() {
   } | null>(null);
   const receipts = useAgent((s) => s.receipts);
   const [unread, setUnread] = useState(false);
+  const [minimizing, setMinimizing] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const shouldFocusLauncher = useRef(false);
   const last = useRef({
     message: `${rail.at(-1)?.id ?? ''}:${rail.at(-1)?.text ?? ''}`,
     receipt: receipts.at(-1)?.id,
@@ -62,8 +65,29 @@ export function ChatHost() {
     last.current = current;
   }, [rail, receipts, expanded]);
   const minimize = useCallback(() => {
+    const reducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    shouldFocusLauncher.current = true;
+    setMinimizing(!reducedMotion);
     setExpanded(false);
   }, [setExpanded]);
+  useEffect(() => {
+    if (!expanded && shouldFocusLauncher.current) {
+      launcherRef.current?.focus();
+      shouldFocusLauncher.current = false;
+    }
+  }, [expanded]);
+  // A fallback guarantees unmount even if the browser never dispatches animationend.
+  useEffect(() => {
+    if (expanded) {
+      setMinimizing(false);
+      return;
+    }
+    if (!minimizing) return;
+    const timer = window.setTimeout(() => setMinimizing(false), 350);
+    return () => window.clearTimeout(timer);
+  }, [expanded, minimizing]);
   useEffect(() => {
     if (!expanded) return;
     const onKey = (event: KeyboardEvent) => {
@@ -87,34 +111,53 @@ export function ChatHost() {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [expanded, minimize]);
-  if (expanded)
-    return (
-      <div className="chat-focus" role="dialog" aria-label="Muse focus">
-        <button
-          type="button"
-          className="chat-minimize"
-          aria-label="Minimize chat"
-          onClick={minimize}
-        >
-          <X size={24} />
-        </button>
-        <div className="chat-focus-column">
-          <AgentRail focused />
-        </div>
-      </div>
-    );
   return (
-    <button
-      className="chat-launcher"
-      type="button"
-      aria-label="Open muse chat"
-      onClick={() => {
-        setUnread(false);
-        setExpanded(true);
-      }}
-    >
-      <Sparkles size={25} />
-      {unread && <span className="chat-unread" aria-label="Unread messages" />}
-    </button>
+    <>
+      {(expanded || minimizing) && (
+        <div
+          className="chat-focus"
+          role="dialog"
+          aria-label="Muse focus"
+          aria-hidden={minimizing || undefined}
+          data-minimizing={minimizing || undefined}
+          onAnimationEnd={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              event.animationName === 'chat-minimize-out'
+            )
+              setMinimizing(false);
+          }}
+        >
+          <button
+            type="button"
+            className="chat-minimize"
+            aria-label="Minimize chat"
+            onClick={minimize}
+            tabIndex={minimizing ? -1 : undefined}
+          >
+            <X size={24} />
+          </button>
+          <div className="chat-focus-column">
+            <AgentRail focused />
+          </div>
+        </div>
+      )}
+      {!expanded && (
+        <button
+          className="chat-launcher"
+          ref={launcherRef}
+          type="button"
+          aria-label="Open muse chat"
+          onClick={() => {
+            setUnread(false);
+            setMinimizing(false);
+            setExpanded(true);
+          }}
+        >
+          <Sparkles size={25} />
+          {unread && <span className="chat-unread" aria-label="Unread messages" />}
+        </button>
+      )}
+    </>
   );
 }
