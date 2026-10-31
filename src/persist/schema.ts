@@ -97,6 +97,12 @@ export const projectSchema = z
     blueprint: z
       .object({ text: z.string(), decided: z.boolean(), updatedAt: z.number() })
       .optional(),
+    automatedImageBudget: z
+      .object({
+        used: z.number().int().nonnegative(),
+        cap: z.number().int().nonnegative().optional(),
+      })
+      .optional(),
     builtWithContributor: z.boolean().optional(),
     updatedAt: z.number().default(() => Date.now()),
   })

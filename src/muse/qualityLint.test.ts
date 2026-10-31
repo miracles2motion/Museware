@@ -196,7 +196,7 @@ describe('quality lint and gate', () => {
                 {
                   op: 'setProps',
                   id: 'tea_hero',
-                  props: { image: 'https://example.com/tea.png' },
+                  props: { subtitle: 'Fresh fragrant tea' },
                 },
               ],
             }),

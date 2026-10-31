@@ -205,6 +205,8 @@ export interface ProjectDoc {
   kind: 'web' | 'app';
   customComponents: CustomComponent[];
   blueprint?: { text: string; decided: boolean; updatedAt: number };
+  /** Automated image calls already reserved for this project; manual requests are separate. */
+  automatedImageBudget?: { used: number; cap?: number };
   /** Set when any model call used the contributor tier (§6.1 legal guard). */
   builtWithContributor?: boolean;
   updatedAt: number;

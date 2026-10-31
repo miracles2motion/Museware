@@ -352,6 +352,7 @@ export async function autoIllustrate(
   signal?: AbortSignal,
   eligibleIds?: ReadonlySet<string>,
   cardId?: string,
+  reserveAttempt?: () => boolean,
 ): Promise<ImageOutcome[]> {
   const targets: ImageTarget[] = [];
   const visit = (node: ComponentNode) => {
@@ -366,7 +367,7 @@ export async function autoIllustrate(
   };
   for (const screen of useProject.getState().doc.screens)
     if (screenIds.includes(screen.id)) visit(screen.root);
-  return queueAssetTargets(targets, context, limit, signal, cardId, true);
+  return queueAssetTargets(targets, context, limit, signal, cardId, true, reserveAttempt);
 }
 
 /** Run a build's requested assets serially and keep its card's job history. */
@@ -377,6 +378,7 @@ export async function queueAssetTargets(
   signal?: AbortSignal,
   cardId?: string,
   onlyEmpty = false,
+  reserveAttempt?: () => boolean,
 ): Promise<ImageOutcome[]> {
   const documentEpoch = useProject.getState().documentEpoch;
   const cap = Math.max(0, Math.min(30, Math.floor(Number.isFinite(limit) ? limit : 3)));
@@ -448,7 +450,7 @@ export async function queueAssetTargets(
       context,
       retry: true,
       takeAttempt: () => {
-        if (attempts >= cap) return false;
+        if (attempts >= cap || (reserveAttempt && !reserveAttempt())) return false;
         attempts += 1;
         return true;
       },

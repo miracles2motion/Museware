@@ -112,6 +112,16 @@ export function Inspector() {
   const agentBusy = useAgent((s) => s.busy);
   const imageUsage = useAgent((s) => s.buildImageUsage);
   const imageCap = useAgent((s) => s.buildImages);
+  const currentImageUsage =
+    imageUsage?.documentEpoch === documentEpoch
+      ? imageUsage
+      : doc.automatedImageBudget
+        ? {
+            used: doc.automatedImageBudget.used,
+            cap: doc.automatedImageBudget.cap ?? imageCap,
+            documentEpoch,
+          }
+        : null;
   const houseKey = useAgent((s) => s.houseKey);
   const keySource = useAgent((s) => s.keySource);
   const dollarBudget = useAgent((s) => s.budget);
@@ -312,13 +322,13 @@ export function Inspector() {
                 </button>
                 <p className="field-hint" aria-live="polite">
                   {pendingImages[`${documentEpoch}:${node.id}`] && 'Generating image… '}
-                  {imageUsage?.documentEpoch === documentEpoch
-                    ? `Automated build image attempts: ${imageUsage.used} of ${imageUsage.cap}; ${Math.max(0, imageUsage.cap - imageUsage.used)} remaining in this build. `
-                    : `Automated build cap: ${imageCap} attempts; usage for this project is unknown. `}
-                  {imageUsage?.documentEpoch === documentEpoch &&
-                    imageUsage.used >= imageUsage.cap &&
-                    'Automated build image budget exhausted. '}
-                  Manual requests are separate from that build cap and may incur key
+                  {currentImageUsage
+                    ? `Automated project image attempts: ${currentImageUsage.used} of ${currentImageUsage.cap}; ${Math.max(0, currentImageUsage.cap - currentImageUsage.used)} remaining in this project. `
+                    : `Automated project cap: ${imageCap} attempts; usage for this project is unknown. `}
+                  {currentImageUsage &&
+                    currentImageUsage.used >= currentImageUsage.cap &&
+                    'Automated project image budget exhausted. '}
+                  Manual requests are separate from that project cap and may incur key
                   charges.
                   {keySource !== 'session' &&
                   (houseKey === 'exhausted' || dollarBudget?.exhausted)

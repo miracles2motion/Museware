@@ -42,7 +42,7 @@ describe('image actions', () => {
       }),
     );
     const { container } = render(<Inspector />);
-    expect(screen.getByText(/Automated build image budget exhausted/)).toBeTruthy();
+    expect(screen.getByText(/Automated project image budget exhausted/)).toBeTruthy();
     expect(screen.getByText(/Shared-key budget exhausted/)).toBeTruthy();
     const button = screen.getByRole('button', {
       name: /Illustrate with muse-image/,

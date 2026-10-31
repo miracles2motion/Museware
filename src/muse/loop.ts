@@ -26,7 +26,7 @@ import {
   reviewerPrompt,
 } from './prompts';
 import type { Action, OpError, ProjectDoc, ScreenDoc } from '../types/tree';
-import { entryScreen, findNodeInDoc, clone } from '../ops/treeUtils';
+import { entryScreen, findNodeInDoc, clone, walk } from '../ops/treeUtils';
 import { applyOps } from '../ops/apply';
 import { filterScopedOps } from './scope';
 import { lintScreen, type LintFinding } from './qualityLint';
@@ -471,6 +471,7 @@ interface ImageBudget {
   remaining: number;
   cardId?: string;
   cap?: number;
+  unknown?: boolean;
   documentEpoch?: number;
 }
 
@@ -488,6 +489,40 @@ function publishImageBudget(budget: ImageBudget) {
     });
 }
 
+/** Persistent per-project automated call allowance; old projects without a ledger fail closed. */
+function projectImageBudget(cardId?: string): ImageBudget {
+  const { doc, documentEpoch } = useProject.getState();
+  const configured = Math.max(0, useAgent.getState().buildImages);
+  const ledger = doc.automatedImageBudget;
+  if (!ledger) {
+    return { remaining: 0, documentEpoch, cardId, unknown: true };
+  }
+  const cap = ledger.cap ?? configured;
+  if (ledger.cap === undefined)
+    useProject.setState({ doc: { ...doc, automatedImageBudget: { ...ledger, cap } } });
+  return { remaining: Math.max(0, cap - ledger.used), cap, documentEpoch, cardId };
+}
+function reserveImageAttempt(budget: ImageBudget): boolean {
+  if (budget.remaining <= 0) return false;
+  if (budget.documentEpoch !== undefined) {
+    const state = useProject.getState();
+    if (state.documentEpoch !== budget.documentEpoch || !state.doc.automatedImageBudget)
+      return false;
+    useProject.setState({
+      doc: {
+        ...state.doc,
+        automatedImageBudget: {
+          ...state.doc.automatedImageBudget,
+          used: state.doc.automatedImageBudget.used + 1,
+        },
+      },
+    });
+  }
+  budget.remaining -= 1;
+  publishImageBudget(budget);
+  return true;
+}
+
 interface ToolLoopOptions {
   messages: ChatMessage[];
   maxCalls: number;
@@ -497,6 +532,8 @@ interface ToolLoopOptions {
   onProgress?: (line: string) => void;
   scope?: ScopedDraft;
   repairIds?: string[];
+  repairStyleOnly?: boolean;
+  allowReplaceImages?: boolean;
   imageBudget?: ImageBudget;
 }
 
@@ -551,7 +588,14 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
           ? TOOL_DEFS.filter((t) =>
               ['read_canvas', 'edit_canvas', 'finish'].includes(t.function.name),
             )
-          : TOOL_DEFS,
+          : opts.repairIds
+            ? TOOL_DEFS.filter((t) =>
+                (opts.repairStyleOnly
+                  ? ['edit_canvas', 'finish']
+                  : ['edit_canvas', 'illustrate_images', 'finish']
+                ).includes(t.function.name),
+              )
+            : TOOL_DEFS,
         signal: controller?.signal,
         onText: (t) => useAgent.getState().appendText(t),
         onNotice: (n) => addSystem(n),
@@ -745,6 +789,8 @@ async function runTool(
   }
   if (opts.scope && !['read_canvas', 'edit_canvas', 'finish'].includes(name))
     return { text: 'E_SCOPE: this tool is not allowed for scoped work.' };
+  if (opts.repairStyleOnly && !['edit_canvas', 'finish'].includes(name))
+    return { text: 'E_SCOPE: responsive repair may only edit styles.' };
   if (opts.repairIds && !['edit_canvas', 'illustrate_images', 'finish'].includes(name))
     return { text: 'E_SCOPE: quality repair may only edit affected nodes.' };
   const doc = opts.scope?.doc || useProject.getState().doc;
@@ -848,22 +894,53 @@ async function runTool(
           const op = raw as {
             op?: string;
             id?: string;
-            parentId?: string;
-            node?: { type?: string };
+            props?: Record<string, unknown>;
+            styles?: Record<string, unknown>;
           };
-          return (
-            (['setProps', 'setStyles', 'setText'].includes(op.op || '') &&
-              !!op.id &&
-              ids.has(op.id)) ||
-            (op.op === 'add' &&
-              !!op.parentId &&
-              ids.has(op.parentId) &&
-              op.node?.type === 'image')
-          );
+          if (!op.id || !ids.has(op.id) || !findNodeInDoc(doc, op.id)) return false;
+          if (opts.repairStyleOnly) {
+            if (
+              op.op !== 'setStyles' ||
+              !op.styles ||
+              Object.keys(op.styles).some((key) => key !== 'responsive')
+            )
+              return false;
+            const node = findNodeInDoc(doc, op.id)?.node;
+            const responsive = op.styles.responsive;
+            if (!responsive || typeof responsive !== 'object' || Array.isArray(responsive))
+              return false;
+            return Object.entries(responsive).every(([breakpoint, value]) => {
+              if (
+                !['medium', 'expanded'].includes(breakpoint) ||
+                !value ||
+                typeof value !== 'object' ||
+                Array.isArray(value)
+              )
+                return false;
+              const keys = Object.keys(value);
+              return (
+                keys.length > 0 &&
+                keys.every(
+                  (key) =>
+                    (node?.type === 'grid' && key === 'columns') ||
+                    (node?.type === 'row' && key === 'wrap'),
+                )
+              );
+            });
+          }
+          if (!['setProps', 'setStyles', 'setText'].includes(op.op || '')) return false;
+          // Images are set only by the image tool, never by untrusted repair prose or guessed URLs.
+          if (
+            op.op === 'setProps' &&
+            op.props &&
+            ('src' in op.props || 'image' in op.props)
+          )
+            return false;
+          return true;
         });
         if (filtered.length !== a.ops.length)
           addSystem(
-            `Quality repair dropped ${a.ops.length - filtered.length} unrelated operation(s).`,
+            'Repair tried to restructure the page or change something outside its findings; dropped (repair mends, it does not redesign).',
           );
         if (!filtered.length)
           return { text: 'E_SCOPE: no operations target a reported finding.' };
@@ -909,12 +986,47 @@ async function runTool(
     case 'illustrate_images': {
       const requested = (args as { targets: ImageTarget[] }).targets;
       const ids = opts.repairIds ? new Set(opts.repairIds) : null;
-      const eligible = requested.filter((target) => !ids || ids.has(target.id));
+      const eligible = requested.filter((target) => {
+        if (!ids) {
+          if (opts.imageBudget) {
+            const current = findNodeInDoc(doc, target.id)?.node;
+            if (!current) {
+              addSystem(`Image target ${target.id} does not exist; ignored.`);
+              return false;
+            }
+            if (current.props.src || current.props.image) {
+              addSystem(
+                `Automatic image generation skipped ${target.id}: it already has an image.`,
+              );
+              return false;
+            }
+          }
+          return true;
+        }
+        const hit = findNodeInDoc(doc, target.id);
+        if (!hit) {
+          addSystem(`Repair invented ${target.id}; ignored.`);
+          return false;
+        }
+        if (!ids.has(target.id)) {
+          addSystem(`Repair image ${target.id} is outside its findings; ignored.`);
+          return false;
+        }
+        if (!['image', 'hero', 'card'].includes(hit.node.type)) {
+          addSystem(`Repair image ${target.id} is not an image target; ignored.`);
+          return false;
+        }
+        if (!opts.allowReplaceImages && (hit.node.props.src || hit.node.props.image)) {
+          addSystem(`Repair skipped ${target.id}: it already has an image.`);
+          return false;
+        }
+        return true;
+      });
       const budget = opts.imageBudget;
       const allowed = eligible;
-      if (eligible.length !== requested.length)
+      if (budget?.unknown && allowed.length)
         addSystem(
-          `Quality repair dropped ${requested.length - eligible.length} out-of-scope image target(s).`,
+          'Automated image usage for this older project is unknown; automatic generation is paused to avoid exceeding its project cap. Manual image requests remain separate.',
         );
       if (!allowed.length)
         return { text: 'No eligible image targets; placeholders remain.' };
@@ -925,21 +1037,17 @@ async function runTool(
             budget.remaining,
             controller?.signal,
             budget.cardId,
-            Boolean(opts.repairIds),
+            !opts.allowReplaceImages,
+            () => reserveImageAttempt(budget),
           )
         : await illustrateTargets(allowed, {
             signal: controller?.signal,
-            onlyEmpty: Boolean(opts.repairIds),
+            onlyEmpty: Boolean(opts.repairIds && !opts.allowReplaceImages),
           });
-      if (budget) {
-        budget.remaining = Math.max(
-          0,
-          budget.remaining - results.reduce((n, result) => n + (result.attempts || 0), 0),
-        );
-        publishImageBudget(budget);
-      }
       return {
-        text: results.map((r) => `${r.id}: ${r.ok ? 'applied' : r.message}`).join('\n'),
+        text: results.length
+          ? results.map((r) => `${r.id}: ${r.ok ? 'applied' : r.message}`).join('\n')
+          : 'No automated image budget remains; targets were skipped and placeholders remain.',
       };
     }
 
@@ -986,6 +1094,28 @@ async function reviewer(
       result = await request();
       recordReceipt(result, 'reviewer', outline.length, []);
     }
+    if (
+      !result.text.trim() &&
+      result.finishReason === 'stop' &&
+      !controller?.signal.aborted
+    ) {
+      result = await chatStream({
+        model: models?.chat.id || 'muse-spark-1.3',
+        effort: 'low',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
+          },
+          { role: 'user', content: reviewerPrompt(task, outline, findings) },
+        ],
+        signal: controller?.signal,
+        maxTokens: 700,
+      });
+      recordReceipt(result, 'reviewer', outline.length, []);
+      if (!result.text.trim())
+        return { verdict: 'error', notes: 'reviewer unavailable after 3 attempts' };
+    }
     const text = result.text.trim();
     if (/^PASS\b/i.test(text)) return { verdict: 'pass', notes: '' };
     if (/^PROBLEMS/i.test(text)) return { verdict: 'problems', notes: text.slice(0, 1200) };
@@ -1015,11 +1145,127 @@ function formatFindings(findings: LintFinding[]): string {
     : 'No lint findings.';
 }
 
+function imageIdsFromFindings(doc: ProjectDoc, findings: LintFinding[]): string[] {
+  return [
+    ...new Set(findings.filter((f) => f.code === 'imagery').map((f) => f.nodeId)),
+  ].filter((id) => {
+    const node = findNodeInDoc(doc, id)?.node;
+    return (
+      node &&
+      ['image', 'hero', 'card'].includes(node.type) &&
+      !node.props.src &&
+      !node.props.image
+    );
+  });
+}
+function repairSummary(ids: string[]) {
+  if (!ids.length) return;
+  const doc = useProject.getState().doc;
+  const missing = ids.filter((id) => {
+    const node = findNodeInDoc(doc, id)?.node;
+    return !node || !(node.props.src || node.props.image);
+  });
+  addSystem(
+    `Restored ${ids.length - missing.length} of ${ids.length} flagged images${missing.length ? ` (${missing.join(', ')} still empty or missing)` : ''}.`,
+  );
+}
+function publishImageWarnings(doc: ProjectDoc, findings: LintFinding[]) {
+  const ids = imageIdsFromFindings(doc, findings);
+  useAgent.setState({
+    imageWarnings: new Set(ids),
+    imageWarningEpoch: useProject.getState().documentEpoch,
+  });
+  if (ids.length)
+    addSystem(
+      `Images still empty: ${ids.join(', ')}. Placeholders remain; see warning badges.`,
+    );
+}
+
+async function repairResponsive(
+  doc: ProjectDoc,
+  screenIds: string[],
+  budget: ImageBudget,
+): Promise<void> {
+  if (doc.kind !== 'web') return;
+  let hasOverrides = false;
+  const candidates: Array<{ id: string; type: string; columns?: number }> = [];
+  for (const screen of doc.screens.filter((screen) => screenIds.includes(screen.id)))
+    walk(screen.root, (node) => {
+      if (
+        Object.values(node.styles.responsive || {}).some(
+          (value) => value && Object.keys(value).length,
+        )
+      )
+        hasOverrides = true;
+      if (node.type === 'grid')
+        candidates.push({
+          id: node.id,
+          type: 'grid',
+          columns: Math.max(
+            2,
+            Math.min(6, Number(node.styles.columns ?? node.props.columns) || 2),
+          ),
+        });
+      else if (node.type === 'row' && /foot/i.test(`${node.id} ${node.name || ''}`))
+        candidates.push({ id: node.id, type: 'row' });
+    });
+  if (hasOverrides || !candidates.length || controller?.signal.aborted) return;
+  const checklist = candidates
+    .map((item) =>
+      item.type === 'grid'
+        ? `${item.id}: responsive.medium.columns=2; responsive.expanded.columns=${/best/i.test(item.id) ? 3 : item.columns}`
+        : `${item.id}: responsive.medium.wrap=true`,
+    )
+    .join('\n');
+  addSystem(
+    'Web build has no responsive overrides; attempting one styles-only responsive repair.',
+  );
+  try {
+    await executeToolLoop({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Responsive repair only. Use edit_canvas setStyles on the listed existing IDs, with styles containing only responsive medium/expanded overrides. Do not add, remove, move, edit content, generate images, or claim work not performed. Finish when done.',
+        },
+        {
+          role: 'user',
+          content: `Write these exact overrides, using real setStyles calls:\n${checklist}`,
+        },
+      ],
+      maxCalls: 8,
+      role: 'builder',
+      effort: 'high',
+      repairIds: candidates.map((c) => c.id),
+      repairStyleOnly: true,
+      imageBudget: budget,
+    });
+  } catch (err) {
+    addSystem(
+      `Responsive repair failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  const after = useProject.getState().doc;
+  const changed = candidates.filter((c) => {
+    const styles = findNodeInDoc(after, c.id)?.node.styles.responsive;
+    if (c.type === 'grid')
+      return (
+        Number(styles?.medium?.columns) === 2 &&
+        Number(styles?.expanded?.columns) === (/best/i.test(c.id) ? 3 : c.columns)
+      );
+    return styles?.medium?.wrap === true;
+  });
+  const missing = candidates.filter((c) => !changed.includes(c));
+  addSystem(
+    `Responsive repair wrote overrides on ${changed.length} of ${candidates.length} targeted nodes${changed.length ? `: ${changed.map((c) => c.id).join(', ')}` : '; none were applied'}${missing.length ? `; checklist incomplete: ${missing.map((c) => c.id).join(', ')}` : ''}.`,
+  );
+}
+
 export async function verifyGate(
   task: string,
   doc: ProjectDoc,
   screenIds: string[],
-  imageBudget: ImageBudget = { remaining: useAgent.getState().buildImages },
+  imageBudget: ImageBudget = projectImageBudget(),
 ): Promise<void> {
   useAgent.getState().setVerification('running');
   let findings = findingsFor(doc, screenIds);
@@ -1034,13 +1280,14 @@ export async function verifyGate(
       (finding) => finding.severity === 'block' || finding.code === 'imagery',
     );
     const affected = [...new Set(repairFindings.map((finding) => finding.nodeId))];
+    const flaggedImages = imageIdsFromFindings(doc, repairFindings);
     try {
       await executeToolLoop({
         messages: [
           {
             role: 'system',
             content:
-              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Do not invent image URLs. You may call illustrate_images only on listed affected IDs if image budget remains; otherwise leave image placeholders in place. Use small edit_canvas batches then finish.',
+              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText or setStyles only on existing nodes; never add or move nodes; do not alter unrelated nodes or screens. Do not invent image URLs. You may call illustrate_images only on listed affected IDs if image budget remains; otherwise leave image placeholders in place. Use small edit_canvas batches then finish.',
           },
           {
             role: 'user',
@@ -1062,11 +1309,24 @@ export async function verifyGate(
         `Quality repair failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+    repairSummary(flaggedImages);
     doc = useProject.getState().doc;
     findings = findingsFor(doc, screenIds);
   }
+  await repairResponsive(doc, screenIds, imageBudget);
+  doc = useProject.getState().doc;
+  findings = findingsFor(doc, screenIds);
+  if (controller?.signal.aborted) {
+    publishImageWarnings(doc, findings);
+    useAgent
+      .getState()
+      .setVerification('unverified', 'Stopped during repair; review was not completed.');
+    addSystem('Unverified — stopped during repair; review was not completed.');
+    return;
+  }
   const remaining = findings.filter((f) => f.severity === 'block');
   if (remaining.length) {
+    publishImageWarnings(doc, findings);
     const notes = formatFindings(findings);
     useAgent.getState().setVerification('problems', notes);
     addSystem(`Not verified — quality lint still found blocking issues:\n${notes}`);
@@ -1075,6 +1335,7 @@ export async function verifyGate(
   const outline = canvasOutline(doc, screenIds);
   const first = await reviewer(task, outline, formatFindings(findings));
   if (first.verdict === 'pass') {
+    publishImageWarnings(doc, findings);
     useAgent
       .getState()
       .setVerification('pass', findings.length ? formatFindings(findings) : null);
@@ -1084,6 +1345,7 @@ export async function verifyGate(
     return;
   }
   if (first.verdict === 'error') {
+    publishImageWarnings(doc, findings);
     useAgent
       .getState()
       .setVerification(
@@ -1095,19 +1357,48 @@ export async function verifyGate(
     );
     return;
   }
-  addSystem('Reviewer saw problems — one rebuild round.');
+  const affected = new Set(findings.map((finding) => finding.nodeId));
+  for (const screen of doc.screens.filter((screen) => screenIds.includes(screen.id)))
+    walk(screen.root, (node) => {
+      if (new RegExp(`(^|[^a-z0-9_])${node.id}([^a-z0-9_]|$)`, 'i').test(first.notes))
+        affected.add(node.id);
+    });
+  if (!affected.size) {
+    publishImageWarnings(doc, findings);
+    useAgent
+      .getState()
+      .setVerification(
+        'problems',
+        `Reviewer reported problems without identifying affected nodes: ${first.notes}`,
+      );
+    addSystem(
+      'Not verified — reviewer reported problems but identified no existing nodes to repair safely.',
+    );
+    return;
+  }
+  const flaggedImages = imageIdsFromFindings(doc, findings).filter((id) =>
+    affected.has(id),
+  );
+  addSystem('Reviewer saw problems — one scoped repair round.');
   try {
     await executeToolLoop({
-      messages: contextMessages(doc, rebuildNote(first.notes)),
+      messages: contextMessages(
+        doc,
+        `${rebuildNote(first.notes)} Repair only these existing ids: ${[...affected].join(', ')}. Never restructure the page or replace healthy images.`,
+      ),
       maxCalls: 8,
       role: 'builder',
       effort: 'high',
+      repairIds: [...affected],
+      imageBudget,
     });
   } catch (err) {
-    addSystem(`Rebuild call failed: ${err instanceof Error ? err.message : String(err)}`);
+    addSystem(`Repair call failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+  repairSummary(flaggedImages);
   const after = useProject.getState().doc;
   findings = findingsFor(after, screenIds);
+  publishImageWarnings(after, findings);
   if (findings.some((f) => f.severity === 'block')) {
     useAgent.getState().setVerification('problems', formatFindings(findings));
     addSystem(
@@ -1294,12 +1585,59 @@ export async function runAgentTurn(
     // role. Only the FIRST turn — before anything exists to fill — and never
     // for the routine edits that follow.
     const wonder = useAgent.getState().wonder && before.screens.length === 0;
+    const imageBudget = projectImageBudget();
+    const repairFollowup =
+      /\b(fix|repair|restore|mend|correct)\b/i.test(userText) && before.screens.length > 0;
+    const explicitReplace =
+      /\b(replace|regenerate|redo)\b/i.test(userText) &&
+      /\b(image|images|photo|photos|picture|pictures)\b/i.test(userText);
+    const manualImageRequest =
+      /\b(generate|illustrate|replace|regenerate|redo)\b/i.test(userText) &&
+      /\b(image|images|photo|photos|picture|pictures)\b/i.test(userText) &&
+      !repairFollowup;
+    const initialFindings = repairFollowup
+      ? findingsFor(
+          before,
+          before.screens.map((screen) => screen.id),
+        )
+      : [];
+    const isImageRepair =
+      repairFollowup && /\b(image|images|photo|photos|picture|pictures)\b/i.test(userText);
+    const repairIds = new Set(
+      initialFindings
+        .filter((f) => !isImageRepair || f.code === 'imagery')
+        .map((f) => f.nodeId),
+    );
+    if (repairFollowup)
+      for (const screen of before.screens)
+        walk(screen.root, (node) => {
+          if (new RegExp(`(^|[^a-z0-9_])${node.id}([^a-z0-9_]|$)`, 'i').test(userText))
+            repairIds.add(node.id);
+        });
+    const flaggedImages = imageIdsFromFindings(before, initialFindings).filter((id) =>
+      repairIds.has(id),
+    );
     const result = await executeToolLoop({
       messages,
+      repairIds: repairFollowup ? [...repairIds] : undefined,
+      allowReplaceImages: repairFollowup && explicitReplace,
+      imageBudget:
+        manualImageRequest || (repairFollowup && explicitReplace) ? undefined : imageBudget,
       maxCalls: TURN_CALL_CAP,
       role: opts.role || (wonder ? 'architect' : 'builder'),
       effort: opts.effort || (wonder ? 'max' : 'medium'),
     });
+    if (repairFollowup) {
+      repairSummary(flaggedImages);
+      const now = useProject.getState().doc;
+      publishImageWarnings(
+        now,
+        findingsFor(
+          now,
+          now.screens.map((screen) => screen.id),
+        ),
+      );
+    }
     if (result.stopped) {
       addSystem(
         `Stopped — ${useProject.getState().doc.opLog.length - before.opLog.length} batches applied, nothing lost.`,
@@ -1323,18 +1661,14 @@ export async function runAgentTurn(
       doc.screens
         .filter((screen) => ids.includes(screen.id))
         .forEach((screen) => collectNew(screen.root));
-      const imageBudget = { remaining: Math.max(0, useAgent.getState().buildImages) };
-      const autoResults = await autoIllustrate(
+      await autoIllustrate(
         ids,
         userText,
         imageBudget.remaining,
         controller.signal,
         newlyAdded,
-      );
-      imageBudget.remaining = Math.max(
-        0,
-        imageBudget.remaining -
-          autoResults.reduce((n, result) => n + (result.attempts || 0), 0),
+        undefined,
+        () => reserveImageAttempt(imageBudget),
       );
       await verifyGate(
         userText,
@@ -1543,13 +1877,11 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     parts: targets.map((s) => ({ id: s.id, label: s.name, state: 'queued' as const })),
   });
 
-  const cap = Math.max(0, useAgent.getState().buildImages);
-  const imageBudget: ImageBudget = {
-    remaining: cap,
-    cap,
-    cardId: card.id,
-    documentEpoch: useProject.getState().documentEpoch,
-  };
+  const imageBudget = projectImageBudget(card.id);
+  if (imageBudget.unknown)
+    addSystem(
+      'Automated image usage for this older project is unknown; automatic generation is paused to avoid exceeding its project cap. Manual image requests remain separate.',
+    );
   useAgent.setState({
     assetJobs: [],
     assetDocumentEpoch: useProject.getState().documentEpoch,
@@ -1713,18 +2045,14 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     });
 
     if (!stopped) {
-      const autoResults = await autoIllustrate(
+      await autoIllustrate(
         [...completed],
         blueprint,
         imageBudget.remaining,
         controller.signal,
         undefined,
         card.id,
-      );
-      imageBudget.remaining = Math.max(
-        0,
-        imageBudget.remaining -
-          autoResults.reduce((n, result) => n + (result.attempts || 0), 0),
+        () => reserveImageAttempt(imageBudget),
       );
       publishImageBudget(imageBudget);
       if (controller.signal.aborted) {

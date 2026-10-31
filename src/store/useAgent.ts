@@ -91,6 +91,8 @@ interface AgentStore {
   assetJobs: AssetJob[];
   assetDocumentEpoch: number | null;
   assetsPending: Set<string>;
+  imageWarnings: Set<string>;
+  imageWarningEpoch: number | null;
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
@@ -165,6 +167,8 @@ export const useAgent = create<AgentStore>((set, get) => ({
   assetJobs: [],
   assetDocumentEpoch: null,
   assetsPending: new Set<string>(),
+  imageWarnings: new Set<string>(),
+  imageWarningEpoch: null,
   pendingRetry: null,
   wonder: (() => {
     try {

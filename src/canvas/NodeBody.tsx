@@ -250,9 +250,13 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             }}
             draggable={false}
           />
-          {mode === 'edit' && painting && !imageSrc && (
-            <span className="painting-badge">painting…</span>
-          )}
+          {mode === 'edit' &&
+            !imageSrc &&
+            (painting ? (
+              <span className="painting-badge">painting…</span>
+            ) : (
+              <span className="painting-badge image-warning">Image not generated</span>
+            ))}
         </div>
       );
     }

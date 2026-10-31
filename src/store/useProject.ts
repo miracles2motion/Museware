@@ -30,6 +30,7 @@ export function createProject(name = 'Untitled project'): ProjectDoc {
     kind: 'web',
     customComponents: [],
     layoutVersion: 2,
+    automatedImageBudget: { used: 0 },
     updatedAt: Date.now(),
   };
 }

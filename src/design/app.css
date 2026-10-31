@@ -4276,3 +4276,5 @@ button.how-card .field-hint {
 @keyframes painting-pulse { from { opacity:.55; } to { opacity:1; } }
 .asset-progress { padding:8px 12px; font-size:11px; }
 .asset-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+
+.image-warning { animation:none; color:var(--mw-danger); }
