@@ -53,3 +53,26 @@ describe('muse focus', () => {
     expect(screen.getByLabelText('Unread messages')).toBeTruthy();
   });
 });
+
+it('places the rendered chat below a popover in the shared token ladder', async () => {
+  const { readFileSync } = await import('node:fs');
+  const appCss = readFileSync('src/design/app.css', 'utf8');
+  const tokens = readFileSync('src/design/mw.css', 'utf8');
+  render(
+    <>
+      <ChatHost />
+      <div className="menu" data-testid="popover" />
+    </>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Expand muse chat' }));
+  const chat = screen.getByRole('dialog', { name: 'Muse focus' });
+  const popover = screen.getByTestId('popover');
+  expect(chat.classList.contains('chat-focus')).toBe(true);
+  expect(popover.classList.contains('menu')).toBe(true);
+  expect(appCss.match(/\.chat-focus\s*\{[^}]*z-index:\s*var\(--mw-z-chat\)/s)).toBeTruthy();
+  expect(appCss.match(/\.menu\s*\{[^}]*z-index:\s*var\(--mw-z-popover\)/s)).toBeTruthy();
+  const chatZ = Number(tokens.match(/--mw-z-chat:\s*(\d+)\s*;/)?.[1]);
+  const popoverZ = Number(tokens.match(/--mw-z-popover:\s*(\d+)\s*;/)?.[1]);
+  expect(chatZ).toBeGreaterThan(0);
+  expect(popoverZ).toBeGreaterThan(chatZ);
+});

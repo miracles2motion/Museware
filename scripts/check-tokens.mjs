@@ -151,6 +151,34 @@ function declarations(block) {
 }
 
 const primitives = declarations(blockFor(':root'));
+
+// A strict shared ladder: transient popups must outrank fullscreen chat.
+const Z_ORDER = [
+  'canvas',
+  'canvas-overlay',
+  'panels',
+  'sticky',
+  'chat',
+  'popover',
+  'modal',
+  'toast',
+  'tooltip',
+];
+const zValues = Z_ORDER.map((name) => {
+  const value = primitives.get(`mw-z-${name}`);
+  if (!value || !/^-?\d+$/.test(value)) {
+    problems.push(`${TOKENS_FILE}: --mw-z-${name} must be an integer`);
+    return null;
+  }
+  return Number(value);
+});
+for (let i = 1; i < Z_ORDER.length; i += 1) {
+  if (zValues[i - 1] !== null && zValues[i] !== null && zValues[i - 1] >= zValues[i])
+    problems.push(
+      `${TOKENS_FILE}: --mw-z-${Z_ORDER[i - 1]} must be less than --mw-z-${Z_ORDER[i]}`,
+    );
+}
+
 const dark = new Map(primitives);
 for (const [k, v] of declarations(blockFor(':root'))) dark.set(k, v);
 const light = new Map([...dark, ...declarations(blockFor("[data-mw-theme='light']"))]);
@@ -276,6 +304,9 @@ if (problems.length) {
 
 const worst = report.reduce((min, row) => (row[3] < min[3] ? row : min), report[0]);
 console.log(`✓ tokens: no raw hex outside ${TOKENS_FILE}`);
+console.log(
+  '✓ stacking tokens: canvas < canvas-overlay < panels < sticky < chat < popover < modal < toast < tooltip',
+);
 console.log(
   `✓ stacking: .canvas-area traps its chrome; ${TRAPPED.length} overlays checked`,
 );

@@ -4379,7 +4379,7 @@ button.how-card .field-hint {
   position: fixed;
   inset: 0;
   z-index: var(--mw-z-chat);
-  background: color-mix(in srgb, var(--mw-bg) 72%, transparent);
+  background: color-mix(in srgb, var(--mw-bg) 62%, transparent);
   backdrop-filter: blur(var(--mw-blur-chat));
   -webkit-backdrop-filter: blur(var(--mw-blur-chat));
   display: flex;
@@ -4397,7 +4397,7 @@ button.how-card .field-hint {
   }
 }
 .chat-focus-column {
-  width: min(100%, var(--mw-chat-width));
+  width: 100%;
   height: 100%;
   min-height: 0;
 }
@@ -4409,8 +4409,31 @@ button.how-card .field-hint {
   max-height: none;
   border: 0;
   border-radius: 0;
-  box-shadow: var(--mw-shadow-e2);
+  background: transparent;
+  box-shadow: none;
   display: flex;
+}
+.chat-focus .rail[data-chat-focused] .rail-header {
+  height: var(--mw-topbar-h);
+  padding: 0 var(--mw-space-3) 0 var(--mw-space-10);
+  border-bottom: 1px solid color-mix(in srgb, var(--mw-border-strong) 75%, transparent);
+}
+.chat-focus .rail-body > * {
+  width: 100%;
+  max-width: 860px;
+  margin-inline: auto;
+}
+.chat-focus .composer {
+  width: 100%;
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--mw-border-strong) 75%, transparent);
+}
+.chat-focus .composer > .composer-suggestions,
+.chat-focus .composer > .composer-box,
+.chat-focus .composer > .chat-composer-status {
+  width: 100%;
+  max-width: 860px;
+  margin-inline: auto;
 }
 .chat-focus .rail[data-chat-focused] .rail-header,
 .chat-focus .rail[data-chat-focused] .rail-body,
@@ -4438,7 +4461,8 @@ button.how-card .field-hint {
 }
 .chat-launcher {
   position: fixed;
-  left: var(--mw-space-4);
+  left: auto;
+  right: var(--mw-space-4);
   bottom: var(--mw-space-4);
   z-index: var(--mw-z-chat);
   width: var(--mw-chat-launcher-size);
