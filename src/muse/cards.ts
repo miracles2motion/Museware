@@ -151,7 +151,7 @@ export async function answerBlueprint(
   const doc = useProject.getState().doc;
   if (!doc.blueprint) return;
   if (useAgent.getState().demoMode) {
-    system('✓ Blueprint approved');
+    useProject.getState().setBlueprint(doc.blueprint.text, true);
     await startDemoBuild('steady');
   } else {
     await approveBlueprint('steady');
