@@ -10,13 +10,13 @@ beforeEach(() => {
   useProject.getState().replaceDoc(createProject());
   useProject.setState({ ready: true });
   useUi.setState({
-    chatExpanded: false,
+    chatExpanded: true,
     railCollapsed: false,
     mobileRailOpen: false,
     activeScreenId: null,
   });
   useAgent.setState({ receipts: [], busy: false });
-  localStorage.removeItem('museware/chatExpanded');
+  localStorage.setItem('museware/chatExpanded', '1');
 });
 afterEach(() => {
   cleanup();
@@ -56,7 +56,8 @@ describe('muse focus', () => {
     expect(screen.queryByRole('button', { name: 'Open muse chat' })).toBeNull();
     expect(screen.queryByLabelText('Unread messages')).toBeNull();
   });
-  it('waits for project restoration before opening an empty screen', () => {
+  it('does not open when an empty screen is restored', () => {
+    useUi.getState().setChatExpanded(false);
     useProject.setState({ ready: false });
     render(<ChatHost />);
     expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
@@ -72,13 +73,13 @@ describe('muse focus', () => {
         ],
       }),
     );
-    expect(screen.getByRole('dialog', { name: 'Muse focus' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Minimize chat' }));
+    expect(screen.queryByRole('dialog', { name: 'Muse focus' })).toBeNull();
     act(() => useProject.getState().addRail({ role: 'agent', text: 'Still minimized' }));
     expect(screen.queryByRole('dialog', { name: 'Muse focus' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
   });
-  it('shows only the launcher for a populated project and reopens for a new empty project', () => {
+  it('stays minimized when switching from a populated project to an empty project', () => {
+    useUi.getState().setChatExpanded(false);
     const child = {
       id: 'text',
       type: 'text' as const,
@@ -100,7 +101,41 @@ describe('muse focus', () => {
     expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
     expect(document.querySelector('aside.rail')).toBeNull();
     act(() => useProject.getState().replaceDoc(createProject()));
-    expect(screen.getByRole('dialog', { name: 'Muse focus' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Muse focus' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
+  });
+  it('stays minimized after switching to an empty screen', () => {
+    useUi.getState().setChatExpanded(false);
+    const filled = {
+      id: 'filled',
+      name: 'Filled',
+      root: {
+        id: 'root_filled',
+        type: 'screen' as const,
+        props: {},
+        styles: {},
+        children: [
+          { id: 'child', type: 'text' as const, props: {}, styles: {}, children: [] },
+        ],
+      },
+    };
+    const blank = {
+      id: 'blank',
+      name: 'Blank',
+      root: {
+        id: 'root_blank',
+        type: 'screen' as const,
+        props: {},
+        styles: {},
+        children: [],
+      },
+    };
+    useProject.getState().replaceDoc({ ...createProject(), screens: [filled, blank] });
+    useUi.setState({ activeScreenId: 'filled' });
+    render(<ChatHost />);
+    act(() => useUi.getState().setActiveScreen('blank'));
+    expect(screen.queryByRole('dialog', { name: 'Muse focus' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
   });
   it('opens the fullscreen chat when a prompt or existing chat action is invoked', () => {
     render(<ChatHost />);

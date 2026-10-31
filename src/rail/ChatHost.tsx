@@ -10,22 +10,6 @@ export function ChatHost() {
   const expanded = useUi((s) => s.chatExpanded);
   const setExpanded = useUi((s) => s.setChatExpanded);
   const rail = useProject((s) => s.doc.rail);
-  const screens = useProject((s) => s.doc.screens);
-  const ready = useProject((s) => s.ready);
-  const documentEpoch = useProject((s) => s.documentEpoch);
-  const activeScreenId = useUi((s) => s.activeScreenId);
-  const activeScreen =
-    screens.find((screen) => screen.id === activeScreenId) ??
-    screens.find((screen) => screen.entry) ??
-    screens[0];
-  const empty = !activeScreen || activeScreen.root.children.length === 0;
-  const currentScreen = activeScreen?.id ?? null;
-  const previousCanvas = useRef<{
-    ready: boolean;
-    empty: boolean;
-    epoch: number;
-    screen: string | null;
-  } | null>(null);
   const receipts = useAgent((s) => s.receipts);
   const [unread, setUnread] = useState(false);
   const [minimizing, setMinimizing] = useState(false);
@@ -35,22 +19,6 @@ export function ChatHost() {
     message: `${rail.at(-1)?.id ?? ''}:${rail.at(-1)?.text ?? ''}`,
     receipt: receipts.at(-1)?.id,
   });
-  // Wait for restoration before deciding whether the canvas is empty. A deliberate
-  // minimize stays respected until entering a different empty canvas or project.
-  useEffect(() => {
-    const previous = previousCanvas.current;
-    if (
-      ready &&
-      empty &&
-      (!previous?.ready ||
-        !previous.empty ||
-        previous.epoch !== documentEpoch ||
-        previous.screen !== currentScreen)
-    ) {
-      setExpanded(true);
-    }
-    previousCanvas.current = { ready, empty, epoch: documentEpoch, screen: currentScreen };
-  }, [ready, empty, documentEpoch, currentScreen, setExpanded]);
   useEffect(() => {
     const current = {
       message: `${rail.at(-1)?.id ?? ''}:${rail.at(-1)?.text ?? ''}`,
