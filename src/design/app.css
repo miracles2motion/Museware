@@ -5293,3 +5293,216 @@ button.how-card .field-hint {
 .selection-outline {
   box-shadow: var(--mw-ring);
 }
+
+/* Work panels: dense controls, readable states, and a four-pixel rhythm. */
+.inspector-body {
+  padding: var(--mw-space-3);
+  gap: var(--mw-space-3);
+}
+.inspector .insp-section {
+  gap: var(--mw-space-2);
+  padding-bottom: var(--mw-space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--mw-border) 85%, transparent);
+}
+.inspector .insp-section-head,
+.inspector .insp-section-head .eyebrow {
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.inspector .insp-section-head::before {
+  content: '▾';
+  font-size: var(--mw-fs-11);
+  margin-right: var(--mw-space-1);
+}
+.inspector .insp-section-head {
+  justify-content: flex-start;
+}
+.inspector .insp-section-head > :last-child:not(:first-child) {
+  margin-left: auto;
+}
+.inspector .field {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--mw-space-1);
+}
+.inspector .field > .field-label {
+  margin: 0;
+  min-width: 0;
+}
+.inspector .field > .field-hint {
+  grid-column: 2;
+}
+.inspector .insp-row .field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.inspector .field .input,
+.inspector .field .select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--mw-control-h-sm);
+  height: var(--mw-control-h-sm);
+  font-size: var(--mw-fs-12);
+}
+.inspector .field .textarea {
+  min-width: 0;
+}
+.inspector .color-field details {
+  grid-column: 2;
+  grid-row: 2;
+}
+.inspector .color-field .token-row {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.color-field-swatch {
+  display: block;
+  flex: 0 0 var(--mw-control-h-sm);
+  width: var(--mw-control-h-sm);
+  height: var(--mw-control-h-sm);
+  border: 1px solid var(--mw-border-strong);
+  border-radius: var(--mw-radius-md);
+}
+.inspector input[type='number'] {
+  font-variant-numeric: tabular-nums;
+}
+.events-list,
+.event-block {
+  gap: var(--mw-space-2);
+}
+.event-block {
+  padding: var(--mw-space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--mw-border);
+  border-radius: 0;
+  background: transparent;
+}
+.action-chip {
+  gap: var(--mw-space-1);
+  padding: var(--mw-space-1) var(--mw-space-2);
+}
+.set-state-args {
+  container-type: inline-size;
+}
+.set-state-field {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+}
+.set-state-field > span {
+  display: none;
+}
+.set-state-field > input {
+  width: 100%;
+}
+@container (max-width: 240px) {
+  .set-state-inputs {
+    flex-direction: column;
+  }
+  .set-state-field {
+    display: grid;
+    gap: var(--mw-space-1);
+  }
+  .set-state-field > span {
+    display: block;
+    color: var(--mw-ink-2);
+    font-size: var(--mw-fs-11);
+  }
+}
+.layers-list {
+  gap: 0;
+}
+.layer-row {
+  position: relative;
+  height: var(--mw-control-h-sm);
+  gap: var(--mw-space-1);
+}
+.layer-row::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: 0 auto 0 0;
+  width: var(--layer-indent, 0px);
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0 11px,
+    color-mix(in srgb, var(--mw-border-strong) 70%, transparent) 11px 12px
+  );
+}
+.layer-row:hover {
+  background: var(--mw-surface-2);
+}
+.layer-icon {
+  display: inline-flex;
+  color: var(--mw-ink-2);
+}
+.layer-row[data-selected='true'] .layer-icon {
+  color: var(--mw-accent);
+}
+.layer-row[data-over] {
+  outline: none;
+  box-shadow: inset var(--mw-ring);
+}
+.layer-row:focus-within .layer-actions {
+  display: flex;
+}
+.rail-header {
+  gap: var(--mw-space-2);
+  padding-inline: var(--mw-space-3);
+}
+.rail-body {
+  padding: var(--mw-space-3);
+  gap: var(--mw-space-3);
+}
+.composer {
+  padding: var(--mw-space-3);
+  gap: var(--mw-space-2);
+}
+.composer-suggestions {
+  gap: var(--mw-space-2);
+}
+.composer-box {
+  gap: var(--mw-space-1);
+  padding: var(--mw-space-1) var(--mw-space-2);
+  border-radius: var(--mw-radius-md);
+}
+.composer-box:focus-within {
+  box-shadow: var(--mw-ring);
+}
+.composer-box textarea {
+  min-height: var(--mw-control-h-sm);
+  padding: var(--mw-space-1) 0;
+  font-size: var(--mw-fs-13);
+}
+.send-btn {
+  width: var(--mw-control-h-sm);
+  height: var(--mw-control-h-sm);
+  border-radius: var(--mw-radius-pill);
+}
+.send-btn[disabled] {
+  opacity: 1;
+  background: var(--mw-surface);
+  color: var(--mw-ink-2);
+  border: 1px solid var(--mw-border-strong);
+}
+.thinking-toggle {
+  gap: var(--mw-space-1);
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-2);
+}
+:is(.inspector, .rail, .panel-body) :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 1px;
+}
+:is(.inspector, .rail, .panel-body) button:disabled {
+  opacity: 1;
+  color: var(--mw-ink-2);
+  background: var(--mw-surface-2);
+  cursor: not-allowed;
+}

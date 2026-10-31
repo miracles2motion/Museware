@@ -256,28 +256,34 @@ function ActionArgs({
         <div className="set-state-args mw-detail-6">
           {keyPicker(action.key)}
           <div className="set-state-inputs mw-detail-7">
-            <input
-              list={listId}
-              className="input mw-detail-5"
-              value={action.key}
-              aria-label="State key"
-              placeholder="key"
-              onChange={(e) =>
-                onChange({ type: 'setState', key: e.target.value, value: action.value })
-              }
-            />
-            <StateValueInput
-              value={action.value as string | number | boolean}
-              label="State value"
-              placeholder="value"
-              onCommit={(value) =>
-                onChange({
-                  type: 'setState',
-                  key: action.key,
-                  value: parseStateValue(value),
-                })
-              }
-            />
+            <label className="set-state-field">
+              <span>Key</span>
+              <input
+                list={listId}
+                className="input mw-detail-5"
+                value={action.key}
+                aria-label="State key"
+                placeholder="key"
+                onChange={(e) =>
+                  onChange({ type: 'setState', key: e.target.value, value: action.value })
+                }
+              />
+            </label>
+            <label className="set-state-field">
+              <span>Value</span>
+              <StateValueInput
+                value={action.value as string | number | boolean}
+                label="State value"
+                placeholder="value"
+                onCommit={(value) =>
+                  onChange({
+                    type: 'setState',
+                    key: action.key,
+                    value: parseStateValue(value),
+                  })
+                }
+              />
+            </label>
           </div>
         </div>
       );

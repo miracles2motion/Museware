@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -221,8 +221,9 @@ function LayerRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.45 : 1,
-    paddingLeft: 6 + row.depth * 12,
-  };
+    paddingLeft: 4 + row.depth * 12,
+    '--layer-indent': `${row.depth * 12}px`,
+  } as CSSProperties;
   const label = row.node.name || spec(row.node.type)?.label || row.node.type;
   return (
     <div
@@ -253,7 +254,9 @@ function LayerRow({
       >
         <GripVertical size={11} />
       </button>
-      <Icon name={spec(row.node.type)?.icon || 'grid'} size={12} />
+      <span className="layer-icon">
+        <Icon name={spec(row.node.type)?.icon || 'grid'} size={14} />
+      </span>
       {renaming ? (
         <input
           className="input"

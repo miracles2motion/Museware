@@ -251,7 +251,7 @@ export function ColorField({
         .replace(/-/g, '_')
     : '';
   return (
-    <div className="field">
+    <div className="field color-field">
       <span className="field-label">
         <span
           style={{
@@ -302,6 +302,14 @@ export function ColorField({
         </div>
       </details>
       <div className="token-row">
+        <span
+          className="color-field-swatch"
+          aria-hidden="true"
+          style={{
+            background:
+              colors[currentVar as keyof typeof colors] || d.draft || 'transparent',
+          }}
+        />
         <input
           className="input"
           value={d.draft}
