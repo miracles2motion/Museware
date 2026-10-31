@@ -78,6 +78,8 @@ interface AgentStore {
   budget: BudgetState | null;
   live: boolean;
   buildImages: number;
+  /** Attempts in the current/latest automated build; manual requests are separate. */
+  buildImageUsage: { used: number; cap: number; documentEpoch: number } | null;
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
@@ -148,6 +150,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   budget: null,
   live: false,
   buildImages: 3,
+  buildImageUsage: null,
   pendingRetry: null,
   wonder: (() => {
     try {

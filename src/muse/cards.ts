@@ -362,5 +362,5 @@ export async function generateHeroImage(): Promise<void> {
     useUi.getState().toast('Add a hero first — then I illustrate it.', 'warn');
     return;
   }
-  await illustrate(heroId, 'abstract hero illustration for a product landing page');
+  await illustrate(heroId);
 }

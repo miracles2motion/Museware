@@ -237,6 +237,11 @@ export function parseBlueprint(text: string, tokens: DesignTokens): ParsedBluepr
         `Screen ${s + 1}`
       )
         .replace(/[#*`]/g, '')
+        .replace(/\s*\(id\s*:[^)]*\)/gi, '')
+        .replace(
+          /\s*[-–—]\s*single\s+scrolling(?:\s+(?:landing\s+)?(?:page|screen))?\s*$/i,
+          '',
+        )
         .trim()
         .slice(0, 40) || `Screen ${s + 1}`;
     // Root IDs add "_root" and must remain at most 31 characters.

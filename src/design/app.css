@@ -2039,7 +2039,6 @@ a {
   min-height: 100%;
   background: var(--openui-bg);
   border-radius: 18px;
-  overflow: auto;
   box-shadow: var(--mw-shadow-e3);
   container-type: inline-size;
   container-name: mw;
@@ -4279,3 +4278,6 @@ button.how-card .field-hint {
     padding: 48px 20px;
   }
 }
+
+@keyframes image-spin { to { transform: rotate(360deg); } }
+.image-spinner { animation: image-spin .8s linear infinite; }

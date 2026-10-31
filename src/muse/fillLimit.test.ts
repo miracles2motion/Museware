@@ -47,13 +47,59 @@ beforeEach(() => {
   });
 });
 describe('fill call allowance', () => {
-  it('does not claim success when the builder stops without finish', async () => {
+  it('does not claim success when an empty screen stops without finish', async () => {
+    const doc = structuredClone(useProject.getState().doc);
+    doc.screens[0].root.children = [];
+    useProject.getState().replaceDoc(doc);
     vi.mocked(chatStream).mockResolvedValueOnce({
       ...reply('finish', { summary: 'unused' }),
       text: 'Stopped early',
       toolCalls: [],
       finishReason: 'stop',
     });
+    await runFillQueue({ mode: 'steady' });
+    expect(useAgent.getState().verification).toBe('problems');
+    expect(
+      useProject
+        .getState()
+        .doc.rail.some((entry) => entry.text.includes('no screens completed')),
+    ).toBe(true);
+  });
+
+  it('reviews a populated screen when the builder omits finish', async () => {
+    vi.mocked(chatStream)
+      .mockResolvedValueOnce(
+        reply('edit_canvas', {
+          ops: [{ op: 'setText', id: 'head_tea', text: 'Fresh tea' }],
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...reply('finish', {}),
+        text: 'Stopped early',
+        toolCalls: [],
+        finishReason: 'stop',
+      })
+      .mockResolvedValueOnce({
+        ...reply('finish', {}),
+        text: 'PASS',
+        toolCalls: [],
+        finishReason: 'stop',
+      });
+    await runFillQueue({ mode: 'steady' });
+    expect(useAgent.getState().verification).toBe('pass');
+    expect(
+      useProject
+        .getState()
+        .doc.rail.some((entry) => entry.text.includes('did not call finish')),
+    ).toBe(true);
+    expect(vi.mocked(chatStream)).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not count a finish call if the screen is empty', async () => {
+    const doc = structuredClone(useProject.getState().doc);
+    doc.screens[0].root.children = [];
+    useProject.getState().replaceDoc(doc);
+    vi.mocked(chatStream).mockResolvedValueOnce(reply('finish', { summary: 'Done' }));
     await runFillQueue({ mode: 'steady' });
     expect(useAgent.getState().verification).toBe('problems');
     expect(

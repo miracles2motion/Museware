@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Copy,
   Layers as LayersIcon,
+  LoaderCircle,
   Maximize2,
   Minimize2,
   Paintbrush,
@@ -96,6 +97,7 @@ function PanelControls() {
 
 export function Inspector() {
   const doc = useProject((s) => s.doc);
+  const documentEpoch = useProject((s) => s.documentEpoch);
   const applyBatch = useProject((s) => s.applyBatch);
   const selectedId = useUi((s) => s.selectedId);
   const select = useUi((s) => s.select);
@@ -108,6 +110,32 @@ export function Inspector() {
   const [compNote, setCompNote] = useState('');
   const [scopeInstruction, setScopeInstruction] = useState('');
   const agentBusy = useAgent((s) => s.busy);
+  const imageUsage = useAgent((s) => s.buildImageUsage);
+  const imageCap = useAgent((s) => s.buildImages);
+  const houseKey = useAgent((s) => s.houseKey);
+  const keySource = useAgent((s) => s.keySource);
+  const dollarBudget = useAgent((s) => s.budget);
+  const [pendingImages, setPendingImages] = useState<Record<string, boolean>>({});
+  const pendingImageRef = useRef(new Set<string>());
+  const generate = async (id: string, regenerate: boolean) => {
+    const key = `${documentEpoch}:${id}`;
+    if (pendingImageRef.current.has(key)) return;
+    pendingImageRef.current.add(key);
+    setPendingImages((previous) => ({ ...previous, [key]: true }));
+    try {
+      await illustrate(
+        id,
+        regenerate ? 'A fresh photographic variation of the same subject' : undefined,
+      );
+    } finally {
+      pendingImageRef.current.delete(key);
+      setPendingImages((previous) => {
+        const next = { ...previous };
+        delete next[key];
+        return next;
+      });
+    }
+  };
   useEffect(() => setScopeInstruction(''), [selectedId]);
 
   const activeScreenId = useUi((s) => s.activeScreenId);
@@ -259,25 +287,46 @@ export function Inspector() {
                 <button
                   type="button"
                   className="btn btn-sm btn-secondary"
-                  onClick={() => void illustrate(node.id)}
+                  disabled={Boolean(pendingImages[`${documentEpoch}:${node.id}`])}
+                  onClick={() => void generate(node.id, false)}
                 >
-                  <Sparkles size={12} /> Illustrate with muse-image
+                  {pendingImages[`${documentEpoch}:${node.id}`] ? (
+                    <LoaderCircle size={12} className="image-spinner" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}{' '}
+                  Illustrate with muse-image
                 </button>
                 <button
                   type="button"
                   className="btn btn-sm btn-secondary"
-                  onClick={() =>
-                    void illustrate(
-                      node.id,
-                      `A fresh visual variation for ${node.name || node.type}, variation ${Date.now()}`,
-                    )
-                  }
+                  disabled={Boolean(pendingImages[`${documentEpoch}:${node.id}`])}
+                  onClick={() => void generate(node.id, true)}
                 >
-                  <Sparkles size={12} /> Regenerate image
+                  {pendingImages[`${documentEpoch}:${node.id}`] ? (
+                    <LoaderCircle size={12} className="image-spinner" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}{' '}
+                  Regenerate image
                 </button>
-                <p className="field-hint">
-                  The asset is written into this node, so it survives reload, undo and the
-                  export. Costs one image from your key.
+                <p className="field-hint" aria-live="polite">
+                  {pendingImages[`${documentEpoch}:${node.id}`] && 'Generating image… '}
+                  {imageUsage?.documentEpoch === documentEpoch
+                    ? `Automated build image attempts: ${imageUsage.used} of ${imageUsage.cap}; ${Math.max(0, imageUsage.cap - imageUsage.used)} remaining in this build. `
+                    : `Automated build cap: ${imageCap} attempts; usage for this project is unknown. `}
+                  {imageUsage?.documentEpoch === documentEpoch &&
+                    imageUsage.used >= imageUsage.cap &&
+                    'Automated build image budget exhausted. '}
+                  Manual requests are separate from that build cap and may incur key
+                  charges.
+                  {keySource !== 'session' &&
+                  (houseKey === 'exhausted' || dollarBudget?.exhausted)
+                    ? ' Shared-key budget exhausted.'
+                    : keySource !== 'session' && dollarBudget?.capUsd != null
+                      ? ` Shared-key budget last reported: $${dollarBudget.spentUsd.toFixed(2)} of $${dollarBudget.capUsd.toFixed(2)} used.`
+                      : ' Current key balance is not known here.'}{' '}
+                  A successful image is saved in the project and can be undone.
                 </p>
               </div>
             )}

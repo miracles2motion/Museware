@@ -43,6 +43,15 @@ describe('blueprint header drift', () => {
     expect(parse('SCREEN: Home\n- title_a (heading) Welcome').screens[0].name).toBe(
       'Home',
     ));
+  it('removes generated ids and single-scrolling descriptions from screen names', () => {
+    expect(
+      parse('SCREEN: Landing (id: landing) - single scrolling\n- hero (hero)').screens[0]
+        .name,
+    ).toBe('Landing');
+    expect(
+      parse('SCREEN: Tea Landing (id: landing) - single scrolling page').screens[0].name,
+    ).toBe('Tea Landing');
+  });
   it('accepts numbered, colon-after-name headers', () =>
     expect(
       parse('SCREEN 1 - landing (entry):\n- title_a (heading) Tea').screens[0].name,

@@ -462,6 +462,26 @@ interface ScopedDraft {
   };
 }
 
+interface ImageBudget {
+  remaining: number;
+  cap?: number;
+  documentEpoch?: number;
+}
+
+function publishImageBudget(budget: ImageBudget) {
+  if (
+    budget.cap !== undefined &&
+    budget.documentEpoch === useProject.getState().documentEpoch
+  )
+    useAgent.setState({
+      buildImageUsage: {
+        used: budget.cap - budget.remaining,
+        cap: budget.cap,
+        documentEpoch: budget.documentEpoch,
+      },
+    });
+}
+
 interface ToolLoopOptions {
   messages: ChatMessage[];
   maxCalls: number;
@@ -471,7 +491,7 @@ interface ToolLoopOptions {
   onProgress?: (line: string) => void;
   scope?: ScopedDraft;
   repairIds?: string[];
-  imageBudget?: { remaining: number };
+  imageBudget?: ImageBudget;
 }
 
 interface ToolLoopResult {
@@ -902,7 +922,10 @@ async function runTool(
         signal: controller?.signal,
         onlyEmpty: Boolean(opts.repairIds),
       });
-      if (budget) budget.remaining = Math.max(0, budget.remaining - results.length);
+      if (budget) {
+        budget.remaining = Math.max(0, budget.remaining - results.length);
+        publishImageBudget(budget);
+      }
       return {
         text: results.map((r) => `${r.id}: ${r.ok ? 'applied' : r.message}`).join('\n'),
       };
@@ -974,7 +997,7 @@ export async function verifyGate(
   task: string,
   doc: ProjectDoc,
   screenIds: string[],
-  imageBudget: { remaining: number } = { remaining: useAgent.getState().buildImages },
+  imageBudget: ImageBudget = { remaining: useAgent.getState().buildImages },
 ): Promise<void> {
   useAgent.getState().setVerification('running');
   let findings = findingsFor(doc, screenIds);
@@ -1494,7 +1517,13 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     parts: targets.map((s) => ({ id: s.id, label: s.name, state: 'queued' as const })),
   });
 
-  const imageBudget = { remaining: Math.max(0, useAgent.getState().buildImages) };
+  const cap = Math.max(0, useAgent.getState().buildImages);
+  const imageBudget: ImageBudget = {
+    remaining: cap,
+    cap,
+    documentEpoch: useProject.getState().documentEpoch,
+  };
+  publishImageBudget(imageBudget);
   const beforeScreens = new Map(
     doc.screens.map((screen) => [screen.id, structuredClone(screen)]),
   );
@@ -1576,11 +1605,40 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           });
           break;
         }
+        const actualScreen = useProject
+          .getState()
+          .doc.screens.find((screen) => screen.id === target.id);
         if (!buildResult.finished) {
-          useAgent.getState().patchPart(target.id, {
-            state: 'failed',
-            note: 'The builder stopped before finishing this screen.',
-          });
+          // Inspect the actual document, even if the model omitted finish().
+          const builtContent = actualScreen && actualScreen.root.children.length > 0;
+          if (!builtContent) {
+            useAgent
+              .getState()
+              .patchPart(target.id, {
+                state: 'failed',
+                note: 'The builder stopped without finishing or producing screen content.',
+              });
+            continue;
+          }
+          completed.add(target.id);
+          useAgent
+            .getState()
+            .patchPart(target.id, {
+              state: 'done',
+              note: 'Builder did not call finish(); screen has content and will be reviewed.',
+            });
+          addSystem(
+            `Screen ${target.name} has content, but the builder did not call finish(); checking the result.`,
+          );
+          continue;
+        }
+        if (!actualScreen || actualScreen.root.children.length === 0) {
+          useAgent
+            .getState()
+            .patchPart(target.id, {
+              state: 'failed',
+              note: 'The builder finished without producing screen content.',
+            });
           continue;
         }
         completed.add(target.id);
@@ -1628,6 +1686,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
         controller.signal,
       );
       imageBudget.remaining = Math.max(0, imageBudget.remaining - autoResults.length);
+      publishImageBudget(imageBudget);
       if (controller.signal.aborted) {
         addSystem(
           'Stopped during illustration — finished screens stay, without verification.',

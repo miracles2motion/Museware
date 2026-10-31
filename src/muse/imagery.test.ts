@@ -72,6 +72,58 @@ describe('build imagery', () => {
     useProject.getState().undo();
     expect(useProject.getState().doc.screens[0].root.children[2].props.src).toBe('');
   });
+  it('records failures with the cause and preserves the image', async () => {
+    vi.mocked(generateImage).mockRejectedValueOnce(new Error('Provider timed out'));
+    await illustrateTarget({ id: 'image_0' });
+    const lines = useProject.getState().doc.rail.map((entry) => entry.text);
+    expect(lines.some((line) => line.includes('Illustrating image_0'))).toBe(true);
+    expect(
+      lines.some((line) => line.includes('image_0') && line.includes('Provider timed out')),
+    ).toBe(true);
+    expect(useProject.getState().doc.screens[0].root.children[0].props.src).toBe('');
+  });
+  it('uses nearby product copy to request a photograph rather than a vector', async () => {
+    const doc = structuredClone(useProject.getState().doc);
+    const image = doc.screens[0].root.children[0];
+    image.props.alt = 'Image';
+    doc.screens[0].root.children = [
+      {
+        id: 'card_tea',
+        type: 'card',
+        props: {},
+        styles: {},
+        children: [
+          image,
+          {
+            id: 'tea_name',
+            type: 'heading',
+            props: { text: 'Jasmine Green Tea' },
+            styles: {},
+            children: [],
+          },
+        ],
+      },
+    ];
+    useProject.getState().replaceDoc(doc);
+    await illustrateTarget({ id: 'image_0' });
+    const prompt = vi.mocked(generateImage).mock.calls[0][0];
+    expect(prompt).toMatch(/photograph/i);
+    expect(prompt).toContain('Jasmine Green Tea');
+    expect(prompt).not.toMatch(/flat vector|abstract background|no text/i);
+  });
+  it('identifies targets skipped by the automated cap', async () => {
+    await autoIllustrate(['tea'], 'tea', 3);
+    expect(
+      useProject
+        .getState()
+        .doc.rail.some(
+          (entry) =>
+            entry.text.includes('skipped') &&
+            entry.text.includes('image_3') &&
+            entry.text.includes('image_4'),
+        ),
+    ).toBe(true);
+  });
   it('reports an exhausted shared key without making requests', async () => {
     useAgent.setState({ keySource: 'env', houseKey: 'exhausted' });
     await autoIllustrate(['tea'], 'tea', 3);
