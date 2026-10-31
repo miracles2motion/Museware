@@ -96,4 +96,21 @@ describe('Museware shell sizing tokens', () => {
       expect((css + appCss).includes(`var(${name})`), name).toBe(false);
     }
   });
+  it('uses a restrained accent tint and tokenized composer spacing', () => {
+    const tints = [...css.matchAll(/--mw-accent-subtle:\s*([^;]+);/g)].map((match) =>
+      match[1].trim(),
+    );
+    expect(tints).toEqual([
+      'color-mix(in srgb, var(--mw-accent) 10%, var(--mw-surface))',
+      'color-mix(in srgb, var(--mw-accent) 10%, var(--mw-surface))',
+    ]);
+    const rule = (name: string) =>
+      appCss.match(new RegExp(`(?:^|\\n)\\.${name}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('composer-suggestions')).toContain('gap: var(--mw-space-1-5);');
+    const status = rule('rail-status');
+    expect(status).toContain('gap: var(--mw-space-2);');
+    expect(status).toContain('padding: var(--mw-space-2) var(--mw-space-2-5);');
+    expect(status).toContain('border-radius: var(--mw-radius-md);');
+    expect(rule('chat-composer-status')).not.toMatch(/padding\s*:/);
+  });
 });

@@ -104,7 +104,7 @@
      filter or a gradient to say "this is a button". */
   --mw-accent-hover: var(--mw-indigo-400);
   --mw-accent-press: var(--mw-indigo-600);
-  --mw-accent-subtle: rgba(109, 92, 255, 0.16);
+  --mw-accent-subtle: color-mix(in srgb, var(--mw-accent) 10%, var(--mw-surface));
   --mw-accent-soft: rgba(109, 92, 255, 0.28);
   --mw-ok: var(--mw-green-400);
   --mw-warn: var(--mw-amber-400);
@@ -237,7 +237,7 @@
   --mw-accent-2: var(--mw-violet-600);
   --mw-accent-hover: var(--mw-indigo-500);
   --mw-accent-press: var(--mw-indigo-700);
-  --mw-accent-subtle: rgba(91, 73, 245, 0.1);
+  --mw-accent-subtle: color-mix(in srgb, var(--mw-accent) 10%, var(--mw-surface));
   --mw-accent-soft: rgba(91, 73, 245, 0.2);
   --mw-ok: var(--mw-green-600);
   --mw-warn: var(--mw-amber-600);

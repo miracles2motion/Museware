@@ -1730,7 +1730,7 @@ a {
 
 .composer-suggestions {
   display: flex;
-  gap: 6px;
+  gap: var(--mw-space-1-5);
   flex-wrap: wrap;
 }
 
@@ -1810,9 +1810,9 @@ a {
 .rail-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  gap: var(--mw-space-2);
+  padding: var(--mw-space-2) var(--mw-space-2-5);
+  border-radius: var(--mw-radius-md);
   border: 1px solid var(--mw-accent-soft);
   background: var(--mw-accent-subtle);
   font-size: var(--mw-fs-12);
@@ -4588,7 +4588,6 @@ button.how-card .field-hint {
 }
 .chat-composer-status {
   border-top: 0;
-  padding: var(--mw-space-1) 0 0;
 }
 .chat-receipts-button {
   min-height: var(--mw-space-5);
