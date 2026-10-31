@@ -4373,3 +4373,357 @@ button.how-card .field-hint {
   border-color: var(--mw-ink-3);
   color: var(--mw-ink-2);
 }
+
+/* Fullscreen muse focus and the shared, token-only chat surface. */
+.chat-focus {
+  position: fixed;
+  inset: 0;
+  z-index: var(--mw-z-chat);
+  background: color-mix(in srgb, var(--mw-bg) 72%, transparent);
+  backdrop-filter: blur(var(--mw-blur-chat));
+  -webkit-backdrop-filter: blur(var(--mw-blur-chat));
+  display: flex;
+  justify-content: center;
+  animation: chat-focus-in var(--mw-chat-motion) var(--mw-ease-out) both;
+}
+@keyframes chat-focus-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.chat-focus-column {
+  width: min(100%, var(--mw-chat-width));
+  height: 100%;
+  min-height: 0;
+}
+.chat-focus .rail[data-chat-focused] {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--mw-shadow-e2);
+  display: flex;
+}
+.chat-focus .rail[data-chat-focused] .rail-header,
+.chat-focus .rail[data-chat-focused] .rail-body,
+.chat-focus .rail[data-chat-focused] .composer {
+  display: flex;
+}
+.chat-focus .rail[data-chat-focused] .rail-peek {
+  display: none;
+}
+.chat-minimize {
+  position: fixed;
+  left: var(--mw-space-4);
+  top: var(--mw-space-4);
+  z-index: var(--mw-z-tooltip);
+  width: var(--mw-space-8);
+  height: var(--mw-space-8);
+  border-radius: var(--mw-radius-pill);
+  border: 1px solid var(--mw-border-strong);
+  background: var(--mw-surface);
+  color: var(--mw-ink);
+  box-shadow: var(--mw-shadow-e2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.chat-launcher {
+  position: fixed;
+  left: var(--mw-space-4);
+  bottom: var(--mw-space-4);
+  z-index: var(--mw-z-chat);
+  width: var(--mw-chat-launcher-size);
+  height: var(--mw-chat-launcher-size);
+  border-radius: var(--mw-radius-pill);
+  border: 1px solid var(--mw-border-strong);
+  background: var(--mw-accent);
+  color: var(--mw-on-accent);
+  box-shadow: var(--mw-shadow-e2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.chat-unread {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--mw-space-3);
+  height: var(--mw-space-3);
+  border-radius: var(--mw-radius-pill);
+  background: var(--mw-danger);
+  border: 2px solid var(--mw-surface);
+}
+.chat-card {
+  background: var(--mw-surface);
+  border: 1px solid color-mix(in srgb, var(--mw-border-strong) 75%, transparent);
+  border-radius: var(--mw-radius-lg);
+  box-shadow: var(--mw-shadow-e1);
+}
+.chat-card--seed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mw-space-2);
+}
+.chat-card--receipt {
+  margin: var(--mw-space-1) 0;
+  padding: var(--mw-space-2);
+  font: var(--mw-type-code);
+}
+.chat-card--work {
+  padding: var(--mw-space-2);
+}
+.chat-card--work[aria-busy='true']::after {
+  content: '';
+  display: block;
+  height: var(--mw-space-1);
+  background: linear-gradient(
+    90deg,
+    var(--mw-surface-2),
+    var(--mw-accent-soft),
+    var(--mw-surface-2)
+  );
+  background-size: 200% 100%;
+  animation: chat-shimmer 1.4s linear infinite;
+}
+@keyframes chat-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.chat-bubble {
+  overflow-wrap: anywhere;
+}
+.chat-bubble--user {
+  background: var(--mw-accent-subtle);
+}
+.chat-bubble--agent {
+  color: var(--mw-ink);
+}
+.chat-chip {
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-pill);
+  background: var(--mw-surface);
+  color: var(--mw-ink);
+  padding: var(--mw-space-1) var(--mw-space-2);
+  cursor: pointer;
+  font: var(--mw-type-label);
+}
+.chat-card:is(button, a):hover,
+.chat-chip:hover,
+.chat-launcher:hover,
+.chat-minimize:hover {
+  border-color: var(--mw-accent);
+  transform: translateY(-1px);
+}
+.chat-card:is(button, a):focus-visible,
+.chat-card button:focus-visible,
+.chat-chip:focus-visible,
+.chat-launcher:focus-visible,
+.chat-minimize:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+.chat-card:disabled,
+.chat-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.chat-model-strip {
+  display: flex;
+  gap: var(--mw-space-1);
+  flex-wrap: wrap;
+  padding: var(--mw-space-1) var(--mw-space-2);
+}
+.chat-receipt-list {
+  padding: var(--mw-space-1) var(--mw-space-2);
+  overflow-y: auto;
+}
+.chat-card--preview {
+  position: relative;
+  margin: var(--mw-space-2);
+  max-width: var(--mw-chat-preview-width);
+  overflow: hidden;
+}
+.chat-card--preview img {
+  width: 100%;
+  display: block;
+}
+.chat-preview-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.chat-ring-progress {
+  transition: stroke-dasharray var(--mw-motion-base) var(--mw-ease-out);
+}
+.chat-accent-icon {
+  color: var(--mw-accent);
+}
+.chat-vertical {
+  writing-mode: vertical-rl;
+}
+.chat-grow {
+  flex: 1;
+}
+.chat-align-left {
+  text-align: left;
+}
+.chat-load-earlier {
+  align-self: center;
+  min-height: var(--mw-space-6);
+  font-size: var(--mw-fs-11);
+}
+.chat-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-1);
+}
+.chat-composer-status {
+  border-top: 0;
+  padding: var(--mw-space-1) 0 0;
+}
+.chat-receipts-button {
+  min-height: var(--mw-space-5);
+  font-size: var(--mw-fs-11);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-focus {
+    animation: none;
+  }
+  .chat-card--work[aria-busy='true']::after {
+    animation: none;
+  }
+}
+@media (max-width: 1023px) {
+  .chat-focus .chat-minimize {
+    left: var(--mw-space-2);
+    top: var(--mw-space-2);
+    width: var(--mw-space-8);
+    height: var(--mw-space-8);
+  }
+  .chat-focus .rail-header {
+    padding-left: var(--mw-space-10);
+  }
+}
+
+/* Static shell utility classes: geometry and spacing use the mw token scale. */
+.mw-shell-util-1.mw-shell-util-1 {
+  position: absolute;
+}
+.mw-shell-util-2.mw-shell-util-2 {
+  position: relative;
+}
+.mw-shell-util-3.mw-shell-util-3 {
+  font-size: var(--mw-fs-9);
+}
+.mw-shell-util-4.mw-shell-util-4 {
+  height: var(--mw-space-5);
+  font-size: var(--mw-fs-11);
+  width: var(--mw-shell-rename-width);
+  padding: 0 var(--mw-space-1);
+}
+.mw-shell-util-5.mw-shell-util-5 {
+  display: contents;
+}
+.mw-shell-util-6.mw-shell-util-6 {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-onehalf);
+  padding-left: var(--mw-space-2);
+}
+.mw-shell-util-7.mw-shell-util-7 {
+  color: var(--mw-ink-3);
+}
+.mw-shell-util-8.mw-shell-util-8 {
+  border: none;
+  background: transparent;
+  color: var(--mw-ink);
+  outline: none;
+  flex: 1;
+  height: 100%;
+}
+.mw-shell-util-9.mw-shell-util-9 {
+  margin-top: var(--mw-space-onehalf);
+}
+.mw-shell-util-10.mw-shell-util-10 {
+  margin: 0;
+}
+.mw-shell-util-11.mw-shell-util-11 {
+  height: var(--mw-shell-compact-height);
+  font-size: var(--mw-fs-10);
+}
+.mw-shell-util-12.mw-shell-util-12 {
+  font-size: var(--mw-fs-10);
+}
+.mw-shell-util-13.mw-shell-util-13 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mw-space-1);
+}
+.mw-shell-util-14.mw-shell-util-14 {
+  padding-bottom: var(--mw-space-onehalf);
+}
+.mw-shell-util-15.mw-shell-util-15 {
+  margin-right: var(--mw-space-1);
+}
+.mw-shell-util-16.mw-shell-util-16 {
+  display: flex;
+  gap: var(--mw-space-onehalf);
+}
+.mw-shell-util-17.mw-shell-util-17 {
+  flex: 1;
+}
+.mw-shell-util-18.mw-shell-util-18 {
+  width: var(--mw-shell-color-control-width);
+  height: var(--mw-input-h);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-space-2);
+  background: var(--mw-surface);
+  padding: var(--mw-space-half);
+}
+.mw-shell-util-19.mw-shell-util-19 {
+  display: flex;
+  gap: var(--mw-space-1);
+  min-width: 0;
+  overflow: auto;
+}
+.mw-shell-util-20.mw-shell-util-20 {
+  white-space: nowrap;
+}
+.mw-shell-util-21.mw-shell-util-21 {
+  margin-left: var(--mw-space-onehalf);
+  font-size: var(--mw-fs-10);
+}
+.mw-shell-util-22.mw-shell-util-22 {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--mw-accent) 8%, transparent);
+  border: var(--mw-space-half) dashed var(--mw-accent);
+  color: var(--mw-accent);
+  font: var(--mw-type-label);
+  pointer-events: none;
+  z-index: var(--mw-z-canvas-overlay);
+}
+.mw-shell-util-23.mw-shell-util-23 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mw-space-onehalf);
+}
+.mw-shell-util-24.mw-shell-util-24 {
+  margin-top: var(--mw-space-twohalf);
+  text-align: center;
+}

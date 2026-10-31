@@ -77,24 +77,14 @@ export function Palette() {
 
   return (
     <div className="panel-body">
-      <div
-        className="input palette-search"
-        style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}
-      >
-        <Search size={13} style={{ color: 'var(--mw-ink-3)' }} />
+      <div className="input palette-search mw-shell-util-6">
+        <Search size={13} className="mw-shell-util-7" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the 30 blocks"
           aria-label="Search components"
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--mw-ink)',
-            outline: 'none',
-            flex: 1,
-            height: '100%',
-          }}
+          className="mw-shell-util-8"
         />
         {query && (
           <button
@@ -112,7 +102,7 @@ export function Palette() {
         <div className="palette-group">
           <div className="palette-group-head">
             <span className="eyebrow">My components</span>
-            <span className="faint mono" style={{ fontSize: 9 }}>
+            <span className="faint mono mw-shell-util-3">
               {doc.customComponents.length}
             </span>
           </div>
@@ -157,9 +147,7 @@ export function Palette() {
           <div className="palette-group" key={group}>
             <div className="palette-group-head">
               <span className="eyebrow">{group}</span>
-              <span className="faint mono" style={{ fontSize: 9 }}>
-                {items.length}
-              </span>
+              <span className="faint mono mw-shell-util-3">{items.length}</span>
             </div>
             <div className="palette-grid">
               {items.map((item) => (
@@ -201,13 +189,12 @@ export function Palette() {
         </p>
       )}
 
-      <p className="field-hint" style={{ marginTop: 6 }}>
+      <p className="field-hint mw-shell-util-9">
         Drag into the canvas, or click to add inside the selection. Containers accept drops.
       </p>
       <button
         type="button"
-        className="btn btn-sm btn-ghost left-ask"
-        style={{ margin: 0 }}
+        className="btn btn-sm btn-ghost left-ask mw-shell-util-10"
         onClick={() => {
           if (!doc.screens.length) {
             startPrompt('Design me a small app — pick the screens that make sense.');
@@ -225,8 +212,7 @@ export function Palette() {
       </button>
       <button
         type="button"
-        className="btn btn-sm btn-ghost left-ask"
-        style={{ marginTop: 6 }}
+        className="btn btn-sm btn-ghost left-ask mw-shell-util-9"
         onClick={() => setModal('settingsOpen', true)}
       >
         Import a design preset

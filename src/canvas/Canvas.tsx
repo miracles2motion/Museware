@@ -364,12 +364,9 @@ export function Canvas() {
   return (
     <div className="canvas-area" data-dragging={drag.active || undefined}>
       <div className="canvas-toolbar">
-        <nav
-          aria-label="Selection breadcrumb"
-          style={{ display: 'flex', gap: 4, minWidth: 0, overflow: 'auto' }}
-        >
+        <nav aria-label="Selection breadcrumb" className="mw-shell-util-19">
           {path.map((node, index) => (
-            <span key={node.id} style={{ whiteSpace: 'nowrap' }}>
+            <span key={node.id} className="mw-shell-util-20">
               {index > 0 && ' › '}
               <button type="button" className="link-btn" onClick={() => select(node.id)}>
                 {index === 0 ? screen.name : node.name || node.type}
@@ -377,10 +374,10 @@ export function Canvas() {
             </span>
           ))}
         </nav>
-        <span className="faint mono" style={{ fontSize: 9 }}>
+        <span className="faint mono mw-shell-util-3">
           {screen.id} · {width}px {screen.entry ? '· entry' : ''}
         </span>
-        <span style={{ flex: 1 }} />
+        <span className="mw-shell-util-17" />
         <button
           type="button"
           className="chip"
@@ -418,7 +415,7 @@ export function Canvas() {
         </button>
         {/* On a phone the tab bar already owns Run and the overflow menu owns
             Add screen, so these two would be the same action twice in 56px. */}
-        <span className="topbar-desktop" style={{ display: 'contents' }}>
+        <span className="topbar-desktop mw-shell-util-5">
           <Button size="sm" variant="ghost" onClick={() => setRunMode(true, screen.id)}>
             ▶ Run
           </Button>
@@ -467,19 +464,16 @@ export function Canvas() {
               <span className="dot" />
               <span className="dot" />
               <span className="dot" />
-              <span className="mono" style={{ marginLeft: 6, fontSize: 10 }}>
-                {screen.id}
-              </span>
-              <span style={{ flex: 1 }} />
-              <span className="mono" style={{ fontSize: 10 }}>
+              <span className="mono mw-shell-util-21">{screen.id}</span>
+              <span className="mw-shell-util-17" />
+              <span className="mono mw-shell-util-12">
                 {width} × {frameHeight}
                 {fit.k < 0.999 ? ` · ${Math.round(fit.k * 100)}%` : ''}
               </span>
             </div>
             <div
-              className="frame-viewport"
+              className="frame-viewport mw-shell-util-2"
               ref={viewportRef}
-              style={{ position: 'relative' }}
               onPointerMove={(e) => {
                 if (
                   drag.active ||
@@ -724,21 +718,8 @@ export function Canvas() {
               )}
 
               {dropActive && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: 'color-mix(in srgb, var(--mw-accent) 8%, transparent)',
-                    border: '2px dashed var(--mw-accent)',
-                    color: 'var(--mw-accent)',
-                    font: 'var(--mw-type-label)',
-                    pointerEvents: 'none',
-                    zIndex: 5,
-                  }}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <div className="mw-shell-util-22">
+                  <span className="mw-shell-util-23">
                     <ImagePlus size={14} /> Drop the screenshot to recreate it
                   </span>
                 </div>
@@ -747,10 +728,7 @@ export function Canvas() {
           </div>
         </div>
 
-        <div
-          className="canvas-hint field-hint"
-          style={{ marginTop: 10, textAlign: 'center' }}
-        >
+        <div className="canvas-hint field-hint mw-shell-util-24">
           Click to select · double-click text to edit · drag the grip or a palette block ·
           Delete removes
         </div>

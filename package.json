@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:tokens": "node scripts/check-tokens.mjs && node scripts/check-shell-style.mjs && node scripts/check-shell-style.mjs --self-test",
     "check:dist": "node scripts/check-dist.mjs",
     "check:export": "vite-node scripts/check-export.ts",
     "check": "npm run typecheck && npm run lint && npm run check:tokens && npm test && npm run check:api:fresh && npm run build-api && npm run check:api",

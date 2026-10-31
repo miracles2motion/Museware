@@ -346,16 +346,13 @@ export function Inspector() {
                 {parent ? (
                   <button
                     type="button"
-                    className="chip"
-                    style={{ height: 22, fontSize: 10 }}
+                    className="chip mw-shell-util-11"
                     onClick={() => select(parent.parent.id)}
                   >
                     <LayersIcon size={10} /> {parent.parent.id}
                   </button>
                 ) : (
-                  <span className="faint" style={{ fontSize: 10 }}>
-                    root
-                  </span>
+                  <span className="faint mw-shell-util-12">root</span>
                 )}
               </div>
               <TextField
@@ -517,9 +514,8 @@ export function Inspector() {
                                     <button
                                       type="button"
                                       key={key}
-                                      className="chip"
+                                      className="chip mw-shell-util-11"
                                       data-selected={String(value) === key}
-                                      style={{ height: 22, fontSize: 10 }}
                                       onClick={() => writeProps({ [def.key]: key })}
                                     >
                                       {key}
@@ -603,7 +599,7 @@ export function Inspector() {
                   }}
                 />
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <div className="mw-shell-util-13">
                 {boundKeys(doc).map((key) => (
                   <button
                     type="button"
@@ -649,8 +645,8 @@ export function Inspector() {
                 : ' — changes are the base all wider widths inherit.'}
             </div>
             {Object.keys(overrides).length > 0 && (
-              <div className="insp-section-head" style={{ paddingBottom: 6 }}>
-                <span className="faint" style={{ fontSize: 10 }}>
+              <div className="insp-section-head mw-shell-util-14">
+                <span className="faint mw-shell-util-12">
                   {Object.keys(overrides).length} override
                   {Object.keys(overrides).length === 1 ? '' : 's'} at this width
                 </span>
@@ -697,9 +693,8 @@ export function Inspector() {
                 {eventValue(ev.name).map((action, index) => (
                   <span
                     key={index}
-                    className="chip"
+                    className="chip mw-shell-util-15"
                     data-event-kind={action.type}
-                    style={{ marginRight: 4 }}
                   >
                     {ev.name === 'tap' ? 'WHEN TAPPED' : ev.label.toUpperCase()} →{' '}
                     {action.type === 'navigate'
@@ -766,11 +761,10 @@ export function Inspector() {
             <Sparkles size={13} /> Restyle this widget
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="mw-shell-util-16">
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
-            style={{ flex: 1 }}
+            className="btn btn-sm btn-ghost mw-shell-util-17"
             onClick={() => setSaving(true)}
           >
             <Save size={12} /> Save as component
@@ -1017,9 +1011,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
         <div className="insp-section">
           <div className="insp-section-head">
             <span className="eyebrow">Bindings on this screen</span>
-            <span className="faint" style={{ fontSize: 10 }}>
-              {binds.size}
-            </span>
+            <span className="faint mw-shell-util-12">{binds.size}</span>
           </div>
           {binds.size === 0 ? (
             <p className="field-hint">
@@ -1027,9 +1019,9 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
               the screen stateful.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            <div className="mw-shell-util-13">
               {[...binds].map((key) => (
-                <span className="chip chip-static mono" key={key} style={{ fontSize: 10 }}>
+                <span className="chip chip-static mono mw-shell-util-12" key={key}>
                   {key}
                 </span>
               ))}
@@ -1040,9 +1032,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
         <div className="insp-section">
           <div className="insp-section-head">
             <span className="eyebrow">Design system</span>
-            <span className="faint" style={{ fontSize: 10 }}>
-              {doc.tokens.title}
-            </span>
+            <span className="faint mw-shell-util-12">{doc.tokens.title}</span>
           </div>
           <div className="swatch-grid">
             {PRESETS.map((preset) => (
@@ -1077,9 +1067,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
             ))}
           </div>
           <div className="token-row">
-            <span className="field-label" style={{ flex: 1 }}>
-              Accent
-            </span>
+            <span className="field-label mw-shell-util-17">Accent</span>
             <input
               type="color"
               aria-label="Brand accent"
@@ -1087,14 +1075,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
               onChange={(e) =>
                 run([{ op: 'setTokens', patch: { brand_color: e.target.value } }])
               }
-              style={{
-                width: 36,
-                height: 'var(--mw-input-h)',
-                border: '1px solid var(--mw-border)',
-                borderRadius: 8,
-                background: 'var(--mw-surface)',
-                padding: 2,
-              }}
+              className="mw-shell-util-18"
             />
           </div>
           <p className="field-hint">

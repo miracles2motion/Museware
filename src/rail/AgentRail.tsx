@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Mic,
+  Maximize2,
   Send,
   Sparkles,
   Square,
@@ -57,7 +58,7 @@ function Ring({ value, cap }: { value: number; cap: number }) {
         strokeLinecap="round"
         strokeDasharray={`${circumference * pct} ${circumference}`}
         transform="rotate(-90 12 12)"
-        style={{ transition: 'stroke-dasharray 200ms ease-out' }}
+        className="chat-ring-progress"
       />
     </svg>
   );
@@ -69,12 +70,15 @@ function RailMessage({ entry, fresh }: { entry: RailEntry; fresh: boolean }) {
   if (entry.role === 'user')
     return (
       <div className="rail-msg user">
-        <div className="bubble-user">{entry.text}</div>
+        <div className="bubble-user chat-bubble chat-bubble--user">{entry.text}</div>
       </div>
     );
   return (
     <div className="rail-msg">
-      <div className="prose-agent" data-fresh={fresh || undefined}>
+      <div
+        className="prose-agent chat-bubble chat-bubble--agent"
+        data-fresh={fresh || undefined}
+      >
         {entry.text}
         {entry.reasoningReplayed && (
           <span className="chip" aria-label="Reasoning replayed">
@@ -86,12 +90,13 @@ function RailMessage({ entry, fresh }: { entry: RailEntry; fresh: boolean }) {
   );
 }
 
-export function AgentRail() {
+export function AgentRail({ focused = false }: { focused?: boolean }) {
   const rail = useProject((s) => s.doc.rail);
   const doc = useProject((s) => s.doc);
   const setDraft = useUi((s) => s.setDraft);
   const draft = useUi((s) => s.draft);
   const railCollapsed = useUi((s) => s.railCollapsed);
+  const setChatExpanded = useUi((s) => s.setChatExpanded);
   const toggleRail = useUi((s) => s.toggleRail);
   const selectedId = useUi((s) => s.selectedId);
   const toast = useUi((s) => s.toast);
@@ -234,7 +239,7 @@ export function AgentRail() {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(pointer: coarse)').matches;
 
-  if (railCollapsed) {
+  if (railCollapsed && !focused) {
     return (
       <aside className="rail" data-collapsed="true">
         <div className="rail-collapsed">
@@ -246,10 +251,8 @@ export function AgentRail() {
           >
             <ChevronLeft size={16} />
           </button>
-          <Sparkles size={16} style={{ color: 'var(--mw-accent)' }} />
-          <span className="eyebrow" style={{ writingMode: 'vertical-rl' }}>
-            muse
-          </span>
+          <Sparkles size={16} className="chat-accent-icon" />
+          <span className="eyebrow chat-vertical">muse</span>
           {busy && (
             <button
               type="button"
@@ -266,10 +269,15 @@ export function AgentRail() {
   }
 
   return (
-    <aside className="rail" data-busy={busy || undefined} data-open={mobileRailOpen}>
+    <aside
+      className="rail"
+      data-busy={busy || undefined}
+      data-open={focused || mobileRailOpen}
+      data-chat-focused={focused || undefined}
+    >
       <button type="button" className="rail-peek" onClick={() => setMobileRail(true)}>
-        <Sparkles size={14} style={{ color: 'var(--mw-accent)' }} />
-        <span style={{ flex: 1, textAlign: 'left' }}>
+        <Sparkles size={14} className="chat-accent-icon" />
+        <span className="chat-grow chat-align-left">
           {busy ? liveLine || 'muse is working…' : 'Talk to muse — swipe up'}
         </span>
         {busy && (
@@ -288,7 +296,7 @@ export function AgentRail() {
         )}
       </button>
       <div className="rail-header">
-        <Sparkles size={15} style={{ color: 'var(--mw-accent)' }} />
+        <Sparkles size={15} className="chat-accent-icon" />
         <div className="title-row">
           <strong>muse</strong>
           <span>
@@ -308,12 +316,22 @@ export function AgentRail() {
             {money(sessionCents)}
           </span>
         </div>
+        {!focused && (
+          <button
+            type="button"
+            className="icon-btn icon-btn-sm"
+            aria-label="Expand muse chat"
+            onClick={() => setChatExpanded(true)}
+          >
+            <Maximize2 size={15} />
+          </button>
+        )}
         <Ring value={turnCalls} cap={CALL_CAP} />
         {busy ? (
           <button type="button" className="stop-btn" onClick={() => stopAgent()}>
             <Square size={12} /> Stop
           </button>
-        ) : (
+        ) : !focused ? (
           <button
             type="button"
             className="icon-btn icon-btn-sm"
@@ -328,10 +346,10 @@ export function AgentRail() {
           >
             {mobileRailOpen ? <X size={15} /> : <ChevronRight size={15} />}
           </button>
-        )}
+        ) : null}
       </div>
 
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 8px' }}>
+      <div className="chat-model-strip">
         <button
           type="button"
           className="chip"
@@ -361,7 +379,7 @@ export function AgentRail() {
         ))}
       </div>
       {filter && (
-        <div style={{ padding: '4px 8px' }} aria-label={`${filter} calls`}>
+        <div className="chat-receipt-list" aria-label={`${filter} calls`}>
           {receipts
             .filter(
               (r) =>
@@ -369,18 +387,17 @@ export function AgentRail() {
                 r.role.toLowerCase() === filter.toLowerCase(),
             )
             .map((r) => (
-              <div className="sys-pill" key={r.id}>
+              <div className="chat-card chat-card--receipt" key={r.id}>
                 {r.model} · {r.status || 'success'} · {r.latencyMs}ms
               </div>
             ))}
         </div>
       )}
       {preview && (
-        <div style={{ position: 'relative', margin: '8px', maxWidth: 260 }}>
+        <div className="chat-card chat-card--preview">
           <img
             src={preview.image}
             alt="Screenshot segmented by SAM"
-            style={{ width: '100%', display: 'block' }}
             onLoad={(e) =>
               setImageSize({
                 width: e.currentTarget.naturalWidth,
@@ -391,13 +408,7 @@ export function AgentRail() {
           <svg
             viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
             preserveAspectRatio="none"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              pointerEvents: 'none',
-            }}
+            className="chat-preview-overlay"
           >
             {preview.boxes.map((item, i) => (
               <rect
@@ -418,8 +429,7 @@ export function AgentRail() {
         {rail.length > VISIBLE && !showAll && (
           <button
             type="button"
-            className="chip"
-            style={{ alignSelf: 'center', height: 24, fontSize: 11 }}
+            className="chat-chip chat-load-earlier"
             onClick={() => setShowAll(true)}
           >
             Load earlier ({rail.length - VISIBLE})
@@ -435,11 +445,13 @@ export function AgentRail() {
           ))}
         {busy && (
           <div className="rail-msg">
-            <div className="live-line">
+            <div className="live-line chat-card chat-card--work" aria-busy="true">
               <span className="spin" />
               <span>{liveLine || 'Writing canvas changes…'}</span>
             </div>
-            {liveText ? <div className="prose-agent">{liveText}</div> : null}
+            {liveText ? (
+              <div className="prose-agent chat-bubble chat-bubble--agent">{liveText}</div>
+            ) : null}
             <div className="typing" aria-label="muse is working">
               <i />
               <i />
@@ -452,7 +464,7 @@ export function AgentRail() {
       {busy && progress && (
         <div className="rail-status">
           <span className="spin" />
-          <span style={{ flex: 1 }}>
+          <span className="chat-grow">
             {progress.title} — {progress.parts.filter((p) => p.state === 'done').length} of{' '}
             {progress.parts.length}
           </span>
@@ -473,7 +485,7 @@ export function AgentRail() {
               <button
                 type="button"
                 key={s}
-                className="suggestion"
+                className="suggestion chat-chip chat-card chat-card--seed"
                 onClick={() => {
                   if (s === 'Recreate a screenshot') fileRef.current?.click();
                   else if (s === 'Illustrate the hero') void generateHeroImage();
@@ -497,9 +509,6 @@ export function AgentRail() {
             aria-label="Message muse"
             onChange={(e) => {
               setDraft(e.target.value);
-              const el = e.currentTarget;
-              el.style.height = 'auto';
-              el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -508,7 +517,7 @@ export function AgentRail() {
               }
             }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div className="chat-composer-actions">
             <button
               type="button"
               className="icon-btn icon-btn-sm"
@@ -559,20 +568,19 @@ export function AgentRail() {
             </button>
           </div>
         </div>
-        <div className="rail-status" style={{ borderTop: 'none', padding: '4px 2px 0' }}>
+        <div className="rail-status chat-composer-status">
           <span
             className={demoMode ? 'badge-dot' : 'badge-dot'}
             data-tone={demoMode ? 'accent' : 'ok'}
           />
-          <span style={{ flex: 1 }}>
+          <span className="chat-grow">
             {demoMode
               ? 'Local engine — real pipeline, no key needed. Add a key in Settings for the muse models.'
               : 'Pinned muse models · key stays on the server'}
           </span>
           <button
             type="button"
-            className="chip"
-            style={{ height: 20, fontSize: 10 }}
+            className="chat-chip chat-receipts-button"
             onClick={() => setModal('receiptsOpen', true)}
           >
             receipts

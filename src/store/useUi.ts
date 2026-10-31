@@ -31,6 +31,8 @@ interface UiStore {
   leftTab: 'insert' | 'layers';
   leftCollapsed: boolean;
   leftFlyout: boolean;
+  chatExpanded: boolean;
+  setChatExpanded: (expanded: boolean) => void;
   railCollapsed: boolean;
   mobileRailOpen: boolean;
   propertiesOpen: boolean;
@@ -102,6 +104,21 @@ export const useUi = create<UiStore>((set) => ({
   leftCollapsed: false,
   leftFlyout: false,
   railCollapsed: false,
+  chatExpanded: (() => {
+    try {
+      return localStorage.getItem('museware/chatExpanded') === '1';
+    } catch {
+      return false;
+    }
+  })(),
+  setChatExpanded: (chatExpanded) => {
+    try {
+      localStorage.setItem('museware/chatExpanded', chatExpanded ? '1' : '0');
+    } catch {
+      /* storage unavailable */
+    }
+    set({ chatExpanded });
+  },
   mobileRailOpen: false,
   propertiesOpen: false,
   inspectorCollapsed: false,

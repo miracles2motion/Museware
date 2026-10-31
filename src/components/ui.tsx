@@ -240,7 +240,7 @@ export function Toasts() {
     <div className="toast-host" aria-live="polite">
       {toasts.map((t) => (
         <div className="toast" key={t.id} data-tone={t.tone}>
-          <span style={{ flex: 1 }}>{t.text}</span>
+          <span className="mw-shell-util-17">{t.text}</span>
           <button
             type="button"
             className="icon-btn icon-btn-sm"
@@ -266,7 +266,7 @@ export function Banner({
 }) {
   return (
     <div className="banner" data-tone={tone}>
-      <div style={{ flex: 1 }}>{children}</div>
+      <div className="mw-shell-util-17">{children}</div>
       {action}
     </div>
   );

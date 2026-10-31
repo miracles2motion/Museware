@@ -93,7 +93,7 @@ function BlueprintCard({ entry }: { entry: RailEntry }) {
   const [wish, setWish] = useState('');
   const text = data.blueprint || '';
   return (
-    <div className="railcard">
+    <div className="railcard chat-card">
       <div className="railcard-head">
         <span className="spread">
           <Wand2 size={14} /> <strong>{data.title || 'Blueprint'}</strong>
@@ -210,7 +210,7 @@ function BuildChoiceCard({ entry }: { entry: RailEntry }) {
     { mode: 'not_now', label: 'Not now', note: 'Leave the canvas as it is' },
   ];
   return (
-    <div className="railcard">
+    <div className="railcard chat-card">
       <div className="railcard-head">
         <span className="spread">
           <Wand2 size={14} /> <strong>Build it — how?</strong>
@@ -243,7 +243,7 @@ function ChoiceCard({ entry }: { entry: RailEntry }) {
   const data = entry.card!.data as { options?: ChoiceOption[]; question?: string };
   const options = data.options || [];
   return (
-    <div className="railcard">
+    <div className="railcard chat-card">
       <div className="railcard-head">
         <span className="spread">
           <Wand2 size={14} /> <strong>{data.question || 'Pick one'}</strong>
@@ -287,7 +287,7 @@ function ColorCard({ entry }: { entry: RailEntry }) {
   );
   const setColorCard = useUi((s) => s.setColorCard);
   return (
-    <div className="railcard">
+    <div className="railcard chat-card">
       <div className="railcard-head">
         <span className="spread">
           <Wand2 size={14} /> <strong>{data.title || 'Which colour?'}</strong>
@@ -390,7 +390,7 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
       : data.parts) || [];
   const done = parts.filter((p) => p.state === 'done').length;
   return (
-    <div className="railcard">
+    <div className="railcard chat-card chat-card--work">
       <div className="railcard-head">
         <span className="spread">
           <Wand2 size={14} /> <strong>{data.title || 'Building screens'}</strong>
@@ -550,7 +550,7 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
 function ErrorCard({ entry }: { entry: RailEntry }) {
   const data = entry.card!.data as { message?: string; code?: string; retryText?: string };
   return (
-    <div className="railcard">
+    <div className="railcard chat-card">
       <div className="railcard-head">
         <span className="spread">
           <AlertTriangle size={14} /> <strong>That did not finish</strong>

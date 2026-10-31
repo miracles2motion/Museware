@@ -77,6 +77,9 @@
   --mw-red-950: #450a0a;
 
   /* Primitive geometry & type */
+  --mw-space-half: 2px;
+  --mw-space-onehalf: 6px;
+  --mw-space-twohalf: 10px;
   --mw-space-1: 4px;
   --mw-space-2: 8px;
   --mw-space-3: 12px;
@@ -97,6 +100,8 @@
   --mw-radius-xl: 16px;
   --mw-radius-pill: 999px;
 
+  --mw-fs-9: 9px;
+  --mw-fs-10: 10px;
   --mw-fs-11: 11px;
   --mw-fs-12: 12px;
   --mw-fs-13: 13px;
@@ -233,6 +238,16 @@
   --mw-z-modal: 40;
   --mw-z-toast: 50;
   --mw-z-tooltip: 60;
+  --mw-z-chat: 55;
+  --mw-blur-chat: 18px;
+  --mw-chat-motion: 160ms;
+  --mw-chat-width: 760px;
+  --mw-chat-launcher-size: 56px;
+  --mw-chat-preview-width: 260px;
+  --mw-shell-rename-width: 110px;
+  --mw-shell-compact-height: 22px;
+  --mw-shell-color-control-width: 36px;
+  --mw-z-canvas-overlay: 5;
 
   color-scheme: dark;
 }

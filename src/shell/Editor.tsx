@@ -14,7 +14,7 @@ import { LeftPanel } from './LeftPanel';
 import { Statusbar } from './Statusbar';
 import { Canvas } from '../canvas/Canvas';
 import { Inspector } from '../inspector/Inspector';
-import { AgentRail } from '../rail/AgentRail';
+import { ChatHost } from '../rail/ChatHost';
 
 export function Editor() {
   const setLeftTab = useUi((s) => s.setLeftTab);
@@ -60,7 +60,7 @@ export function Editor() {
             <span className="eyebrow">inspect</span>
           </button>
         )}
-        <AgentRail />
+        <ChatHost />
       </div>
       <nav className="mobile-bottom-bar" aria-label="Workspace">
         <button

@@ -108,7 +108,7 @@ export function Topbar() {
         title="Back to the start page"
         onClick={() => setRoute('landing')}
       >
-        <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
+        <svg width="0" height="0" aria-hidden="true" className="mw-shell-util-1">
           <defs>
             <linearGradient id="muse-brand-gradient" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="var(--mw-accent)" />
@@ -138,7 +138,7 @@ export function Topbar() {
         </IconButton>
       </span>
 
-      <div className="project-name topbar-desktop" style={{ position: 'relative' }}>
+      <div className="project-name topbar-desktop mw-shell-util-2">
         <input
           value={doc.name}
           aria-label="Project name"
@@ -152,11 +152,7 @@ export function Topbar() {
             width: `${Math.min(30, Math.max(8, doc.name.length + 2))}ch`,
           }}
         />
-        <span
-          className="faint mono"
-          style={{ fontSize: 9 }}
-          title="Autosaved to this browser"
-        >
+        <span className="faint mono mw-shell-util-3" title="Autosaved to this browser">
           {Date.now() - savedAt < 1400 ? 'saving…' : 'saved'}
         </span>
       </div>
@@ -182,8 +178,7 @@ export function Topbar() {
               {screen.entry && <span className="badge-dot" data-tone="ok" />}
               {renaming === screen.id ? (
                 <input
-                  className="input"
-                  style={{ height: 20, fontSize: 11, width: 110, padding: '0 4px' }}
+                  className="input mw-shell-util-4"
                   autoFocus
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
@@ -205,12 +200,12 @@ export function Topbar() {
             </button>
           ))}
         </div>
-        <span className="topbar-desktop" style={{ display: 'contents' }}>
+        <span className="topbar-desktop mw-shell-util-5">
           <IconButton label="Add screen" size="sm" onClick={addScreen}>
             <Plus size={14} />
           </IconButton>
         </span>
-        <div className="topbar-desktop" style={{ position: 'relative' }}>
+        <div className="topbar-desktop mw-shell-util-2">
           <IconButton
             label="Screen actions"
             size="sm"
@@ -308,7 +303,7 @@ export function Topbar() {
         })}
       </div>
 
-      <span className="topbar-desktop" style={{ display: 'contents' }}>
+      <span className="topbar-desktop mw-shell-util-5">
         <IconButton
           label={`Undo${undoDepth ? ` (${undoDepth})` : ''}`}
           size="sm"
@@ -352,7 +347,7 @@ export function Topbar() {
           <Play size={13} fill="currentColor" strokeWidth={0} />
           <span className="run-label">Run</span>
         </button>
-        <div className="topbar-desktop" style={{ position: 'relative' }}>
+        <div className="topbar-desktop mw-shell-util-2">
           <IconButton
             label="Theme"
             size="sm"
@@ -407,7 +402,7 @@ export function Topbar() {
             </button>
           </Menu>
         </div>
-        <span className="topbar-desktop" style={{ display: 'contents' }}>
+        <span className="topbar-desktop mw-shell-util-5">
           <IconButton
             label="Settings & models"
             size="sm"
@@ -416,7 +411,7 @@ export function Topbar() {
             <Sparkles size={15} />
           </IconButton>
         </span>
-        <div className="topbar-desktop" style={{ position: 'relative' }}>
+        <div className="topbar-desktop mw-shell-util-2">
           <IconButton
             label="Project file"
             size="sm"
@@ -475,7 +470,7 @@ export function Topbar() {
           </Menu>
         </div>
         {/* Phones: everything the desktop bar shows, in one 44px target. */}
-        <div className="topbar-mobile" style={{ position: 'relative' }}>
+        <div className="topbar-mobile mw-shell-util-2">
           <IconButton
             label="More actions"
             size="sm"
