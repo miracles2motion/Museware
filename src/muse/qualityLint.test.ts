@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProject, useProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
 import { emptyScreen } from '../ops/screenOps';
-import { chatStream, type ChatResult } from './client';
+import { chatStream, generateImage, type ChatResult } from './client';
 import { verifyGate } from './loop';
 import { lintScreen } from './qualityLint';
 import type { ComponentNode } from '../types/tree';
@@ -10,6 +10,7 @@ import type { ComponentNode } from '../types/tree';
 vi.mock('./client', async (original) => ({
   ...(await original<typeof import('./client')>()),
   chatStream: vi.fn(),
+  generateImage: vi.fn(),
 }));
 const node = (
   id: string,
@@ -26,6 +27,7 @@ const reply = (calls: ChatResult['toolCalls'] = [], text = ''): ChatResult => ({
 });
 beforeEach(() => {
   vi.mocked(chatStream).mockReset();
+  vi.mocked(generateImage).mockReset().mockResolvedValue('https://example.com/tea.png');
   const screen = emptyScreen('Tea', { id: 'tea', entry: true });
   screen.root.children = [
     node('tea_text', 'text', { text: 'Body text that says something useful.' }),
@@ -38,19 +40,98 @@ beforeEach(() => {
     contributorMode: false,
     wonder: false,
     receipts: [],
+    keySource: 'session',
+    houseKey: 'ok',
+    budget: null,
+    buildImages: 3,
   });
 });
 describe('quality lint and gate', () => {
-  it('flags placeholder and empty hero independently, and accepts clean copy and imagery', () => {
+  it('blocks placeholder copy but only warns about an empty hero, and accepts clean content', () => {
     const screen = useProject.getState().doc.screens[0];
     expect(
       lintScreen(screen)
         .filter((f) => f.severity === 'block')
         .map((f) => f.code),
-    ).toEqual(['scaffold', 'imagery']);
+    ).toEqual(['scaffold']);
+    expect(lintScreen(screen)).toContainEqual(
+      expect.objectContaining({ nodeId: 'tea_hero', code: 'imagery', severity: 'warn' }),
+    );
     screen.root.children[0].props.text = 'Whole leaf tea';
     screen.root.children[1].props.image = 'https://example.com/tea.png';
     expect(lintScreen(screen)).toEqual([]);
+  });
+  it('accepts gradient heroes with a subtitle or children, while empty image nodes warn', () => {
+    const screen = emptyScreen('Tea', { id: 'tea' });
+    const hero = node('hero_tea', 'hero', {
+      title: 'Fresh leaves',
+      subtitle: 'A better cup',
+    });
+    screen.root.children = [hero, node('empty_image', 'image', { src: '', alt: 'Tea' })];
+    expect(lintScreen(screen)).toEqual([
+      expect.objectContaining({ nodeId: 'empty_image', severity: 'warn', code: 'imagery' }),
+    ]);
+    hero.props.subtitle = '';
+    hero.children.push(node('hero_btn', 'button', { text: 'Shop tea' }));
+    expect(lintScreen(screen).some((finding) => finding.nodeId === 'hero_tea')).toBe(false);
+  });
+  it('lets the targeted repair illustrate only affected nodes using remaining budget', async () => {
+    const screen = useProject.getState().doc.screens[0];
+    screen.root.children.push(node('other_img', 'image', { src: '', alt: 'Other' }));
+    vi.mocked(chatStream)
+      .mockResolvedValueOnce(
+        reply([
+          {
+            id: 'images',
+            name: 'illustrate_images',
+            arguments: JSON.stringify({
+              targets: [{ id: 'tea_hero' }, { id: 'other_img' }, { id: 'tea_text' }],
+            }),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        reply([
+          {
+            id: 'repair',
+            name: 'edit_canvas',
+            arguments: JSON.stringify({
+              ops: [{ op: 'setText', id: 'tea_text', text: 'Whole leaf tea' }],
+            }),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        reply([
+          {
+            id: 'done',
+            name: 'finish',
+            arguments: JSON.stringify({ summary: 'Repaired' }),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(reply([], 'PASS'));
+    const budget = { remaining: 1 };
+    await verifyGate('Tea landing', useProject.getState().doc, ['tea'], budget);
+    expect(generateImage).toHaveBeenCalledTimes(1);
+    expect(budget.remaining).toBe(0);
+    expect(useProject.getState().doc.screens[0].root.children[1].props.image).toBe(
+      'https://example.com/tea.png',
+    );
+    expect(useAgent.getState().verification).toBe('pass');
+    expect(
+      useProject.getState().doc.rail.some((entry) => entry.text.includes('budget cap')),
+    ).toBe(true);
+  });
+  it('keeps empty image placeholders as warnings when no image budget remains', async () => {
+    const screen = useProject.getState().doc.screens[0];
+    screen.root.children[0].props.text = 'Whole leaf tea';
+    screen.root.children.push(node('empty_image', 'image', { src: '', alt: 'Tea' }));
+    vi.mocked(chatStream).mockResolvedValueOnce(reply([], 'PASS'));
+    await verifyGate('Tea landing', useProject.getState().doc, ['tea'], { remaining: 0 });
+    expect(generateImage).not.toHaveBeenCalled();
+    expect(useAgent.getState().verification).toBe('pass');
+    expect(useAgent.getState().reviewNotes).toContain('empty_image');
   });
   it('warns when a named landing has no imagery at all', () => {
     const screen = emptyScreen('Tea Landing', { id: 'tea', entry: true });

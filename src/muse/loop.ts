@@ -471,6 +471,7 @@ interface ToolLoopOptions {
   onProgress?: (line: string) => void;
   scope?: ScopedDraft;
   repairIds?: string[];
+  imageBudget?: { remaining: number };
 }
 
 interface ToolLoopResult {
@@ -718,7 +719,7 @@ async function runTool(
   }
   if (opts.scope && !['read_canvas', 'edit_canvas', 'finish'].includes(name))
     return { text: 'E_SCOPE: this tool is not allowed for scoped work.' };
-  if (opts.repairIds && !['edit_canvas', 'finish'].includes(name))
+  if (opts.repairIds && !['edit_canvas', 'illustrate_images', 'finish'].includes(name))
     return { text: 'E_SCOPE: quality repair may only edit affected nodes.' };
   const doc = opts.scope?.doc || useProject.getState().doc;
   switch (name) {
@@ -880,8 +881,28 @@ async function runTool(
     }
 
     case 'illustrate_images': {
-      const { targets } = args as { targets: ImageTarget[] };
-      const results = await illustrateTargets(targets, { signal: controller?.signal });
+      const requested = (args as { targets: ImageTarget[] }).targets;
+      const ids = opts.repairIds ? new Set(opts.repairIds) : null;
+      const eligible = requested.filter((target) => !ids || ids.has(target.id));
+      const budget = opts.imageBudget;
+      const allowed = budget ? eligible.slice(0, Math.max(0, budget.remaining)) : eligible;
+      if (eligible.length !== requested.length)
+        addSystem(
+          `Quality repair dropped ${requested.length - eligible.length} out-of-scope image target(s).`,
+        );
+      if (allowed.length < eligible.length)
+        addSystem(
+          `Image budget cap reached: ${eligible.length - allowed.length} image target(s) skipped; placeholders remain.`,
+        );
+      if (!allowed.length)
+        return {
+          text: 'No eligible image targets or image budget remains; placeholders remain.',
+        };
+      const results = await illustrateTargets(allowed, {
+        signal: controller?.signal,
+        onlyEmpty: Boolean(opts.repairIds),
+      });
+      if (budget) budget.remaining = Math.max(0, budget.remaining - results.length);
       return {
         text: results.map((r) => `${r.id}: ${r.ok ? 'applied' : r.message}`).join('\n'),
       };
@@ -948,6 +969,7 @@ export async function verifyGate(
   task: string,
   doc: ProjectDoc,
   screenIds: string[],
+  imageBudget: { remaining: number } = { remaining: useAgent.getState().buildImages },
 ): Promise<void> {
   useAgent.getState().setVerification('running');
   let findings = findingsFor(doc, screenIds);
@@ -958,18 +980,21 @@ export async function verifyGate(
       `Quality lint found ${blocking.length} blocking issue(s); attempting one targeted repair.\n${formatFindings(blocking)}`,
     );
     useAgent.getState().setLive('Repairing quality issues…');
-    const affected = [...new Set(blocking.map((finding) => finding.nodeId))];
+    const repairFindings = findings.filter(
+      (finding) => finding.severity === 'block' || finding.code === 'imagery',
+    );
+    const affected = [...new Set(repairFindings.map((finding) => finding.nodeId))];
     try {
       await executeToolLoop({
         messages: [
           {
             role: 'system',
             content:
-              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Do not invent image URLs: if no real image is available, leave the finding unresolved. Use small edit_canvas batches then finish.',
+              'Repair ONLY the listed quality findings in the affected screen outline. Use setProps, setText, setStyles or add an image; do not alter unrelated nodes or screens. Do not invent image URLs. You may call illustrate_images only on listed affected IDs if image budget remains; otherwise leave image placeholders in place. Use small edit_canvas batches then finish.',
           },
           {
             role: 'user',
-            content: `FINDINGS:\n${formatFindings(blocking)}\nAFFECTED OUTLINE:\n${affected
+            content: `FINDINGS:\n${formatFindings(repairFindings)}\nAFFECTED OUTLINE:\n${affected
               .map((id) => findNodeInDoc(doc, id)?.node)
               .filter((node) => node !== undefined)
               .map(subtreeOutline)
@@ -979,7 +1004,8 @@ export async function verifyGate(
         maxCalls: 8,
         role: 'builder',
         effort: 'high',
-        repairIds: [...new Set(blocking.map((f) => f.nodeId))],
+        repairIds: affected,
+        imageBudget,
       });
     } catch (err) {
       addSystem(
@@ -1247,17 +1273,20 @@ export async function runAgentTurn(
       doc.screens
         .filter((screen) => ids.includes(screen.id))
         .forEach((screen) => collectNew(screen.root));
-      await autoIllustrate(
+      const imageBudget = { remaining: Math.max(0, useAgent.getState().buildImages) };
+      const autoResults = await autoIllustrate(
         ids,
         userText,
-        useAgent.getState().buildImages,
+        imageBudget.remaining,
         controller.signal,
         newlyAdded,
       );
+      imageBudget.remaining = Math.max(0, imageBudget.remaining - autoResults.length);
       await verifyGate(
         userText,
         useProject.getState().doc,
         ids.length ? ids : doc.screens.map((screen) => screen.id),
+        imageBudget,
       );
     }
     if (!result.finished && !result.choiceAsked && !result.stopped) {
@@ -1460,6 +1489,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     parts: targets.map((s) => ({ id: s.id, label: s.name, state: 'queued' as const })),
   });
 
+  const imageBudget = { remaining: Math.max(0, useAgent.getState().buildImages) };
   const beforeScreens = new Map(
     doc.screens.map((screen) => [screen.id, structuredClone(screen)]),
   );
@@ -1532,6 +1562,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           maxCalls: 6,
           role: 'builder',
           effort: options.mode === 'fast' ? 'low' : 'medium',
+          imageBudget,
         });
         if (buildResult.stopped || controller.signal.aborted) {
           useAgent.getState().patchPart(target.id, {
@@ -1578,20 +1609,24 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
     });
 
     if (!stopped) {
-      await autoIllustrate(
+      const autoResults = await autoIllustrate(
         [...completed],
         blueprint,
-        useAgent.getState().buildImages,
+        imageBudget.remaining,
         controller.signal,
       );
+      imageBudget.remaining = Math.max(0, imageBudget.remaining - autoResults.length);
       if (controller.signal.aborted) {
         addSystem(
           'Stopped during illustration — finished screens stay, without verification.',
         );
       } else if (completed.size) {
-        await verifyGate(blueprint.slice(0, 240), useProject.getState().doc, [
-          ...completed,
-        ]);
+        await verifyGate(
+          blueprint.slice(0, 240),
+          useProject.getState().doc,
+          [...completed],
+          imageBudget,
+        );
       } else {
         useAgent.getState().setVerification('problems', 'No screens completed the build.');
         addSystem('Not verified — no screens completed the build.');

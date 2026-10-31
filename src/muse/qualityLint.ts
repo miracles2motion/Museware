@@ -56,13 +56,24 @@ export function lintScreen(
           `${key} contains an unresolved value: ${value.slice(0, 120)}`,
         );
     }
+    const hasImage =
+      (typeof node.props.src === 'string' && Boolean(node.props.src.trim())) ||
+      (typeof node.props.image === 'string' && Boolean(node.props.image.trim()));
+    if (node.type === 'image' && !hasImage && !queuedIds.has(node.id))
+      add(node, 'warn', 'imagery', 'Image is empty; a palette placeholder is shown.');
     if (
-      (node.type === 'image' || node.type === 'hero') &&
-      !(typeof node.props.src === 'string' && node.props.src.trim()) &&
-      !(typeof node.props.image === 'string' && node.props.image.trim()) &&
-      !queuedIds.has(node.id)
+      node.type === 'hero' &&
+      !hasImage &&
+      !queuedIds.has(node.id) &&
+      !node.children.length &&
+      !(typeof node.props.subtitle === 'string' && node.props.subtitle.trim())
     )
-      add(node, 'block', 'imagery', `${node.type} has no image`);
+      add(
+        node,
+        'warn',
+        'imagery',
+        'Hero has no image, children, or subtitle; consider adding content.',
+      );
     if (
       (node.type === 'row' || node.type === 'col') &&
       node.children.length > 6 &&

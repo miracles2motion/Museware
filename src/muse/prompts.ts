@@ -47,7 +47,7 @@ It produced:
 ${outline}
 DETERMINISTIC LINT FINDINGS:
 ${findings}
-Answer exactly PASS, or PROBLEMS: a numbered list. Visual quality counts: cramped/default-padded layouts, ignored LOOK numbers, off-palette colours are PROBLEMS, not PASS.`;
+Answer exactly PASS, or PROBLEMS: a numbered list. Visual quality counts: cramped/default-padded layouts, ignored LOOK numbers, off-palette colours are PROBLEMS, not PASS. Gradient heroes are valid, and empty image nodes show palette placeholders; do not reject a good layout solely because image generation was unavailable or capped.`;
 }
 
 export function adjustBlueprintPrompt(wish: string): string {
