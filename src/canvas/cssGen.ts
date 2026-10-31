@@ -69,10 +69,8 @@ function baseDeclarations(node: ComponentNode): string[] {
       if (node.type === 'tabs') d.push('gap:var(--gap-item)');
       break;
     case 'grid': {
-      d.push(
-        'display:grid',
-        `grid-template-columns:repeat(${typeof node.styles.columns === 'number' ? node.styles.columns : 1}, minmax(0, 1fr))`,
-      );
+      // A declared column count describes the expanded layout, never the phone.
+      d.push('display:grid', 'grid-template-columns:repeat(1, minmax(0, 1fr))');
       d.push('gap:var(--gap-item)');
       break;
     }
@@ -480,12 +478,10 @@ export function generateCss(doc: ProjectDoc): string {
         ...baseDeclarations(node),
         ...(rowButtons.has(node.id) ? ['width:auto', 'align-self:auto'] : []),
         ...legacyLayoutDeclarations(node),
-        ...userDeclarations(node.styles),
+        ...userDeclarations(node.styles).filter(
+          (decl) => node.type !== 'grid' || !/^grid-template-columns\s*:/i.test(decl),
+        ),
       ];
-      const columns = node.styles.columns;
-      if (node.type === 'grid' && typeof columns === 'number' && !node.props.columns) {
-        decls.push(`grid-template-columns:repeat(${columns}, minmax(0, 1fr))`);
-      }
       rules.push(renderRule(`.${nodeClass(node.id)}`, decls));
       const hover = hoverExtra(node);
       if (hover) rules.push(hover);
@@ -514,7 +510,7 @@ export function generateCss(doc: ProjectDoc): string {
       if (node.type === 'grid') {
         const cols = Math.max(
           1,
-          Math.min(6, Number(node.props.columns) || Number(node.styles.columns) || 2),
+          Math.min(6, Number(node.styles.columns ?? node.props.columns) || 2),
         );
         const sel = `.${nodeClass(node.id)}`;
         rules.push(

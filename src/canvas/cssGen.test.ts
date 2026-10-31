@@ -242,6 +242,48 @@ describe('responsive defaults and image shape', () => {
     );
     expect(css).toContain('grid-template-columns:repeat(4, minmax(0, 1fr))');
   });
+  it('stacks a declared three-column style on phones and earns density', () => {
+    const css = cssOf(node('grid_styles', 'grid', { columns: 3 }));
+    expect(ruleFor(css, 'grid_styles')).toContain(
+      'grid-template-columns:repeat(1, minmax(0, 1fr))',
+    );
+    expect(ruleFor(css, 'grid_styles')).not.toContain('repeat(3,');
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-grid_styles{grid-template-columns:repeat(2, minmax(0, 1fr))}}',
+    );
+    expect(css).toContain(
+      '@container mw (min-width:1024px){.n-grid_styles{grid-template-columns:repeat(3, minmax(0, 1fr))}}',
+    );
+  });
+  it('stacks the tea export hero grid even when props and base styles both declare two columns', () => {
+    const css = cssOf(
+      node('hero_grid', 'grid', { width: '100%', columns: 2, gap: 16 }, { columns: 2 }),
+    );
+    expect(ruleFor(css, 'hero_grid')).toContain(
+      'grid-template-columns:repeat(1, minmax(0, 1fr))',
+    );
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-hero_grid{grid-template-columns:repeat(2, minmax(0, 1fr))}}',
+    );
+  });
+  it('keeps explicit expanded overrides after the default expanded rule', () => {
+    const css = cssOf(
+      node('grid_override', 'grid', {
+        columns: 3,
+        responsive: { expanded: { columns: 4 } },
+      }),
+    );
+    expect(css.lastIndexOf('repeat(4, minmax(0, 1fr))')).toBeGreaterThan(
+      css.indexOf('repeat(3, minmax(0, 1fr))'),
+    );
+    expect(ruleFor(css, 'grid_override')).toContain('repeat(1, minmax(0, 1fr))');
+  });
+  it('keeps the default row wrapping when three children fill its width', () => {
+    const children = [1, 2, 3].map((i) => node(`child_${i}`, 'col', { width: '100%' }));
+    const css = cssOf(node('row_many', 'row', { width: '100%' }, {}, children));
+    expect(ruleFor(css, 'row_many')).toContain('flex-wrap:wrap');
+    expect(ruleFor(css, 'row_many')).not.toContain('flex-wrap:nowrap');
+  });
   it('splits image heroes at the medium container breakpoint', () => {
     expect(UTILITY_CSS).toContain('@container mw (min-width:600px)');
     const css = cssOf(

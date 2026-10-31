@@ -45,6 +45,21 @@ export function lintScreen(
   const visit = (node: ComponentNode) => {
     if (node.type === 'navbar') hasNavbar = true;
     if (
+      kind === 'web' &&
+      node.type === 'grid' &&
+      Number(node.styles.columns) >= 2 &&
+      !Object.values(node.styles.responsive || {}).some(
+        (override) => override && Object.keys(override).length > 0,
+      )
+    ) {
+      add(
+        node,
+        'warn',
+        'responsive',
+        'Desktop-first: this grid phones in two columns. Base stacks; density belongs to medium/expanded.',
+      );
+    }
+    if (
       Object.values(node.styles.responsive || {}).some(
         (override) => override && Object.keys(override).length > 0,
       )

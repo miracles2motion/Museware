@@ -72,6 +72,20 @@ describe('quality lint and gate', () => {
     expect(chatStream).toHaveBeenCalledTimes(2);
     expect(useAgent.getState().verification).toBe('pass');
   });
+  it('warns about desktop-first base grid columns only on web and without grid overrides', () => {
+    const s = useProject.getState().doc.screens[0];
+    const grid = node('hero_grid', 'grid', { columns: 2 });
+    grid.styles = { columns: 2 };
+    s.root.children.push(grid);
+    const find = (kind: 'web' | 'app') =>
+      lintScreen(s, undefined, new Set(), kind).filter(
+        (f) => f.nodeId === 'hero_grid' && f.message.includes('Desktop-first'),
+      );
+    expect(find('web')).toHaveLength(1);
+    expect(find('app')).toHaveLength(0);
+    grid.styles.responsive = { expanded: { columns: 2 } };
+    expect(find('web')).toHaveLength(0);
+  });
   it('blocks placeholder copy but only warns about an empty hero, and accepts clean content', () => {
     const screen = useProject.getState().doc.screens[0];
     expect(
