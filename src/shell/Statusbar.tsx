@@ -22,13 +22,7 @@ export function Statusbar() {
 
   return (
     <footer className="statusbar">
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 'var(--mw-swatch-gap)',
-        }}
-      >
+      <span className="status-segment">
         <CircleDot size={10} color="var(--mw-ok)" />
         {screen ? `${screen.id} · ${nodes} nodes` : 'no screen'}
       </span>
@@ -36,21 +30,15 @@ export function Statusbar() {
         {doc.screens.length} screen{doc.screens.length === 1 ? '' : 's'}
       </span>
       <span>
-        {breakpoint} · {BREAKPOINT_WIDTHS[breakpoint]}px
+        {breakpoint} · <span className="mono">{BREAKPOINT_WIDTHS[breakpoint]}px</span>
       </span>
-      <span className="mono" style={{ opacity: 0.75 }}>
-        {last ? `${last.source}: ${last.summary}` : 'no ops yet'}
-      </span>
+      <span>{last ? `${last.source}: ${last.summary}` : 'no ops yet'}</span>
       {lastResult?.errors.length ? (
-        <span style={{ color: 'var(--mw-danger)' }}>{lastResult.errors[0].message}</span>
+        <span data-tone="danger">{lastResult.errors[0].message}</span>
       ) : null}
-      <span style={{ flex: 1 }} />
+      <span className="status-spacer" />
       {busy && (
-        <button
-          type="button"
-          onClick={() => stopAgent()}
-          style={{ color: 'var(--mw-danger)' }}
-        >
+        <button type="button" onClick={() => stopAgent()} data-tone="danger">
           <Square size={9} /> Stop
         </button>
       )}
@@ -61,9 +49,7 @@ export function Statusbar() {
       <button type="button" onClick={() => setModal('shortcutsOpen', true)}>
         <Command size={10} /> shortcuts
       </button>
-      <span className="mono" style={{ opacity: demoMode ? 0.9 : 0.55 }}>
-        {demoMode ? 'local engine' : 'muse live'}
-      </span>
+      <span>{demoMode ? 'local engine' : 'muse live'}</span>
       <button type="button" onClick={() => setRunMode(true, screen?.id)}>
         ▶ run
       </button>

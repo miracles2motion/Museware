@@ -54,7 +54,7 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
             <tbody>
               {group.rows.map(([keys, what]) => (
                 <tr key={keys}>
-                  <td style={{ width: 'var(--mw-shortcut-column-w)' }}>
+                  <td className="mw-detail-21">
                     <span className="kbd">{keys}</span>
                   </td>
                   <td>{what}</td>

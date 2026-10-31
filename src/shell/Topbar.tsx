@@ -69,6 +69,7 @@ export function Topbar() {
   const [menu, setMenu] = useState<'file' | 'theme' | 'screen' | 'more' | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [editingProjectName, setEditingProjectName] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [savedAt, setSavedAt] = useState<number>(doc.updatedAt);
 
@@ -143,15 +144,16 @@ export function Topbar() {
         <input
           value={doc.name}
           aria-label="Project name"
-          onChange={(e) => setName(e.target.value)}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: 'inherit',
-            font: 'inherit',
-            width: `${Math.min(30, Math.max(8, doc.name.length + 2))}ch`,
+          title="Double-click to rename"
+          readOnly={!editingProjectName}
+          onDoubleClick={() => setEditingProjectName(true)}
+          onBlur={() => setEditingProjectName(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !editingProjectName) setEditingProjectName(true);
+            else if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
           }}
+          onChange={(e) => setName(e.target.value)}
+          className="project-name-input"
         />
         <span className="faint mono mw-shell-util-3" title="Autosaved to this browser">
           {Date.now() - savedAt < 1400 ? 'saving…' : 'saved'}
@@ -299,7 +301,11 @@ export function Topbar() {
 
       <span className="topbar-spacer" />
 
-      <div className="segmented topbar-desktop" role="group" aria-label="Breakpoint">
+      <div
+        className="segmented breakpoint-segmented topbar-desktop"
+        role="group"
+        aria-label="Breakpoint"
+      >
         {BPS.map((bp) => {
           const Icon = bp.icon;
           return (
@@ -311,7 +317,7 @@ export function Topbar() {
               onClick={() => setBreakpoint(bp.value)}
             >
               <Icon size={14} />
-              <span className="bp-label">{BREAKPOINT_WIDTHS[bp.value]}</span>
+              <span className="bp-label mono">{BREAKPOINT_WIDTHS[bp.value]}</span>
             </button>
           );
         })}

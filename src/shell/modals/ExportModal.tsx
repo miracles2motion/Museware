@@ -105,21 +105,15 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">What ships</span>
-          <span className="faint mono" style={{ fontSize: 'var(--mw-fs-10)' }}>
-            React 18 + Vite
-          </span>
+          <span className="faint mono mw-detail-10">React 18 + Vite</span>
         </div>
         <p className="field-hint">
           The export is the same tree, the same token sheet and the same generated CSS the
           canvas renders — no second styling system, no runtime dependency on Museware.
         </p>
-        <div className="palette-grid" style={{ marginTop: 8 }}>
+        <div className="palette-grid mw-detail-15">
           {CORE_FILES.map((file) => (
-            <span
-              className="chip chip-static mono"
-              key={file}
-              style={{ fontSize: 'var(--mw-fs-10)', justifyContent: 'flex-start' }}
-            >
+            <span className="chip chip-static mono mw-detail-16" key={file}>
               <FileCode2 size={11} /> {file}
             </span>
           ))}
@@ -135,7 +129,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         <div className="insp-section-head">
           <span className="eyebrow">PWA pieces</span>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
+        <div className="mw-detail-13">
           <Button
             size="sm"
             variant="secondary"
@@ -162,9 +156,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
             {copied === 'manifest' ? <Check size={12} /> : <Copy size={12} />} copy manifest
           </Button>
         </div>
-        <pre className="blueprint-text" style={{ maxHeight: 160 }}>
-          {install}
-        </pre>
+        <pre className="blueprint-text mw-detail-17">{install}</pre>
       </div>
 
       <div className="insp-section">

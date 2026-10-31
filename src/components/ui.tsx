@@ -114,7 +114,7 @@ export function Modal({
   }, [onClose]);
   return (
     <div
-      className="scrim"
+      className="scrim modal-shell"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();

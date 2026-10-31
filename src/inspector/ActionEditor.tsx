@@ -77,13 +77,12 @@ export function ActionEditor({
           onRemove={() => remove(index)}
         />
       ))}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
+      <div className="mw-detail-1">
         {[...KINDS, WHEN].map((kind) => (
           <button
             type="button"
             key={kind.value}
-            className="chip"
-            style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+            className="chip mw-detail-2"
             onClick={() => add(kind.value)}
           >
             <Plus size={11} /> {kind.label}
@@ -118,13 +117,7 @@ function ActionRow({
     <div className="event-block">
       <div className="event-head">
         <select
-          className="select"
-          style={{
-            height: 'var(--mw-control-h-sm)',
-            fontSize: 'var(--mw-fs-11)',
-            padding: '0 var(--mw-space-1-5)',
-            flex: '0 0 auto',
-          }}
+          className="select mw-detail-3"
           value={action.type}
           aria-label="Action kind"
           onChange={(e) => onChange(blankAction(e.target.value as Action['type'], screens))}
@@ -135,7 +128,7 @@ function ActionRow({
             </option>
           ))}
         </select>
-        <span style={{ flex: 1 }} />
+        <span className="mw-detail-4" />
         <button
           type="button"
           className="icon-btn icon-btn-sm"
@@ -183,13 +176,7 @@ function StateValueInput({
   const commit = () => onCommit(draft);
   return (
     <input
-      className="input"
-      style={{
-        height: 'var(--mw-control-h-sm)',
-        fontSize: 'var(--mw-fs-11)',
-        flex: 1,
-        minWidth: 0,
-      }}
+      className="input mw-detail-5"
       value={draft}
       aria-label={label}
       placeholder={placeholder}
@@ -226,7 +213,7 @@ function ActionArgs({
           <option key={k} value={k} />
         ))}
       </datalist>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
+      <div className="mw-detail-1">
         {keys.map((k) => (
           <button
             type="button"
@@ -252,8 +239,7 @@ function ActionArgs({
     case 'navigate':
       return (
         <select
-          className="select"
-          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+          className="select mw-detail-2"
           value={action.to}
           aria-label="Target screen"
           onChange={(e) => onChange({ type: 'navigate', to: e.target.value })}
@@ -267,29 +253,12 @@ function ActionArgs({
       );
     case 'setState':
       return (
-        <div
-          className="set-state-args"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--mw-space-1-5)',
-            minWidth: 0,
-          }}
-        >
+        <div className="set-state-args mw-detail-6">
           {keyPicker(action.key)}
-          <div
-            className="set-state-inputs"
-            style={{ display: 'flex', gap: 'var(--mw-space-1)', minWidth: 0 }}
-          >
+          <div className="set-state-inputs mw-detail-7">
             <input
               list={listId}
-              className="input"
-              style={{
-                height: 'var(--mw-control-h-sm)',
-                fontSize: 'var(--mw-fs-11)',
-                flex: 1,
-                minWidth: 0,
-              }}
+              className="input mw-detail-5"
               value={action.key}
               aria-label="State key"
               placeholder="key"
@@ -318,8 +287,7 @@ function ActionArgs({
           {keyPicker(action.key)}
           <input
             list={listId}
-            className="input"
-            style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+            className="input mw-detail-2"
             value={action.key}
             aria-label="State key"
             placeholder="key"
@@ -330,8 +298,7 @@ function ActionArgs({
     case 'toast':
       return (
         <input
-          className="input"
-          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+          className="input mw-detail-2"
           value={action.text}
           aria-label="Toast text"
           placeholder="Saved!"
@@ -341,8 +308,7 @@ function ActionArgs({
     case 'openUrl':
       return (
         <input
-          className="input"
-          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+          className="input mw-detail-2"
           value={action.url}
           aria-label="URL"
           placeholder="https://"
@@ -351,14 +317,11 @@ function ActionArgs({
       );
     case 'when':
       return (
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mw-space-1-5)' }}
-        >
+        <div className="mw-detail-8">
           {keyPicker(action.key)}
-          <div style={{ display: 'flex', gap: 'var(--mw-space-1)' }}>
+          <div className="mw-detail-9">
             <input
-              className="input"
-              style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
+              className="input mw-detail-2"
               value={action.key}
               list={listId}
               aria-label="Condition key"

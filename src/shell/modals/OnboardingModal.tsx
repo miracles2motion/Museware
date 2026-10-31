@@ -3,6 +3,7 @@ import { Check, KeyRound, Loader2, X } from 'lucide-react';
 import { Modal, Button } from '../../components/ui';
 import { useUi } from '../../store/useUi';
 import { useProject } from '../../store/useProject';
+import { PRESETS } from '../../design/presets';
 import { addScreenBatch } from '../../ops/screenOps';
 import { useAgent } from '../../store/useAgent';
 import { houseKeyLabel } from '../../muse/connection';
@@ -127,11 +128,9 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
       {/* The modal already says "Welcome to Museware" in its header; naming the
           product twice before the first sentence is what pushed the key field
           below the fold on a phone. */}
-      <div style={{ marginBottom: 18 }}>
-        <h2 style={{ margin: '0 0 6px', fontSize: 'var(--mw-fs-22)', lineHeight: 1.25 }}>
-          The canvas where Muse builds with you
-        </h2>
-        <p className="field-hint" style={{ margin: 0 }}>
+      <div className="mw-detail-18">
+        <h2 className="mw-detail-19">The canvas where Muse builds with you</h2>
+        <p className="field-hint mw-detail-20">
           Your Meta API key is your account — no signup, no email. It stays in this tab,
           never in the bundle.{' '}
           {keySource === 'env' ? 'This server also has a house key you can use.' : ''}
@@ -213,6 +212,21 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">How you want to start</span>
+        </div>
+        <div className="onboarding-presets" aria-label="Design preset previews">
+          {PRESETS.map((preset) => (
+            <div className="onboarding-preset" key={preset.id}>
+              <div className="onboarding-swatches" aria-hidden="true">
+                <i style={{ background: preset.tokens.openuiTheme.brand_color }} />
+                <i style={{ background: preset.tokens.openuiTheme.secondary_color }} />
+                <i
+                  style={{ background: preset.tokens.openuiTheme.light_colors.openui_bg }}
+                />
+              </div>
+              <strong>{preset.name}</strong>
+              <span>{preset.blurb}</span>
+            </div>
+          ))}
         </div>
         <div className="steps-inline">
           <button

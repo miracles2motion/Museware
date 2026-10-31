@@ -1,3 +1,20 @@
+/* MUSEWARE DESIGN LANGUAGE — PRs F/G/H
+   Rhythm: space-1 inside groups, 2 between siblings, 3 card padding,
+   4 panel padding, 5 section gaps, 6 page gutters. No oddball gaps.
+   Type: fs-11 meta, 12 UI, 13 controls, 16 panels, 20/28 pages;
+   weights 500 default, 600 emphasis, 700 product name and primary numbers.
+   Ink for text, ink-2 secondary, ink-3 only timestamps/placeholders.
+   Surfaces: bg < surface < surface-2; cards surface, mixed 1px border,
+   radius-lg; hover accent border and translateY(-1px). Popovers surface
+   and shadow-e3; no text shadows. Controls: 36 standard, 28 dense,
+   radius-md inputs, pills for chips/badges/toggles, one accent action per
+   view; ghost otherwise, solid danger only for destructive confirmation.
+   Motion: 150ms ease-out hover/focus/color, modal 200ms scale .98 to 1;
+   reduced motion disables it; shared spin only. Icons: lucide 14 in rows,
+   16 standalone, color only for data-tone. Focus: 2px accent ring, offset
+   1px, on every interactive surface. New: motion-fast 120ms,
+   motion-entrance 200ms, ring 0 0 0 2px color-mix(accent 55%, transparent).
+*/
 /* ==========================================================================
    Museware's own token system — three tiers. This is the ONLY file allowed
    to contain raw hex values (CI greps for hexes outside this file).
@@ -145,12 +162,14 @@
 
   /* Motion */
   --mw-motion-fast: 120ms;
+  --mw-motion-entrance: 200ms;
+  --mw-ring: 0 0 0 2px color-mix(in srgb, var(--mw-accent) 55%, transparent);
   --mw-motion-base: 180ms;
   --mw-motion-slow: 250ms;
   --mw-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Tier 3 — component tokens */
-  --mw-topbar-h: 64px;
+  --mw-topbar-h: 40px;
   --mw-statusbar-h: var(--mw-control-h-sm);
   --mw-left-w: 264px;
   --mw-left-icon-rail: 48px;

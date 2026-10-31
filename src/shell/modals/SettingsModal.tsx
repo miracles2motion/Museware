@@ -137,7 +137,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">Your key</span>
-          <span className="chip chip-static" style={{ fontSize: 'var(--mw-fs-10)' }}>
+          <span className="chip chip-static mw-detail-10">
             {keySource === 'session'
               ? 'using your key'
               : demoMode
@@ -147,7 +147,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   : houseKeyLabel(houseKey)}
           </span>
         </div>
-        <p className="field-hint" style={{ marginTop: -2 }}>
+        <p className="field-hint">
           {keySource === 'session'
             ? 'Using your key (this tab only). It rides as a header to this app’s proxy and is gone when the tab closes.'
             : demoMode
@@ -161,13 +161,12 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </p>
         <div className="token-row">
           <input
-            className="input"
+            className="input mw-detail-11"
             type={reveal ? 'text' : 'password'}
             placeholder="muse_… (stored in sessionStorage, never in the bundle)"
             value={key}
             autoComplete="off"
             onChange={(e) => setKey(e.target.value)}
-            style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
           />
           <button
             type="button"
@@ -178,7 +177,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {reveal ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
         </div>
-        <div className="token-row" style={{ gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
+        <div className="token-row mw-detail-12">
           <Button
             size="sm"
             variant="ghost"
@@ -270,7 +269,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
         ) : null}
-        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
+        <div className="mw-detail-13">
           {keySource === 'session' && (
             <Button
               size="sm"
@@ -310,7 +309,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <Sparkles size={12} /> {demoMode ? 'Local engine: on' : 'Try the local engine'}
           </Button>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
+        <div className="mw-detail-13">
           <Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
             <RefreshCw size={12} /> Re-check status
           </Button>
@@ -410,10 +409,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   <td>
                     {probe ? (
                       <span
-                        className="chip chip-static"
+                        className="chip chip-static mw-detail-10"
                         data-tone={probe.ok ? 'ok' : 'danger'}
                         title={probe.detail || `${probe.ms} ms`}
-                        style={{ fontSize: 'var(--mw-fs-10)' }}
                       >
                         {probe.ok ? `ok · ${probe.ms}ms` : probe.detail || 'failed'}
                       </span>
@@ -439,15 +437,14 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             Import tokens…
           </Button>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
+        <div className="mw-detail-13">
           {PRESETS.map((preset) => (
             <button
               type="button"
               key={preset.id}
-              className="preset-card"
+              className="preset-card mw-detail-14"
               data-selected={activePreset === preset.id}
               onClick={() => applyPreset(preset.tokens, preset.id)}
-              style={{ width: 'var(--mw-preset-card-w)' }}
             >
               <span className="preset-swatches">
                 <i style={{ background: preset.tokens.openuiTheme.brand_color }} />
