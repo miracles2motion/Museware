@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateCss } from './cssGen';
+import { generateCss, UTILITY_CSS } from './cssGen';
 import type { ComponentNode, ProjectDoc, StyleSet } from '../types/tree';
 
 /**
@@ -22,7 +22,12 @@ function cssOf(...children: ComponentNode[]): string {
   const doc = {
     name: 'test',
     screens: [
-      { id: 'screen_1', name: 'Screen 1', entry: true, root: node('screen_1_root', 'screen', {}, {}, children) },
+      {
+        id: 'screen_1',
+        name: 'Screen 1',
+        entry: true,
+        root: node('screen_1_root', 'screen', {}, {}, children),
+      },
     ],
     tokens: {},
     opLog: [],
@@ -54,20 +59,24 @@ describe('alignment has one meaning per word', () => {
   });
 
   it('start and end map to the flex words, not to raw strings', () => {
-    const rule = ruleFor(cssOf(node('row_a', 'row', { align: 'end', justify: 'start' })), 'row_a');
+    const rule = ruleFor(
+      cssOf(node('row_a', 'row', { align: 'end', justify: 'start' })),
+      'row_a',
+    );
     expect(rule).toContain('align-items:flex-end');
     expect(rule).toContain('justify-content:flex-start');
   });
 
   it('justify passes space-between through — it is the whole point of it', () => {
-    const rule = ruleFor(cssOf(node('row_a', 'row', { justify: 'space-between' })), 'row_a');
+    const rule = ruleFor(
+      cssOf(node('row_a', 'row', { justify: 'space-between' })),
+      'row_a',
+    );
     expect(rule).toContain('justify-content:space-between');
   });
 
   it('grow becomes flex-grow, unitless (Sketchware weight)', () => {
-    const css = cssOf(
-      node('row_a', 'row', {}, {}, [node('txt_a', 'text', { grow: 1 })]),
-    );
+    const css = cssOf(node('row_a', 'row', {}, {}, [node('txt_a', 'text', { grow: 1 })]));
     expect(ruleFor(css, 'txt_a')).toContain('flex-grow:1');
   });
 
@@ -124,9 +133,9 @@ describe('space', () => {
   });
 
   it('a single padding value stays one declaration', () => {
-    expect(ruleFor(cssOf(node('card_a', 'card', { padding: 'var(--pad-card)' })), 'card_a')).toContain(
-      'padding:var(--pad-card)',
-    );
+    expect(
+      ruleFor(cssOf(node('card_a', 'card', { padding: 'var(--pad-card)' })), 'card_a'),
+    ).toContain('padding:var(--pad-card)');
   });
 });
 
@@ -160,12 +169,12 @@ describe('the migration window', () => {
 
 describe('the screen layout prop is real', () => {
   it('flex-col stacks and flex-row lays sections out side by side', () => {
-    expect(ruleFor(cssOf(node('s1', 'screen', {}, { layout: 'flex-col' })), 's1')).toContain(
-      'flex-direction:column',
-    );
-    expect(ruleFor(cssOf(node('s2', 'screen', {}, { layout: 'flex-row' })), 's2')).toContain(
-      'flex-direction:row',
-    );
+    expect(
+      ruleFor(cssOf(node('s1', 'screen', {}, { layout: 'flex-col' })), 's1'),
+    ).toContain('flex-direction:column');
+    expect(
+      ruleFor(cssOf(node('s2', 'screen', {}, { layout: 'flex-row' })), 's2'),
+    ).toContain('flex-direction:row');
   });
 });
 
@@ -211,5 +220,47 @@ describe('unknown keys stay useful', () => {
   it('passes raw CSS through untouched', () => {
     const rule = ruleFor(cssOf(node('card_a', 'card', { marginTop: '9px' })), 'card_a');
     expect(rule).toContain('margin-top:9px');
+  });
+});
+
+describe('responsive defaults and image shape', () => {
+  it('reflows grid at compact, medium and expanded without overriding explicit responsive values', () => {
+    const css = cssOf(
+      node(
+        'grid_tea',
+        'grid',
+        { responsive: { expanded: { columns: 4 } } },
+        { columns: 3 },
+      ),
+    );
+    expect(ruleFor(css, 'grid_tea')).toContain('repeat(1, minmax(0, 1fr))');
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-grid_tea{grid-template-columns:repeat(2, minmax(0, 1fr))}}',
+    );
+    expect(css).toContain(
+      '@container mw (min-width:1024px){.n-grid_tea{grid-template-columns:repeat(3, minmax(0, 1fr))}}',
+    );
+    expect(css).toContain('grid-template-columns:repeat(4, minmax(0, 1fr))');
+  });
+  it('splits image heroes at the medium container breakpoint', () => {
+    expect(UTILITY_CSS).toContain('@container mw (min-width:600px)');
+    const css = cssOf(
+      node('hero_a', 'hero', {}, { image: 'https://example.com/hero.png' }),
+    );
+    expect(css).toContain(
+      '@container mw (min-width:600px){.n-hero_a{display:grid;grid-template-columns:1fr 1fr;align-items:center}}',
+    );
+  });
+  it('uses request aspect and actual measured source width for image sizing', () => {
+    const css = cssOf(
+      node(
+        'img_a',
+        'image',
+        {},
+        { assetAspectWidth: 1200, assetAspectHeight: 640, assetWidth: 900 },
+      ),
+    );
+    expect(ruleFor(css, 'img_a')).toContain('aspect-ratio:1200 / 640');
+    expect(ruleFor(css, 'img_a')).toContain('max-width:900px');
   });
 });

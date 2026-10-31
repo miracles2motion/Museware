@@ -30,7 +30,12 @@ import { entryScreen, findNodeInDoc, clone } from '../ops/treeUtils';
 import { applyOps } from '../ops/apply';
 import { filterScopedOps } from './scope';
 import { lintScreen, type LintFinding } from './qualityLint';
-import { autoIllustrate, illustrateTargets, type ImageTarget } from './imagery';
+import {
+  autoIllustrate,
+  illustrateTargets,
+  queueAssetTargets,
+  type ImageTarget,
+} from './imagery';
 
 const TURN_CALL_CAP = 24;
 const MAX_RESULT = 8000;
@@ -464,6 +469,7 @@ interface ScopedDraft {
 
 interface ImageBudget {
   remaining: number;
+  cardId?: string;
   cap?: number;
   documentEpoch?: number;
 }
@@ -905,25 +911,31 @@ async function runTool(
       const ids = opts.repairIds ? new Set(opts.repairIds) : null;
       const eligible = requested.filter((target) => !ids || ids.has(target.id));
       const budget = opts.imageBudget;
-      const allowed = budget ? eligible.slice(0, Math.max(0, budget.remaining)) : eligible;
+      const allowed = eligible;
       if (eligible.length !== requested.length)
         addSystem(
           `Quality repair dropped ${requested.length - eligible.length} out-of-scope image target(s).`,
         );
-      if (allowed.length < eligible.length)
-        addSystem(
-          `Image budget cap reached: ${eligible.length - allowed.length} image target(s) skipped; placeholders remain.`,
-        );
       if (!allowed.length)
-        return {
-          text: 'No eligible image targets or image budget remains; placeholders remain.',
-        };
-      const results = await illustrateTargets(allowed, {
-        signal: controller?.signal,
-        onlyEmpty: Boolean(opts.repairIds),
-      });
+        return { text: 'No eligible image targets; placeholders remain.' };
+      const results = budget
+        ? await queueAssetTargets(
+            allowed,
+            '',
+            budget.remaining,
+            controller?.signal,
+            budget.cardId,
+            Boolean(opts.repairIds),
+          )
+        : await illustrateTargets(allowed, {
+            signal: controller?.signal,
+            onlyEmpty: Boolean(opts.repairIds),
+          });
       if (budget) {
-        budget.remaining = Math.max(0, budget.remaining - results.length);
+        budget.remaining = Math.max(
+          0,
+          budget.remaining - results.reduce((n, result) => n + (result.attempts || 0), 0),
+        );
         publishImageBudget(budget);
       }
       return {
@@ -950,20 +962,30 @@ async function reviewer(
   const models = useAgent.getState().models;
   try {
     const wonder = useAgent.getState().wonder;
-    const result = await chatStream({
-      model: (wonder ? models?.architect.id : models?.chat.id) || 'muse-spark-1.3',
-      effort: wonder ? 'max' : 'medium',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
-        },
-        { role: 'user', content: reviewerPrompt(task, outline, findings) },
-      ],
-      signal: controller?.signal,
-      maxTokens: 700,
-    });
+    const request = () =>
+      chatStream({
+        model: (wonder ? models?.architect.id : models?.chat.id) || 'muse-spark-1.3',
+        effort: wonder ? 'max' : 'medium',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
+          },
+          { role: 'user', content: reviewerPrompt(task, outline, findings) },
+        ],
+        signal: controller?.signal,
+        maxTokens: 700,
+      });
+    let result = await request();
     recordReceipt(result, 'reviewer', outline.length, []);
+    if (
+      !result.text.trim() &&
+      result.finishReason === 'stop' &&
+      !controller?.signal.aborted
+    ) {
+      result = await request();
+      recordReceipt(result, 'reviewer', outline.length, []);
+    }
     const text = result.text.trim();
     if (/^PASS\b/i.test(text)) return { verdict: 'pass', notes: '' };
     if (/^PROBLEMS/i.test(text)) return { verdict: 'problems', notes: text.slice(0, 1200) };
@@ -984,7 +1006,7 @@ async function reviewer(
 function findingsFor(doc: ProjectDoc, screenIds: string[]): LintFinding[] {
   return doc.screens
     .filter((screen) => screenIds.includes(screen.id))
-    .flatMap((screen) => lintScreen(screen, doc.tokens));
+    .flatMap((screen) => lintScreen(screen, doc.tokens, new Set(), doc.kind));
 }
 
 function formatFindings(findings: LintFinding[]): string {
@@ -1309,7 +1331,11 @@ export async function runAgentTurn(
         controller.signal,
         newlyAdded,
       );
-      imageBudget.remaining = Math.max(0, imageBudget.remaining - autoResults.length);
+      imageBudget.remaining = Math.max(
+        0,
+        imageBudget.remaining -
+          autoResults.reduce((n, result) => n + (result.attempts || 0), 0),
+      );
       await verifyGate(
         userText,
         useProject.getState().doc,
@@ -1521,8 +1547,14 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
   const imageBudget: ImageBudget = {
     remaining: cap,
     cap,
+    cardId: card.id,
     documentEpoch: useProject.getState().documentEpoch,
   };
+  useAgent.setState({
+    assetJobs: [],
+    assetDocumentEpoch: useProject.getState().documentEpoch,
+    assetsPending: new Set(),
+  });
   publishImageBudget(imageBudget);
   const beforeScreens = new Map(
     doc.screens.map((screen) => [screen.id, structuredClone(screen)]),
@@ -1576,6 +1608,10 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           data: {
             title: `Screens ${i + 1} of ${targets.length}`,
             parts: useAgent.getState().progress?.parts || [],
+            assets:
+              useAgent.getState().assetDocumentEpoch === useProject.getState().documentEpoch
+                ? useAgent.getState().assetJobs
+                : [],
             startedAt,
           },
         },
@@ -1612,33 +1648,27 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           // Inspect the actual document, even if the model omitted finish().
           const builtContent = actualScreen && actualScreen.root.children.length > 0;
           if (!builtContent) {
-            useAgent
-              .getState()
-              .patchPart(target.id, {
-                state: 'failed',
-                note: 'The builder stopped without finishing or producing screen content.',
-              });
+            useAgent.getState().patchPart(target.id, {
+              state: 'failed',
+              note: 'The builder stopped without finishing or producing screen content.',
+            });
             continue;
           }
           completed.add(target.id);
-          useAgent
-            .getState()
-            .patchPart(target.id, {
-              state: 'done',
-              note: 'Builder did not call finish(); screen has content and will be reviewed.',
-            });
+          useAgent.getState().patchPart(target.id, {
+            state: 'done',
+            note: 'Builder did not call finish(); screen has content and will be reviewed.',
+          });
           addSystem(
             `Screen ${target.name} has content, but the builder did not call finish(); checking the result.`,
           );
           continue;
         }
         if (!actualScreen || actualScreen.root.children.length === 0) {
-          useAgent
-            .getState()
-            .patchPart(target.id, {
-              state: 'failed',
-              note: 'The builder finished without producing screen content.',
-            });
+          useAgent.getState().patchPart(target.id, {
+            state: 'failed',
+            note: 'The builder finished without producing screen content.',
+          });
           continue;
         }
         completed.add(target.id);
@@ -1673,6 +1703,10 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
               ? 'Screens built'
               : 'Build finished with incomplete screens',
           parts: useAgent.getState().progress?.parts || [],
+          assets:
+            useAgent.getState().assetDocumentEpoch === useProject.getState().documentEpoch
+              ? useAgent.getState().assetJobs
+              : [],
           startedAt,
         },
       },
@@ -1684,8 +1718,14 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
         blueprint,
         imageBudget.remaining,
         controller.signal,
+        undefined,
+        card.id,
       );
-      imageBudget.remaining = Math.max(0, imageBudget.remaining - autoResults.length);
+      imageBudget.remaining = Math.max(
+        0,
+        imageBudget.remaining -
+          autoResults.reduce((n, result) => n + (result.attempts || 0), 0),
+      );
       publishImageBudget(imageBudget);
       if (controller.signal.aborted) {
         addSystem(

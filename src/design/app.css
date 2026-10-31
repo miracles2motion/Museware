@@ -2026,17 +2026,18 @@ a {
 
 .run-stage {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
-  align-items: flex-start;
   justify-content: center;
-  padding: 18px;
 }
+.run-stage[data-scroll='false'] { overflow: auto; }
 
 .run-frame {
   width: 100%;
   max-width: 480px;
-  min-height: 100%;
+  height: 100%;
+  justify-self: center;
   background: var(--openui-bg);
   border-radius: 18px;
   box-shadow: var(--mw-shadow-e3);
@@ -2047,17 +2048,6 @@ a {
 
 .run-frame[data-kind='web'] {
   max-width: 1280px;
-}
-
-/*
- * Run mode needs the same definite-height chain as the canvas, or the fix works
- * while designing and vanishes while running. An app is the phone model — the
- * frame IS the viewport, so it gets an exact height and the screen scrolls
- * inside it. A web project keeps an auto height: the page grows and the stage
- * scrolls, which is what a website does.
- */
-.run-frame[data-kind='app'] {
-  height: 100%;
 }
 
 .run-frame .mw-app {
@@ -4281,3 +4271,8 @@ button.how-card .field-hint {
 
 @keyframes image-spin { to { transform: rotate(360deg); } }
 .image-spinner { animation: image-spin .8s linear infinite; }
+
+.painting-badge { position:absolute; inset:auto auto 8px 8px; z-index:1; padding:4px 8px; border-radius:999px; color:var(--mw-ink); background:var(--mw-surface); font-size:11px; animation:painting-pulse 1.2s ease-in-out infinite alternate; pointer-events:none; }
+@keyframes painting-pulse { from { opacity:.55; } to { opacity:1; } }
+.asset-progress { padding:8px 12px; font-size:11px; }
+.asset-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }

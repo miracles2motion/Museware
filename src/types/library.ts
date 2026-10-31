@@ -227,6 +227,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     defaultProps: {
       title: 'A hero headline',
       subtitle: 'One line about why this exists.',
+      layout: 'split',
     },
     styles: {
       background: 'linear-gradient(135deg, var(--openui-accent), var(--openui-secondary))',
@@ -238,6 +239,10 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     props: [
       p('title', 'Title', 'text', 'Content', 'The big line. Keep it under eight words.'),
       p('subtitle', 'Subtitle', 'text', 'Content', 'One sentence under the title.'),
+      p('badge', 'Badge', 'text', 'Content', 'Optional eyebrow above the headline.'),
+      p('layout', 'Layout', 'select', 'Content', 'Split, centered or immersive hero.', {
+        options: ['split', 'centered', 'immersive'],
+      }),
       p(
         'image',
         'Image',
@@ -660,6 +665,8 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'Links, comma separated. Each should match a screen name.',
       ),
       p('brand', 'Brand', 'text', 'Content', 'The wordmark on the left.'),
+      p('cta', 'CTA label', 'text', 'Content', 'Optional call to action.'),
+      p('ctaTo', 'CTA screen', 'screen', 'Behavior', 'Screen opened by the CTA.'),
     ],
   },
   {

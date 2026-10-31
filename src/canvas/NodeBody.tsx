@@ -10,6 +10,8 @@ import { nodeClass } from './cssGen';
 import { avatarPlaceholder, placeholderImage } from './placeholder';
 import { Icon } from './Icon';
 import { defaultPropsFor } from '../types/library';
+import { useAgent } from '../store/useAgent';
+import { useProject } from '../store/useProject';
 
 type Mode = 'edit' | 'run';
 
@@ -100,6 +102,10 @@ function chartPoints(
 
 export function NodeBody({ node, doc, mode, screenId, row }: Props) {
   const runtime = useRuntime();
+  const epoch = useProject((s) => s.documentEpoch);
+  const painting = useAgent(
+    (s) => s.assetDocumentEpoch === epoch && s.assetsPending.has(node.id),
+  );
   const [tab, setTab] = useState(0);
   const cls = nodeClass(node.id);
   const state = mode === 'run' && runtime ? runtime.state : null;
@@ -234,7 +240,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'image': {
       const src = imageSrc || placeholderImage(doc.tokens, { seed: node.id, height: 420 });
       return (
-        <div className={cls} style={{ aspectRatio: '16 / 10' }} {...tapProps}>
+        <div className={cls} {...tapProps}>
           <img
             className="mw-fill-img"
             src={src}
@@ -244,6 +250,9 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
             }}
             draggable={false}
           />
+          {mode === 'edit' && painting && !imageSrc && (
+            <span className="painting-badge">painting…</span>
+          )}
         </div>
       );
     }
@@ -467,27 +476,57 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       );
     case 'navbar': {
       const items = asList(p.items);
+      const navItem = (item: string) => (
+        <button
+          key={item}
+          type="button"
+          className="mw-nav-item"
+          onClick={() => {
+            if (mode !== 'run' || !runtime) return;
+            const target = screenSlugForLabel(runtime.screens, item);
+            if (target) runtime.navigate(target);
+            fire('tap');
+          }}
+        >
+          {item}
+        </button>
+      );
       return (
         <nav className={cls}>
           <span className="mw-nav-brand">{asText(p.brand, doc.name)}</span>
           <span className="mw-nav-items">
-            {items.map((item) => (
+            {items.map(navItem)}
+            {Boolean(p.cta) && (
               <button
-                key={item}
                 type="button"
                 className="mw-nav-item"
                 onClick={() => {
-                  if (mode !== 'run' || !runtime) return;
-                  const target = screenSlugForLabel(runtime.screens, item);
-                  if (target) runtime.navigate(target);
-                  fire('tap');
+                  if (mode === 'run' && runtime && p.ctaTo)
+                    runtime.navigate(asText(p.ctaTo));
                 }}
               >
-                {item}
+                {asText(p.cta)}
               </button>
-            ))}
+            )}
           </span>
-          <Icon name="menu" size={18} />
+          <details className="mw-nav-menu">
+            <summary aria-label="Toggle navigation menu">Menu</summary>
+            <div className="mw-nav-dropdown">
+              {items.map(navItem)}
+              {Boolean(p.cta) && (
+                <button
+                  type="button"
+                  className="mw-nav-item"
+                  onClick={() => {
+                    if (mode === 'run' && runtime && p.ctaTo)
+                      runtime.navigate(asText(p.ctaTo));
+                  }}
+                >
+                  {asText(p.cta)}
+                </button>
+              )}
+            </div>
+          </details>
         </nav>
       );
     }
@@ -725,35 +764,45 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'hero':
       return (
-        <div className={cls} {...tapProps}>
+        <div
+          className={`${cls} mw-hero`}
+          data-layout={asText(p.layout, 'split')}
+          data-has-media={Boolean(imageSrc)}
+          {...tapProps}
+        >
+          <div className="mw-hero-copy">
+            {Boolean(p.badge) && <span className="mw-hero-badge">{asText(p.badge)}</span>}
+            {Boolean(p.title) && (
+              <div
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: 'clamp(24px, 3.4cqw + 12px, 40px)',
+                  fontWeight: 700,
+                  lineHeight: 1.12,
+                  letterSpacing: '-0.025em',
+                  color: 'inherit',
+                }}
+              >
+                {subst(p.title, row)}
+              </div>
+            )}
+            {Boolean(p.subtitle) && (
+              <div style={{ fontSize: 15, lineHeight: 1.55, opacity: 0.88, maxWidth: 560 }}>
+                {subst(p.subtitle, row)}
+              </div>
+            )}
+            {renderChildren()}
+          </div>
           {imageSrc && (
-            <img
-              className="mw-hero-img"
-              src={imageSrc}
-              alt={asText(p.title, 'Hero')}
-              draggable={false}
-            />
-          )}
-          {Boolean(p.title) && (
-            <div
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 'clamp(24px, 3.4cqw + 12px, 40px)',
-                fontWeight: 700,
-                lineHeight: 1.12,
-                letterSpacing: '-0.025em',
-                color: 'inherit',
-              }}
-            >
-              {subst(p.title, row)}
+            <div className="mw-hero-media">
+              <img
+                className="mw-hero-img"
+                src={imageSrc}
+                alt={asText(p.title, 'Hero')}
+                draggable={false}
+              />
             </div>
           )}
-          {Boolean(p.subtitle) && (
-            <div style={{ fontSize: 15, lineHeight: 1.55, opacity: 0.88, maxWidth: 560 }}>
-              {subst(p.subtitle, row)}
-            </div>
-          )}
-          {renderChildren()}
         </div>
       );
     case 'section':

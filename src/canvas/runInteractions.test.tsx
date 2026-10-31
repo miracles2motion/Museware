@@ -30,6 +30,16 @@ function setup(child: ComponentNode) {
   return runtime;
 }
 describe('run interactions', () => {
+  it('opens the compact navbar menu and navigates from a menu link', () => {
+    const runtime = setup(n('nav_a', 'navbar', { brand: 'Tea', items: ['Home'] }));
+    const summary = screen.getByLabelText('Toggle navigation menu');
+    const details = summary.closest('details')!;
+    expect(details.open).toBe(false);
+    fireEvent.click(summary);
+    expect(details.open).toBe(true);
+    fireEvent.click(details.querySelector('button')!);
+    expect(runtime.navigate).toHaveBeenCalledWith('home');
+  });
   it('fires textarea change on blur', () => {
     const child = n('input_a', 'textarea', { bindKey: 'note', placeholder: 'Notes' });
     child.events = { change: [{ type: 'toast', text: 'changed' }] };

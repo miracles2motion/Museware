@@ -375,6 +375,7 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
   const [open, setOpen] = useState<string | null>(null);
   const data = entry.card!.data as {
     title?: string;
+    assets?: Array<{ nodeId: string; state: string; reason?: string }>;
     parts?: Array<{
       id: string;
       label: string;
@@ -504,6 +505,33 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
           )}
         </div>
       ))}
+      {Boolean(data.assets?.length) && (
+        <div className="asset-progress" aria-live="polite">
+          <strong>Assets</strong>{' '}
+          {data.assets!.some((job) => job.state === 'queued' || job.state === 'running')
+            ? 'Generating assets…'
+            : 'Assets finished:'}{' '}
+          {
+            data.assets!.filter(
+              (job) =>
+                job.state === 'done' || job.state === 'failed' || job.state === 'skipped',
+            ).length
+          }{' '}
+          of {data.assets!.length}
+          <div className="asset-chips">
+            {data.assets!.map((job) => (
+              <span
+                className="chip chip-static"
+                key={job.nodeId}
+                title={job.reason || job.state}
+              >
+                {job.nodeId}: {job.state === 'running' ? 'painting' : job.state}
+                {job.reason ? ` — ${job.reason}` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {busy && (
         <div className="card-actions">
           <button

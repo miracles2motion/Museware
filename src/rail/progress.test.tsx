@@ -8,6 +8,30 @@ import { emptyScreen } from '../ops/screenOps';
 import type { RailEntry } from '../types/tree';
 afterEach(cleanup);
 describe('finished progress cards', () => {
+  it('shows asset counts and failure reasons in the progress card', () => {
+    const entry: RailEntry = {
+      id: 'progress_assets',
+      at: Date.now(),
+      role: 'card',
+      text: '',
+      card: {
+        kind: 'progress',
+        state: 'answered',
+        data: {
+          title: 'Screens built',
+          parts: [],
+          assets: [
+            { nodeId: 'hero_img', state: 'done' },
+            { nodeId: 'tea_img', state: 'failed', reason: 'timeout' },
+            { nodeId: 'story_img', state: 'queued' },
+          ],
+        },
+      },
+    };
+    render(<RailCard entry={entry} />);
+    expect(screen.getByText(/Generating assets/).textContent).toContain('2 of 3');
+    expect(screen.getByText(/tea_img: failed/).textContent).toContain('timeout');
+  });
   it('stays visible and offers safe screen undo after a build', () => {
     useProject.getState().replaceDoc(createProject());
     const built = emptyScreen('Home', { id: 'home', entry: true });

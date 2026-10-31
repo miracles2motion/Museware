@@ -51,6 +51,14 @@ export interface ProgressPart {
   problems?: string;
 }
 
+export interface AssetJob {
+  nodeId: string;
+  prompt?: string;
+  size: string;
+  state: 'queued' | 'running' | 'done' | 'failed' | 'skipped';
+  reason?: string;
+}
+
 export interface ProgressState {
   title: string;
   parts: ProgressPart[];
@@ -80,6 +88,9 @@ interface AgentStore {
   buildImages: number;
   /** Attempts in the current/latest automated build; manual requests are separate. */
   buildImageUsage: { used: number; cap: number; documentEpoch: number } | null;
+  assetJobs: AssetJob[];
+  assetDocumentEpoch: number | null;
+  assetsPending: Set<string>;
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
@@ -151,6 +162,9 @@ export const useAgent = create<AgentStore>((set, get) => ({
   live: false,
   buildImages: 3,
   buildImageUsage: null,
+  assetJobs: [],
+  assetDocumentEpoch: null,
+  assetsPending: new Set<string>(),
   pendingRetry: null,
   wonder: (() => {
     try {

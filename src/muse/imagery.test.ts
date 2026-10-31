@@ -5,7 +5,7 @@ import { useAgent } from '../store/useAgent';
 import type { ComponentNode } from '../types/tree';
 import { toolSchemas } from '../types/tools';
 import { generateImage, chatStream, type ChatResult } from './client';
-import { autoIllustrate, illustrateTarget } from './imagery';
+import { autoIllustrate, illustrateTarget, imageSizeFor } from './imagery';
 import { runAgentTurn } from './loop';
 
 vi.mock('./client', async (original) => ({
@@ -123,6 +123,65 @@ describe('build imagery', () => {
             entry.text.includes('image_4'),
         ),
     ).toBe(true);
+  });
+  it('generates strictly one at a time and updates pending states', async () => {
+    const resolvers: Array<(src: string) => void> = [];
+    vi.mocked(generateImage).mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve)),
+    );
+    const pending = autoIllustrate(['tea'], 'tea', 2);
+    await vi.waitFor(() => expect(generateImage).toHaveBeenCalledTimes(1));
+    expect([...useAgent.getState().assetsPending]).toEqual(['image_0']);
+    expect(useAgent.getState().assetJobs.map((j) => j.state)).toEqual([
+      'running',
+      'queued',
+      'skipped',
+      'skipped',
+      'skipped',
+    ]);
+    resolvers[0]('https://example.com/one.png');
+    await vi.waitFor(() => expect(generateImage).toHaveBeenCalledTimes(2));
+    expect([...useAgent.getState().assetsPending]).toEqual(['image_1']);
+    resolvers[1]('https://example.com/two.png');
+    await pending;
+    expect(useAgent.getState().assetsPending.size).toBe(0);
+    expect(useAgent.getState().assetJobs.map((j) => j.state)).toEqual([
+      'done',
+      'done',
+      'skipped',
+      'skipped',
+      'skipped',
+    ]);
+  });
+  it('retries once after a three-second backoff within the call cap', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(generateImage)
+        .mockRejectedValueOnce(new Error('temporary'))
+        .mockResolvedValueOnce('https://example.com/retry.png');
+      const pending = autoIllustrate(['tea'], 'tea', 2);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(generateImage).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await pending;
+      expect(generateImage).toHaveBeenCalledTimes(2);
+      expect(useAgent.getState().assetJobs[0].state).toBe('done');
+      expect(useAgent.getState().assetJobs[1].state).toBe('skipped');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('chooses wide sizes for hero or story and square for cards', () => {
+    const s = useProject.getState().doc.screens[0];
+    const hero: ComponentNode = {
+      id: 'hero_img',
+      type: 'image',
+      props: {},
+      styles: {},
+      children: [],
+    };
+    expect(imageSizeFor(s, hero)).toBe('1200x640');
+    expect(imageSizeFor(s, s.root.children[0])).toBe('768x768');
   });
   it('reports an exhausted shared key without making requests', async () => {
     useAgent.setState({ keySource: 'env', houseKey: 'exhausted' });

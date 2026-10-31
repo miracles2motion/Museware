@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ExternalLink, RotateCcw, X } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
+import { useAgent } from '../store/useAgent';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { screenSlugForLabel, type RuntimeApi } from './runtime';
 
@@ -11,6 +12,12 @@ import { screenSlugForLabel, type RuntimeApi } from './runtime';
  */
 export function RunMode() {
   const doc = useProject((s) => s.doc);
+  const epoch = useProject((s) => s.documentEpoch);
+  const assetsGenerating = useAgent(
+    (s) =>
+      s.assetDocumentEpoch === epoch &&
+      s.assetJobs.some((job) => job.state === 'queued' || job.state === 'running'),
+  );
   const runScreenId = useUi((s) => s.runScreenId);
   const activeScreenId = useUi((s) => s.activeScreenId);
   const setRunMode = useUi((s) => s.setRunMode);
@@ -130,6 +137,11 @@ export function RunMode() {
           <span className="chip chip-static mono" style={{ fontSize: 10 }}>
             ▶ run · {doc.kind === 'web' ? 'web' : 'app'}
           </span>
+          {assetsGenerating && (
+            <span className="chip chip-static" role="status">
+              Assets still generating
+            </span>
+          )}
           <span className="topbar-spacer" />
           <span className="eyebrow">screen</span>
           <select
@@ -168,47 +180,55 @@ export function RunMode() {
         </div>
 
         <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflow: 'auto',
-            display: 'grid',
-            placeItems: doc.kind === 'web' ? 'stretch' : 'center',
-            padding: doc.kind === 'web' ? 0 : 20,
-            background: 'var(--mw-bg)',
-          }}
+          className="run-stage"
+          data-scroll={
+            screen.root.props.scroll !== false && screen.root.props.scroll !== 'false'
+          }
         >
-          <CanvasStyle doc={doc} />
-          <div className="run-frame" data-kind={doc.kind} data-run="true">
-            <NodeView doc={doc} screen={screen} mode="run" runtime={runtime} />
-            {pendingUrl && (
-              <div className="url-confirm">
-                <ExternalLink size={13} />
-                <span style={{ flex: 1 }}>
-                  This app wants to open <strong className="mono">{pendingUrl}</strong>
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  onClick={() => {
-                    window.open(pendingUrl, '_blank', 'noopener,noreferrer');
-                    setPendingUrl(null);
-                  }}
-                >
-                  Open
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => setPendingUrl(null)}
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              width: '100%',
+              height: '100%',
+              gridTemplateRows: 'minmax(0, 1fr)',
+              display: 'grid',
+              placeItems: 'stretch',
+              padding: doc.kind === 'web' ? 0 : 20,
+              background: 'var(--mw-bg)',
+            }}
+          >
+            <CanvasStyle doc={doc} />
+            <div className="run-frame" data-kind={doc.kind} data-run="true">
+              <NodeView doc={doc} screen={screen} mode="run" runtime={runtime} />
+              {pendingUrl && (
+                <div className="url-confirm">
+                  <ExternalLink size={13} />
+                  <span style={{ flex: 1 }}>
+                    This app wants to open <strong className="mono">{pendingUrl}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+                      setPendingUrl(null);
+                    }}
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setPendingUrl(null)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
         {toasts.length > 0 && (
           <div className="toast-host" aria-live="polite">
             {toasts.map((t) => (

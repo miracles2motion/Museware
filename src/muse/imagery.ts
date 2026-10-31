@@ -1,12 +1,18 @@
 import { findNodeInDoc, findParent } from '../ops/treeUtils';
 import { SCAFFOLD_STRINGS } from '../types/library';
-import { useAgent } from '../store/useAgent';
+import { useAgent, type AssetJob } from '../store/useAgent';
 import { useProject } from '../store/useProject';
 import type { ComponentNode, ProjectDoc, ScreenDoc } from '../types/tree';
 import { generateImage, MuseError } from './client';
 
 export type ImageTarget = { id: string; prompt?: string };
-export type ImageOutcome = { id: string; ok: boolean; message: string; stop?: boolean };
+export type ImageOutcome = {
+  id: string;
+  ok: boolean;
+  message: string;
+  stop?: boolean;
+  attempts?: number;
+};
 const rail = (text: string) => useProject.getState().addRail({ role: 'system', text });
 
 /** Nearby meaningful copy and the blueprint section describe the actual subject. */
@@ -77,10 +83,81 @@ export function imageSubject(
   return parts.slice(0, 6).join('; ') || 'the featured product or scene';
 }
 
+/** Wide editorial slots get more detail than compact product cards. */
+export function imageSizeFor(screen: ScreenDoc, node: ComponentNode): string {
+  if (node.type === 'hero' || /hero|story|banner/i.test(`${node.id} ${node.name || ''}`))
+    return '1200x640';
+  let current = node;
+  let parent = findParent(screen.root, current.id)?.parent;
+  while (parent && parent.type !== 'screen') {
+    if (parent.type === 'card' || parent.type === 'grid' || parent.type === 'list')
+      return '768x768';
+    if (
+      parent.type === 'hero' ||
+      /hero|story|banner/i.test(`${parent.id} ${parent.name || ''}`)
+    )
+      return '1200x640';
+    current = parent;
+    parent = findParent(screen.root, current.id)?.parent;
+  }
+  return '768x768';
+}
+
+/** Muse's size is an aspect hint, not a pixel guarantee. Read the returned image. */
+async function actualImageSize(
+  src: string,
+): Promise<{ width: number; height: number } | null> {
+  if (typeof Image === 'undefined') return null;
+  return new Promise((resolve) => {
+    const image = new Image();
+    const timer = setTimeout(() => resolve(null), 2000);
+    image.onload = () => {
+      clearTimeout(timer);
+      resolve(
+        image.naturalWidth && image.naturalHeight
+          ? { width: image.naturalWidth, height: image.naturalHeight }
+          : null,
+      );
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      resolve(null);
+    };
+    image.src = src;
+  });
+}
+
+// Serialize even manual and automated calls against the same provider.
+let imageTurn: Promise<void> = Promise.resolve();
+async function singleImageCall(
+  prompt: string,
+  size: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const previous = imageTurn;
+  let release!: () => void;
+  imageTurn = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    if (signal?.aborted) throw new Error('Stopped before image generation.');
+    return await generateImage(prompt, size);
+  } finally {
+    release();
+  }
+}
+
 /** Shared by the agent, build pass, and inspector. Each image is one undoable op. */
 export async function illustrateTarget(
   target: ImageTarget,
-  options: { signal?: AbortSignal; onlyEmpty?: boolean; context?: string } = {},
+  options: {
+    signal?: AbortSignal;
+    onlyEmpty?: boolean;
+    context?: string;
+    retry?: boolean;
+    takeAttempt?: () => boolean;
+  } = {},
 ): Promise<ImageOutcome> {
   const doc = useProject.getState().doc;
   const documentEpoch = useProject.getState().documentEpoch;
@@ -147,11 +224,47 @@ export async function illustrateTarget(
     ? ` Accent colors and props inspired by ${palette.join(', ')}.`
     : '';
   const prompt = `Professional subject-driven photograph of ${subject.slice(0, 700)}. Warm natural light, shallow depth of field, carefully styled real-world materials.${paletteHint}`;
+  const size = imageSizeFor(hit.screen, node);
+  let attempts = 0;
   try {
-    const src = await generateImage(
-      prompt,
-      node.type === 'hero' ? '1200x640' : '1024x1024',
-    );
+    let src = '';
+    let previousFailure = '';
+    for (;;) {
+      if (options.signal?.aborted) throw new Error('Stopped before image generation.');
+      if (options.takeAttempt && !options.takeAttempt())
+        throw new Error(
+          `Automated image call cap exhausted before retry.${previousFailure ? ` Previous failure: ${previousFailure}` : ''}`,
+        );
+      attempts += 1;
+      try {
+        src = await singleImageCall(prompt, size, options.signal);
+        break;
+      } catch (err) {
+        previousFailure = err instanceof Error ? err.message : String(err);
+        const permanent =
+          err instanceof MuseError &&
+          ['house_key_exhausted', 'no_key', 'house_key_rejected', 'unauthorized'].includes(
+            err.code,
+          );
+        if (!options.retry || attempts >= 2 || permanent || options.signal?.aborted)
+          throw err;
+        rail(
+          `Image ${node.id} attempt failed: ${err instanceof Error ? err.message : String(err)}. Retrying in 3 seconds.`,
+        );
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, 3000);
+          options.signal?.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            { once: true },
+          );
+        });
+      }
+    }
+    const actual = await actualImageSize(src);
     const current = findNodeInDoc(useProject.getState().doc, node.id)?.node;
     if (
       options.signal?.aborted ||
@@ -165,14 +278,28 @@ export async function illustrateTarget(
         id: node.id,
         ok: false,
         message: 'Image not applied because the target changed or the action was stopped.',
+        attempts,
       });
-    const result = useProject
-      .getState()
-      .applyBatch([{ op: 'setProps', id: node.id, props: { [key]: src } }], {
+    const result = useProject.getState().applyBatch(
+      [
+        {
+          op: 'setProps',
+          id: node.id,
+          props: {
+            [key]: src,
+            assetWidth: actual?.width ?? null,
+            assetHeight: actual?.height ?? null,
+            assetAspectWidth: Number(size.split('x')[0]),
+            assetAspectHeight: Number(size.split('x')[1]),
+          },
+        },
+      ],
+      {
         source: 'agent',
-      });
+      },
+    );
     if (result.errors.length) throw new Error(result.errors[0].message);
-    return finish({ id: node.id, ok: true, message: 'Image applied.' });
+    return finish({ id: node.id, ok: true, message: 'Image applied.', attempts });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stop =
@@ -191,7 +318,7 @@ export async function illustrateTarget(
       agent.keySource !== 'session'
     )
       useAgent.setState({ houseKey: 'exhausted' });
-    return finish({ id: node.id, ok: false, message, stop });
+    return finish({ id: node.id, ok: false, message, stop, attempts });
   }
 }
 
@@ -224,8 +351,8 @@ export async function autoIllustrate(
   limit: number,
   signal?: AbortSignal,
   eligibleIds?: ReadonlySet<string>,
+  cardId?: string,
 ): Promise<ImageOutcome[]> {
-  const documentEpoch = useProject.getState().documentEpoch;
   const targets: ImageTarget[] = [];
   const visit = (node: ComponentNode) => {
     if (
@@ -239,34 +366,115 @@ export async function autoIllustrate(
   };
   for (const screen of useProject.getState().doc.screens)
     if (screenIds.includes(screen.id)) visit(screen.root);
+  return queueAssetTargets(targets, context, limit, signal, cardId, true);
+}
+
+/** Run a build's requested assets serially and keep its card's job history. */
+export async function queueAssetTargets(
+  targets: ImageTarget[],
+  context: string,
+  limit: number,
+  signal?: AbortSignal,
+  cardId?: string,
+  onlyEmpty = false,
+): Promise<ImageOutcome[]> {
+  const documentEpoch = useProject.getState().documentEpoch;
   const cap = Math.max(0, Math.min(30, Math.floor(Number.isFinite(limit) ? limit : 3)));
-  if (targets.length > cap)
-    rail(
-      `Auto-illustration limited to ${cap} image(s); ${targets.length - cap} skipped and remain placeholders: ${targets
-        .slice(cap)
-        .map((item) => item.id)
-        .join(', ')}.`,
-    );
+  const jobs: AssetJob[] = targets.map((target, i) => {
+    const hit = findNodeInDoc(useProject.getState().doc, target.id);
+    return {
+      nodeId: target.id,
+      prompt: hit
+        ? imageSubject(
+            useProject.getState().doc,
+            hit.screen,
+            hit.node,
+            target.prompt,
+            context,
+          )
+        : target.prompt,
+      size: hit ? imageSizeFor(hit.screen, hit.node) : '768x768',
+      state: i < cap ? 'queued' : 'skipped',
+      ...(i >= cap ? { reason: 'Automated image call cap' } : {}),
+    };
+  });
+  const initialCard = cardId
+    ? useProject.getState().doc.rail.find((entry) => entry.id === cardId)
+    : undefined;
+  const previous = Array.isArray(initialCard?.card?.data.assets)
+    ? (initialCard.card.data.assets as AssetJob[])
+    : cardId && useAgent.getState().assetDocumentEpoch === documentEpoch
+      ? useAgent.getState().assetJobs
+      : [];
+  const publish = () => {
+    if (useProject.getState().documentEpoch !== documentEpoch) return;
+    const copy = [
+      ...previous.filter((old) => !jobs.some((job) => job.nodeId === old.nodeId)),
+      ...jobs,
+    ].map((job) => ({ ...job }));
+    useAgent.setState({
+      assetJobs: copy,
+      assetDocumentEpoch: documentEpoch,
+      assetsPending: new Set(
+        copy.filter((job) => job.state === 'running').map((job) => job.nodeId),
+      ),
+    });
+    const card = cardId
+      ? useProject.getState().doc.rail.find((entry) => entry.id === cardId)
+      : undefined;
+    if (card?.card?.kind === 'progress')
+      useProject.getState().patchRail(card.id, {
+        card: { ...card.card, data: { ...card.card.data, assets: copy } },
+      });
+  };
+  publish();
+  let attempts = 0;
   const outcomes: ImageOutcome[] = [];
-  for (const target of targets.slice(0, cap)) {
+  for (let i = 0; i < jobs.length; i += 1) {
+    const job = jobs[i];
+    if (job.state === 'skipped') continue;
     if (useProject.getState().documentEpoch !== documentEpoch) break;
-    if (signal?.aborted) {
-      const remaining = targets.slice(outcomes.length, cap);
-      rail(
-        `Auto-illustration stopped; skipped ${remaining.map((item) => item.id).join(', ')}.`,
-      );
-      break;
+    if (signal?.aborted || attempts >= cap) {
+      job.state = 'skipped';
+      job.reason = signal?.aborted ? 'Stopped' : 'Automated image call cap exhausted';
+      publish();
+      continue;
     }
-    const result = await illustrateTarget(target, { signal, onlyEmpty: true, context });
+    job.state = 'running';
+    publish();
+    const result = await illustrateTarget(targets[i], {
+      signal,
+      onlyEmpty,
+      context,
+      retry: true,
+      takeAttempt: () => {
+        if (attempts >= cap) return false;
+        attempts += 1;
+        return true;
+      },
+    });
     outcomes.push(result);
     if (useProject.getState().documentEpoch !== documentEpoch) break;
+    job.state = result.ok ? 'done' : 'failed';
+    if (!result.ok) job.reason = result.message;
     if (result.stop) {
-      const remaining = targets.slice(outcomes.length, cap);
-      rail(
-        `Auto-illustration stopped: ${result.message}${remaining.length ? `; skipped ${remaining.map((item) => item.id).join(', ')}` : ''}.`,
-      );
+      for (const later of jobs.slice(i + 1))
+        if (later.state === 'queued') {
+          later.state = 'skipped';
+          later.reason = result.message;
+        }
+      publish();
       break;
     }
+    publish();
+  }
+  if (useProject.getState().documentEpoch === documentEpoch) {
+    publish();
+    const skipped = jobs.filter((job) => job.state === 'skipped');
+    if (skipped.length)
+      rail(
+        `Auto-illustration skipped ${skipped.length} asset(s) (budget cap or unavailable): ${skipped.map((job) => `${job.nodeId} (${job.reason || 'not generated'})`).join(', ')}. Placeholders remain.`,
+      );
   }
   return outcomes;
 }

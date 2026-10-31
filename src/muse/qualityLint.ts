@@ -4,7 +4,16 @@ import type { ComponentNode, ScreenDoc } from '../types/tree';
 
 export interface LintFinding {
   severity: 'block' | 'warn';
-  code: 'scaffold' | 'imagery' | 'markup' | 'cramped' | 'button' | 'token' | 'spacing';
+  code:
+    | 'scaffold'
+    | 'imagery'
+    | 'markup'
+    | 'cramped'
+    | 'button'
+    | 'token'
+    | 'spacing'
+    | 'responsive'
+    | 'navbar';
   nodeId: string;
   message: string;
 }
@@ -14,6 +23,7 @@ export function lintScreen(
   screen: ScreenDoc,
   tokens?: DesignTokens,
   queuedIds: ReadonlySet<string> = new Set(),
+  kind: 'app' | 'web' = 'app',
 ): LintFinding[] {
   const findings: LintFinding[] = [];
   const colors = new Map<string, string>();
@@ -30,7 +40,16 @@ export function lintScreen(
     message: string,
   ) => findings.push({ nodeId: node.id, severity, code, message });
   let hasImagery = false;
+  let hasResponsive = false;
+  let hasNavbar = false;
   const visit = (node: ComponentNode) => {
+    if (node.type === 'navbar') hasNavbar = true;
+    if (
+      Object.values(node.styles.responsive || {}).some(
+        (override) => override && Object.keys(override).length > 0,
+      )
+    )
+      hasResponsive = true;
     if (node.type === 'hero' || node.type === 'image' || Boolean(node.props.image))
       hasImagery = true;
     for (const key of ['text', 'title', 'subtitle', 'label', 'placeholder']) {
@@ -145,5 +164,14 @@ export function lintScreen(
       'imagery',
       'Landing has no image or hero node; check whether this visual design needs imagery.',
     );
+  if (kind === 'web' && !hasResponsive)
+    add(
+      screen.root,
+      'warn',
+      'responsive',
+      'Build adapts at md/lg or it is a stretched poster: no responsive overrides found.',
+    );
+  if (kind === 'web' && !hasNavbar)
+    add(screen.root, 'warn', 'navbar', 'A website has navigation: no navbar node found.');
   return findings;
 }

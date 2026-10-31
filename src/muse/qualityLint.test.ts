@@ -47,6 +47,31 @@ beforeEach(() => {
   });
 });
 describe('quality lint and gate', () => {
+  it('warns a web build when responsive overrides or navbar are absent', () => {
+    const s = useProject.getState().doc.screens[0];
+    const warnings = lintScreen(s, undefined, new Set(), 'web');
+    expect(warnings).toContainEqual(
+      expect.objectContaining({ code: 'responsive', severity: 'warn' }),
+    );
+    expect(warnings).toContainEqual(
+      expect.objectContaining({ code: 'navbar', severity: 'warn' }),
+    );
+    s.root.children.push(node('nav_tea', 'navbar', { brand: 'Tea' }));
+    s.root.styles.responsive = { medium: { gap: '16px' } };
+    const updated = lintScreen(s, undefined, new Set(), 'web');
+    expect(updated.some((f) => f.code === 'responsive' || f.code === 'navbar')).toBe(false);
+  });
+  it('retries one empty stop reviewer response before passing', async () => {
+    const s = useProject.getState().doc.screens[0];
+    s.root.children[0].props.text = 'Whole leaf tea';
+    s.root.children[1].props.subtitle = 'Fresh tea';
+    vi.mocked(chatStream)
+      .mockResolvedValueOnce(reply([], ''))
+      .mockResolvedValueOnce(reply([], 'PASS'));
+    await verifyGate('tea', useProject.getState().doc, ['tea']);
+    expect(chatStream).toHaveBeenCalledTimes(2);
+    expect(useAgent.getState().verification).toBe('pass');
+  });
   it('blocks placeholder copy but only warns about an empty hero, and accepts clean content', () => {
     const screen = useProject.getState().doc.screens[0];
     expect(

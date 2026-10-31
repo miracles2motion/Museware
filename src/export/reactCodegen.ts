@@ -116,14 +116,19 @@ function renderLeaf(
       return `${pad}<input className={${str(cls)}} type="date" value={${bindValue(bind)}} onChange={(e) => setKey(${str(bind)}, e.target.value)} />`;
     case 'navbar': {
       const items = Array.isArray(p.items) ? (p.items as unknown[]).map(String) : [];
-      return `${pad}<nav className={${str(cls)}}>
-${pad}  <span className="mw-nav-brand">${jsxText(p.brand)}</span>
-${pad}  <span className="mw-nav-items">${items
+      const links = items
         .map(
           (item) =>
-            `<button className="mw-nav-item" onClick={() => go(${str(item)})}>${jsxText(item)}</button>`,
+            `<button type="button" className="mw-nav-item" onClick={() => go(${str(item)})}>${jsxText(item)}</button>`,
         )
-        .join('')}</span>
+        .join('');
+      const cta = p.cta
+        ? `<button type="button" className="mw-nav-item" onClick={() => go(${str(p.ctaTo || '')})}>${jsxText(p.cta)}</button>`
+        : '';
+      return `${pad}<nav className={${str(cls)}}>
+${pad}  <span className="mw-nav-brand">${jsxText(p.brand)}</span>
+${pad}  <span className="mw-nav-items">${links}${cta}</span>
+${pad}  <details className="mw-nav-menu"><summary aria-label="Toggle navigation menu">Menu</summary><div className="mw-nav-dropdown">${links}${cta}</div></details>
 ${pad}</nav>`;
     }
     case 'bottomnav': {
@@ -203,11 +208,14 @@ ${pad}</div>`;
         .join('')}</div></div>`;
     }
     case 'hero':
-      return `${pad}<div className={${str(cls)}}>
-${p.image || p.src ? `${pad}  <img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} />` : ''}
-${pad}  <h1 className="hero-title">${jsxText(p.title)}</h1>
-${pad}  <p className="hero-sub">${jsxText(p.subtitle)}</p>
-${pad}  ${renderChildren(node, indent + 1, screens)}
+      return `${pad}<div className={${str(`${cls} mw-hero`)}} data-layout=${str(p.layout || 'split')} data-has-media={${str(Boolean(p.image || p.src))}}>
+${pad}  <div className="mw-hero-copy">
+${p.badge ? `${pad}    <span className="mw-hero-badge">${jsxText(p.badge)}</span>` : ''}
+${pad}    <h1 className="hero-title">${jsxText(p.title)}</h1>
+${pad}    <p className="hero-sub">${jsxText(p.subtitle)}</p>
+${pad}    ${renderChildren(node, indent + 2, screens)}
+${pad}  </div>
+${p.image || p.src ? `${pad}  <div className="mw-hero-media"><img className="mw-hero-img" src=${str(p.image || p.src)} alt=${str(p.title || '')} /></div>` : ''}
 ${pad}</div>`;
     default:
       return `${pad}<div className={${str(cls)}}>${jsxText(p.text)}</div>`;

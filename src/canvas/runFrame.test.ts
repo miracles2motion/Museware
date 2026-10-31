@@ -6,8 +6,9 @@ describe('run frame scroll ownership', () => {
     const css = readFileSync('src/design/app.css', 'utf8');
     const frame = css.match(/\.run-frame\s*\{([^}]*)\}/)?.[1] || '';
     const stage = css.match(/\.run-stage\s*\{([^}]*)\}/)?.[1] || '';
-    expect(frame).toMatch(/min-height:\s*100%/);
+    expect(frame).toMatch(/(?:^|\s)height:\s*100%/);
     expect(frame).not.toMatch(/\boverflow(?:-x|-y)?\s*:/);
-    expect(stage).toMatch(/overflow:\s*auto/);
+    expect(stage).toMatch(/overflow:\s*hidden/);
+    expect(css).toMatch(/\.run-stage\[data-scroll='false'\]\s*\{\s*overflow:\s*auto/);
   });
 });

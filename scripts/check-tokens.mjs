@@ -245,7 +245,7 @@ for (const [themeName, map] of [
 const HEIGHT_CHAIN = [
   ['.frame-viewport .mw-app', 'the canvas app wrapper'],
   ['.run-frame .mw-app', 'the run-mode app wrapper'],
-  ['.run-frame[data-kind=\'app\']', 'the run-mode app frame'],
+  ['.run-frame', 'the run-mode frame for both app and web'],
 ];
 
 /** A real `height: 100%` declaration — min-height is NOT one. */

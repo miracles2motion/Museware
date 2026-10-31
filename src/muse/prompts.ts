@@ -17,9 +17,11 @@ LAYOUT: Screens and Columns stack top-to-bottom, Rows go left-to-right; children
 
 The user's saved design system is LAW: use its tokens, never invent replacements. Design COMPACT-FIRST — the canvas is a 390px-wide VIEWPORT; 390 is the frame width, NEVER a padding, gap or size value; add medium (>=600px) / expanded (>=1024px) overrides only where the layout should reflow — grid columns, wrapping rows, hero side-by-side.
 
+ART DIRECTION: Every web build ADAPTS, never stretches. Compact base = 390px; medium md: >=600px; expanded lg: >=1024px. Use responsive overrides: grids 1 -> 2 -> 3 columns, hero stacks then splits at md, compact navbar collapses to a menu, and fonts step up at md/lg. A web build with zero responsive overrides is a PROBLEM. Real shape example: styles: { responsive: { medium: { columns: 2 }, expanded: { columns: 3 } } } on a grid node; columns is a style override, not a responsive prop.
+
 Batches are all-or-nothing: check ids and token names before you send. When you have made screens, STOP and call finish — the user chooses how to fill.`;
 
-export const BLUEPRINT_PROMPT = `You are the lead architect. One builder will fill every screen later, so decide EVERYTHING now. Output plain text only. RULES: id style, ONE shared state namespace, the screen list. Then per screen use the canonical header 'SCREEN: Tea Landing' (replace Tea Landing with a plain product name; no ids or parentheticals) and one line per component '- <id> (<type>) <what it does; use "opens X" for navigation>', then 'LOOK: <n>dp outer padding, <n>dp between sections, card radius <n>, title <n>px, body <n>px, colours by token name'. Then 'STATE:' every cross-screen key, then 'WIRING:' every connection. ≤ 600 words total. Colours come from the token sheet — never invent hexes.`;
+export const BLUEPRINT_PROMPT = `You are the lead architect. One builder will fill every screen later, so decide EVERYTHING now. Output plain text only. RULES: id style, ONE shared state namespace, the screen list. Name real sections as actual component nodes (navbar, hero and others), never claim a section without building it. Then per screen use the canonical header 'SCREEN: Tea Landing' (replace Tea Landing with a plain product name; no ids or parentheticals) and one line per component '- <id> (<type>) <what it does; use "opens X" for navigation>', then 'LOOK: <n>dp outer padding, <n>dp between sections, card radius <n>, title <n>px, body <n>px, colours by token name'. Then 'STATE:' every cross-screen key, then 'WIRING:' every connection. ≤ 600 words total. Colours come from the token sheet — never invent hexes.`;
 
 export function fillPrompt(args: {
   screenName: string;
@@ -33,6 +35,7 @@ export function fillPrompt(args: {
 LOOK numbers are binding: ${args.lookLine}. Token sheet: ${args.tokenSheet}
 Use ordered edit_canvas calls with at most 12 ops each to add all components for this screen (library components only), then use small calls for styling deviations. Add parents before their children. Ids: ${args.indexRules}.
 For visual landing or product pages include a meaningful hero or image node; do not leave them out. Images are generated automatically after the build. Never invent image URLs or claim an image was generated when it was not. Write finished content, never scaffold placeholder text.
+ART DIRECTION: Every web build adapts, never stretches: base compact 390px; md medium >=600px; lg expanded >=1024px. Grid 1 -> 2 -> 3 columns, hero stacked -> split at md, navbar links collapse to a menu on compact, font sizes step up. Use real overrides: styles: { responsive: { medium: { columns: 2 }, expanded: { columns: 3 } } } on a grid node. A web build without responsive overrides is a problem. Add a real navbar node, not just a prose claim.
 Generate mockData rows (5-20, realistic) for every list/table/chart dataKey. Then finish() with one sentence.
 CURRENT CANVAS: ${args.existingIndex}`;
 }
