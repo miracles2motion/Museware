@@ -54,7 +54,7 @@ export type ComponentType = ContainerType | LeafType;
 
 export type Align = 'start' | 'center' | 'end' | 'stretch';
 export type Justify = 'start' | 'center' | 'end' | 'space-between';
-/** Sketchware's sizing words: match the parent, hug the content, or a length. */
+/** Sizing: match the parent, hug the content, or a length. */
 export type SizeWord = 'match' | 'hug';
 
 export type StyleValue = string | number;

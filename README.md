@@ -1,6 +1,6 @@
 # Museware
 
-**Figma designs. Sketchware blocks. Museware builds.**
+**Describe it. Approve the plan. Watch it build.**
 
 Museware is an editor with an agent inside it. You describe an app, the muse
 proposes a blueprint, you approve it, and it writes real ops into the same tree

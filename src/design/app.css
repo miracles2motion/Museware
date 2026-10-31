@@ -4227,70 +4227,42 @@ button.how-card .field-hint {
   font-size: 11px;
   color: var(--mw-ink-3);
 }
-.lp-compare,
 .lp-how {
   max-width: 1200px;
   margin: 0 auto;
   padding: 72px 28px;
 }
-.lp-compare h2,
 .lp-how h2 {
   font-size: clamp(28px, 4vw, 48px);
   letter-spacing: -0.04em;
   margin: 0 0 12px;
 }
-.lp-compare-grid,
 .lp-how-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 28px;
 }
-.lp-compare-card,
 .lp-how-grid article {
   border: 1px solid var(--mw-border);
   border-radius: 16px;
   padding: 22px;
   background: var(--mw-surface);
 }
-.lp-compare-card h3,
 .lp-how-grid h3 {
   margin: 10px 0 16px;
 }
-.lp-example-card {
-  padding: 18px;
-  border-radius: 12px;
-  background: var(--mw-bg);
-  border: 1px solid var(--mw-border);
-}
-.lp-example-card p,
 .lp-how-grid p {
   color: var(--mw-ink-3);
-}
-.lp-example-card span {
-  display: inline-block;
-  padding: 8px 12px;
-  background: var(--mw-accent);
-  color: var(--mw-on-accent);
-  border-radius: 8px;
-  font-size: 12px;
-}
-.lp-example-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 14px;
 }
 .lp-how-grid article > span {
   color: var(--mw-accent);
   font-weight: 700;
 }
 @media (max-width: 700px) {
-  .lp-compare-grid,
   .lp-how-grid {
     grid-template-columns: 1fr;
   }
-  .lp-compare,
   .lp-how {
     padding: 48px 20px;
   }

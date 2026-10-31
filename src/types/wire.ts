@@ -10,9 +10,9 @@
  *    anywhere; `wire.test.ts` fails the build if one reappears).
  * 2. `400 JSON schema exceeds the maximum nesting depth of 10 levels` —
  *    even the BOUNDED tree mirror inlined to ~27 levels (an op union × node ×
- *    children × styles × responsive). The fix is the shape Sketchware always
- *    used: the schema stays SHALLOW — it names the op, leaves the payload
- *    open — and the STRUCTURE moves to the prompt (`TOOL_DESCRIPTIONS.edit_canvas`
+ *    children × styles × responsive). The fix is a shallow tool schema: it
+ *    names the op and leaves the payload open; the STRUCTURE moves to the
+ *    prompt (`TOOL_DESCRIPTIONS.edit_canvas`
  *    carries the one-line grammar). `opSchema` in `tools.ts` remains the
  *    runtime authority and validates every payload exactly as deeply as
  *    before; the wire just stops describing it.

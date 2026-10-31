@@ -15,8 +15,8 @@ import type { StyleSet } from './tree';
  *   · props   = content and behaviour only (text, src, items, bindKey, variant…)
  *   · alignment is never ambiguous — a container has `align` (cross axis,
  *     align-items) and `justify` (main axis, justify-content); a child has
- *     `selfAlign` (align-self) and `grow` (flex-grow, Sketchware's weight).
- *   · sizing is Sketchware's vocabulary: match | hug | a length.
+ *     `selfAlign` (align-self) and `grow` (weight-style flex-grow).
+ *   · sizing uses match | hug | a length.
  *
  * The inspector renders its Style tab from STYLE_FIELDS, tools.ts validates
  * from STYLE_FIELDS, and cssGen emits from STYLE_FIELDS. Add a row here and all
@@ -95,7 +95,7 @@ const UNITLESS = new Set([
 export const camelToKebab = (key: string) =>
   key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 
-/** 'match'/'hug' are Sketchware words that compile to CSS; numbers get px. */
+/** 'match'/'hug' compile to CSS; numbers get px. */
 export function cssValue(key: string, value: StyleValue): string {
   if (typeof value === 'number') {
     return UNITLESS.has(key) || key === 'letterSpacing' ? String(value) : `${value}px`;
@@ -180,7 +180,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
   {
     key: 'grow',
     label: 'Fill leftover space',
-    hint: 'In a Row or Column this block soaks up the leftover space on the main axis (Sketchware’s weight).',
+    hint: 'In a Row or Column this block soaks up the leftover space on the main axis (flex-grow).',
     kind: 'toggle',
     group: 'Layout',
     scope: 'child',
@@ -218,7 +218,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     suggestions: ['var(--radius-card)', 'var(--radius-button)', 'var(--radius-chip)', '0'],
   },
 
-  /* ---------- Size: Sketchware's match / hug / length ---------- */
+  /* ---------- Size: match / hug / length ---------- */
   {
     key: 'width',
     label: 'Width',

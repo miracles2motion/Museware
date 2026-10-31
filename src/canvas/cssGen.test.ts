@@ -4,7 +4,7 @@ import type { ComponentNode, ProjectDoc, StyleSet } from '../types/tree';
 
 /**
  * The CSS engine is where the dictionary becomes pixels. These pin the laws it
- * used to break: one meaning per alignment word, Sketchware sizing words that
+ * used to break: one meaning per alignment word, match/hug sizing words that
  * finally exist on BOTH axes, weight/grow, wrapping, and per-side space.
  */
 
@@ -75,7 +75,7 @@ describe('alignment has one meaning per word', () => {
     expect(rule).toContain('justify-content:space-between');
   });
 
-  it('grow becomes flex-grow, unitless (Sketchware weight)', () => {
+  it('grow becomes unitless flex-grow', () => {
     const css = cssOf(node('row_a', 'row', {}, {}, [node('txt_a', 'text', { grow: 1 })]));
     expect(ruleFor(css, 'txt_a')).toContain('flex-grow:1');
   });
@@ -90,7 +90,7 @@ describe('alignment has one meaning per word', () => {
   });
 });
 
-describe('Sketchware sizing words reach the CSS', () => {
+describe('match/hug sizing words reach the CSS', () => {
   it('match and hug work on width AND height', () => {
     const rule = ruleFor(
       cssOf(node('card_a', 'card', { width: 'match', height: 'hug' })),

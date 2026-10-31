@@ -616,50 +616,6 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="lp-compare lp-reveal">
-        <h2>Figma designs. Sketchware blocks. Museware builds.</h2>
-        <p className="lp-sub">The same card, three ways to get there.</p>
-        <div className="lp-compare-grid">
-          {[
-            {
-              title: 'Styled by hand',
-              label: 'FIGMA',
-              note: 'Shape every surface yourself.',
-              chips: ['Layout', 'Color', 'Type'],
-            },
-            {
-              title: 'Wired with chips',
-              label: 'SKETCHWARE',
-              note: 'Connect actions with visual blocks.',
-              chips: ['when tapped', 'set value', 'navigate'],
-            },
-            {
-              title: 'Built by Muse',
-              label: 'MUSEWARE',
-              note: 'Describe it, approve it, then refine it.',
-              chips: ['Blueprint', 'Build', 'Verify'],
-            },
-          ].map((item) => (
-            <article className="lp-compare-card" key={item.title}>
-              <span className="eyebrow">{item.label}</span>
-              <h3>{item.title}</h3>
-              <div className="lp-example-card">
-                <strong>Roast of the week</strong>
-                <p>Kenya Nyeri · 250g</p>
-                <span>Explore roast →</span>
-              </div>
-              <div className="lp-example-chips">
-                {item.chips.map((chip) => (
-                  <span className="chip chip-static" key={chip}>
-                    {chip}
-                  </span>
-                ))}
-              </div>
-              <p className="lp-sub">{item.note}</p>
-            </article>
-          ))}
-        </div>
-      </section>
       <section className="lp-how lp-reveal">
         <h2>How it works</h2>
         <div className="lp-how-grid">
