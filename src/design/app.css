@@ -4804,3 +4804,82 @@ button.how-card .field-hint {
 .thinking-transcript p {
   margin: var(--mw-space-2) 0;
 }
+
+/* Presentation controls and the scrollable device; locked screens retain their fit layout. */
+.run-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--mw-space-2);
+  padding: var(--mw-space-2);
+  border-bottom: 1px solid var(--mw-border);
+  background: var(--mw-surface);
+}
+.run-device-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mw-space-1);
+}
+.run-device-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mw-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--mw-radius-sm);
+  background: transparent;
+  color: var(--mw-ink-2);
+  cursor: pointer;
+}
+.run-device-button[aria-pressed='true'] {
+  color: var(--mw-accent);
+  background: var(--mw-accent-subtle);
+  border-color: var(--mw-accent);
+}
+.run-device-size {
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+}
+.run-screen-picker {
+  height: var(--mw-control-h-sm);
+  font-size: var(--mw-fs-11);
+  width: var(--mw-run-urlbar-w);
+}
+.run-device-viewport {
+  flex: none;
+  height: 100%;
+  min-height: 0;
+}
+.run-device {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform-origin: top left;
+}
+.run-stage[data-scroll='true'] .run-frame {
+  max-width: none;
+  height: auto;
+  min-height: 100%;
+  border-radius: 0;
+}
+.run-stage[data-scroll='true'] .run-frame .mw-css-root,
+.run-stage[data-scroll='true'] .run-frame .mw-app {
+  height: auto;
+  min-height: 100%;
+}
+.run-stage[data-scroll='true'] .run-frame .mw-app > [class^='n-'] {
+  height: auto !important;
+  min-height: 100%;
+  overflow-y: visible !important;
+}
+.run-locked-layout {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+  display: grid;
+  place-items: stretch;
+  background: var(--mw-bg);
+}

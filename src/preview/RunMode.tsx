@@ -1,10 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ExternalLink, RotateCcw, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ExternalLink,
+  Laptop,
+  Monitor,
+  RotateCcw,
+  Smartphone,
+  X,
+} from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { screenSlugForLabel, type RuntimeApi } from './runtime';
+
+export type RunDevice = 390 | 768 | 1280;
+export function initialRunDevice(kind: 'web' | 'app'): RunDevice {
+  try {
+    const saved = localStorage.getItem('museware/runDevice');
+    if (saved === '390' || saved === '768' || saved === '1280')
+      return Number(saved) as RunDevice;
+  } catch {
+    /* storage unavailable */
+  }
+  return kind === 'web' ? 1280 : 390;
+}
 
 /**
  * Run mode is the real tree executing: navigation switches screens, state
@@ -28,6 +48,31 @@ export function RunMode() {
     doc.screens[0]?.id ||
     '';
   const [screenId, setScreenId] = useState(initial);
+  const [device, setDevice] = useState<RunDevice>(() => initialRunDevice(doc.kind));
+  const [stageWidth, setStageWidth] = useState(0);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const scale = stageWidth > 0 ? Math.min(1, stageWidth / device) : 1;
+  const chooseDevice = (width: RunDevice) => {
+    setDevice(width);
+    try {
+      localStorage.setItem('museware/runDevice', String(width));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  useEffect(() => {
+    const element = stageRef.current;
+    if (!element) return;
+    const measure = () => setStageWidth(element.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const [state, setState] = useState<Record<string, unknown>>({});
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
@@ -109,24 +154,28 @@ export function RunMode() {
     );
   }
 
+  const scrollable =
+    screen.root.props.scroll !== false && screen.root.props.scroll !== 'false';
+
   return (
     <div
       className="scrim"
       role="dialog"
       aria-modal="true"
       aria-label="Run mode"
-      style={{ padding: 0 }}
+      style={scrollable ? { padding: 0, display: 'flex' } : { padding: 0 }}
     >
       <div
         style={{
           width: '100%',
           height: '100%',
+          ...(scrollable ? { minWidth: 0, minHeight: 0 } : {}),
           display: 'flex',
           flexDirection: 'column',
           background: 'var(--mw-bg)',
         }}
       >
-        <div className="topbar" style={{ gap: 'var(--mw-space-2-5)' }}>
+        <div className="run-toolbar" role="toolbar" aria-label="Presentation controls">
           <button
             type="button"
             className="btn btn-sm btn-ghost"
@@ -134,33 +183,49 @@ export function RunMode() {
           >
             <ArrowLeft size={13} /> Editor
           </button>
-          <span className="chip chip-static mono" style={{ fontSize: 'var(--mw-fs-10)' }}>
-            ▶ run · {doc.kind === 'web' ? 'web' : 'app'}
+          <div className="run-device-switcher" role="group" aria-label="Device width">
+            {(
+              [
+                { width: 390, name: 'Mobile', Icon: Smartphone },
+                { width: 768, name: 'Tablet', Icon: Laptop },
+                { width: 1280, name: 'Desktop', Icon: Monitor },
+              ] as const
+            ).map(({ width, name, Icon }) => (
+              <button
+                type="button"
+                key={width}
+                className="run-device-button"
+                aria-label={`${name} ${width}`}
+                aria-pressed={device === width}
+                onClick={() => chooseDevice(width)}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
+          <span className="run-device-size mono">
+            {device}
+            {scale < 1 ? ` · ${Math.round(scale * 100)}%` : ''}
           </span>
+          {doc.screens.length > 1 && (
+            <select
+              className="select run-screen-picker"
+              value={screen.id}
+              aria-label="Screen"
+              onChange={(e) => setScreenId(e.target.value)}
+            >
+              {doc.screens.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
           {assetsGenerating && (
             <span className="chip chip-static" role="status">
               Assets still generating
             </span>
           )}
-          <span className="topbar-spacer" />
-          <span className="eyebrow">screen</span>
-          <select
-            className="select"
-            value={screen.id}
-            aria-label="Screen"
-            style={{
-              height: 'var(--mw-control-h-sm)',
-              fontSize: 'var(--mw-fs-11)',
-              width: 'var(--mw-run-urlbar-w)',
-            }}
-            onChange={(e) => setScreenId(e.target.value)}
-          >
-            {doc.screens.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
           <button
             type="button"
             className="icon-btn icon-btn-sm"
@@ -182,56 +247,89 @@ export function RunMode() {
             <X size={15} />
           </button>
         </div>
-
-        <div
-          className="run-stage"
-          data-scroll={
-            screen.root.props.scroll !== false && screen.root.props.scroll !== 'false'
-          }
-        >
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              width: '100%',
-              height: '100%',
-              gridTemplateRows: 'minmax(0, 1fr)',
-              display: 'grid',
-              placeItems: 'stretch',
-              padding: doc.kind === 'web' ? 0 : 20,
-              background: 'var(--mw-bg)',
-            }}
-          >
-            <CanvasStyle doc={doc} />
-            <div className="run-frame" data-kind={doc.kind} data-run="true">
-              <NodeView doc={doc} screen={screen} mode="run" runtime={runtime} />
-              {pendingUrl && (
-                <div className="url-confirm">
-                  <ExternalLink size={13} />
-                  <span style={{ flex: 1 }}>
-                    This app wants to open <strong className="mono">{pendingUrl}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => {
-                      window.open(pendingUrl, '_blank', 'noopener,noreferrer');
-                      setPendingUrl(null);
-                    }}
-                  >
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-ghost"
-                    onClick={() => setPendingUrl(null)}
-                  >
-                    Dismiss
-                  </button>
+        <div className="run-stage" ref={stageRef} data-scroll={scrollable}>
+          <CanvasStyle doc={doc} />
+          {scrollable ? (
+            <div className="run-device-viewport" style={{ width: device * scale }}>
+              <div
+                className="run-device"
+                style={{
+                  width: device,
+                  height: `${100 / scale}%`,
+                  transform: `scale(${scale})`,
+                }}
+              >
+                <div
+                  className="run-frame"
+                  data-kind={doc.kind}
+                  data-run="true"
+                  style={{ width: device }}
+                >
+                  <NodeView doc={doc} screen={screen} mode="run" runtime={runtime} />
+                  {pendingUrl && (
+                    <div className="url-confirm">
+                      <ExternalLink size={13} />
+                      <span style={{ flex: 1 }}>
+                        This app wants to open{' '}
+                        <strong className="mono">{pendingUrl}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={() => {
+                          window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+                          setPendingUrl(null);
+                        }}
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => setPendingUrl(null)}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div
+              className="run-locked-layout"
+              style={{ padding: doc.kind === 'web' ? 0 : 20 }}
+            >
+              <div className="run-frame" data-kind={doc.kind} data-run="true">
+                <NodeView doc={doc} screen={screen} mode="run" runtime={runtime} />
+                {pendingUrl && (
+                  <div className="url-confirm">
+                    <ExternalLink size={13} />
+                    <span style={{ flex: 1 }}>
+                      This app wants to open <strong className="mono">{pendingUrl}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => {
+                        window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+                        setPendingUrl(null);
+                      }}
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setPendingUrl(null)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {toasts.length > 0 && (
           <div className="toast-host" aria-live="polite">
