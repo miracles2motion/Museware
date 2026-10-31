@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from '@testing-library/react';
 import App from './App';
+import { Landing } from './shell/Landing';
 import { useProject } from './store/useProject';
 import { useAgent } from './store/useAgent';
 import { useUi } from './store/useUi';
@@ -54,14 +63,14 @@ async function boot() {
 }
 
 describe('the shell actually renders', () => {
-  it('opens on the landing page, with the product visible', async () => {
+  it('opens the projects home when no project was open', async () => {
     await boot();
-    expect(screen.getByText(/Describe it\. Watch it build\./)).toBeTruthy();
-    expect(screen.getAllByText(/Start building/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Projects' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'New project' })).toBeTruthy();
   });
 
   it('shows the landing page as one page: title, one action, no eyebrow', async () => {
-    await boot();
+    render(<Landing />);
     expect(document.querySelector('.hero-copy')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(
       /Describe it\.\s*Watch it build\./,
@@ -73,7 +82,7 @@ describe('the shell actually renders', () => {
   });
 
   it('renders the op batch the engine really applied, and the screen it built', async () => {
-    await boot();
+    render(<Landing />);
     const code = document.querySelector('.lp-code');
     expect(code?.textContent).toMatch(/"op": "add"/);
     // The batch screen is the engine's own render, not a picture.
@@ -82,7 +91,7 @@ describe('the shell actually renders', () => {
   });
 
   it('gives every preview its own token scope, so no preview overwrites the next', async () => {
-    await boot();
+    render(<Landing />);
     const sheets = Array.from(document.querySelectorAll('style[data-museware-css]'));
     // the hero, the op-batch screen, and one per preset
     expect(sheets.length).toBe(4);
@@ -95,7 +104,7 @@ describe('the shell actually renders', () => {
   });
 
   it('opens the phone menu as a sheet, and Escape closes it', async () => {
-    await boot();
+    render(<Landing />);
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
     expect(document.querySelector('.lp-sheet')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -103,7 +112,7 @@ describe('the shell actually renders', () => {
   });
 
   it('the hero mini-canvas accepts real nodes before you sign up for anything', async () => {
-    await boot();
+    render(<Landing />);
     const addButton = screen.getAllByText('+ Button')[0];
     fireEvent.click(addButton);
     expect(screen.getByText('You added this')).toBeTruthy();
@@ -111,11 +120,10 @@ describe('the shell actually renders', () => {
     expect(screen.queryByText('You added this')).toBeNull();
   });
 
-  it('navigates to the editor and shows the empty-canvas teaching state', async () => {
+  it('creates a project and opens the editor', async () => {
     await boot();
-    const start = screen.getAllByText(/Start building/)[0];
-    fireEvent.click(start);
-    expect(document.querySelector('.app-shell')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
+    await waitFor(() => expect(document.querySelector('.app-shell')).toBeTruthy());
     expect(screen.getByText(/Describe the app, or start with a block\./)).toBeTruthy();
   });
 

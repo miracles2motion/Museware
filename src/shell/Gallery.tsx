@@ -6,6 +6,7 @@ import { Button } from '../components/ui';
 import { TEMPLATES, buildScreensFor, type DemoTemplate } from '../muse/demo/build';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import type { ProjectDoc, ScreenDoc } from '../types/tree';
+import { createSavedProject, openProject } from '../persist/save';
 
 /** The template's first screen, cropped into whatever the card gives it. */
 function Preview({
@@ -99,12 +100,19 @@ export function Gallery() {
   const toast = useUi((s) => s.toast);
   const doc = useProject((s) => s.doc);
 
-  const open = (template: DemoTemplate) => {
+  const open = async (template: DemoTemplate) => {
     const fresh = {
       ...createProject(template.projectName),
       kind: template.kind,
       tokens: doc.tokens,
     };
+    try {
+      const id = await createSavedProject(fresh);
+      await openProject(id);
+    } catch {
+      toast('Could not save this project on this device.', 'danger');
+      return;
+    }
     replaceDoc(fresh);
     const screens = buildScreensFor(template, fresh.tokens);
     let firstId = '';
@@ -154,8 +162,8 @@ export function Gallery() {
           </a>
         </nav>
         <div className="lp-nav-actions">
-          <Button variant="accent" onClick={() => setRoute('editor')}>
-            Open the editor <ArrowRight size={14} />
+          <Button variant="accent" onClick={() => setRoute('landing')}>
+            Projects home <ArrowRight size={14} />
           </Button>
         </div>
       </header>
@@ -171,7 +179,9 @@ export function Gallery() {
             <TemplateCard
               key={template.id}
               template={template}
-              onOpen={() => open(template)}
+              onOpen={() => {
+                void open(template);
+              }}
             />
           ))}
         </div>

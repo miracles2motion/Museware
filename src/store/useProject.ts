@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAgent } from './useAgent';
 import { nanoid } from 'nanoid';
 import type { CustomComponent, ProjectDoc, RailEntry, ScreenDoc } from '../types/tree';
 import type { DesignTokens } from '../types/tokens';
@@ -60,7 +61,7 @@ function fromSnapshot(snap: Snapshot, doc: ProjectDoc): ProjectDoc {
 }
 
 function trimCardData(entry: RailEntry): RailEntry {
-  if (!entry.card) return entry;
+  if (!entry.card || entry.card.kind === 'thinking') return entry;
   const data = entry.card.data || {};
   const text = typeof data.blueprint === 'string' ? data.blueprint : '';
   if (text.length > 6000) {
@@ -282,6 +283,32 @@ export const useProject = create<ProjectStore>((set, get) => ({
       ...(entry.card ? { card: entry.card } : {}),
     });
     set((s) => ({ doc: { ...s.doc, rail: [...s.doc.rail, full].slice(-RAIL_CAP) } }));
+    if (
+      (full.role === 'system' ||
+        (full.role === 'agent' && full.text === 'Applying the next tool actions.')) &&
+      thinkingId &&
+      useAgent.getState().busy &&
+      thinkingEpoch === get().documentEpoch &&
+      !/\b(error|failed|failure|exhausted|rejected|unauthori[sz]ed|skipped|budget spent)\b/i.test(
+        full.text,
+      ) &&
+      !/^Images:/i.test(full.text)
+    ) {
+      const thinking = get().doc.rail.find((item) => item.id === thinkingId);
+      if (thinking?.card) {
+        const data = thinking.card.data;
+        get().patchRail(thinking.id, {
+          card: {
+            ...thinking.card,
+            data: {
+              ...data,
+              entryIds: [...(Array.isArray(data.entryIds) ? data.entryIds : []), full.id],
+              lines: [...(Array.isArray(data.lines) ? data.lines : []), full.text],
+            },
+          },
+        });
+      }
+    }
     return full;
   },
 
@@ -333,3 +360,104 @@ export const selectActiveScreen = (screenId: string | null) => (doc: ProjectDoc)
   doc.screens.find((s) => s.id === screenId) ||
   doc.screens.find((s) => s.entry) ||
   doc.screens[0];
+
+// Thinking state is stored in the project rail, not in transient component state.
+let thinkingId: string | null = null;
+let thinkingEpoch = -1;
+let beforeScreenCount = 0;
+let beforeBlueprint = '';
+let beforeProgress: ReturnType<typeof useAgent.getState>['progress'] = null;
+useAgent.subscribe((state, previous) => {
+  if (state.busy && !previous.busy) {
+    const project = useProject.getState();
+    thinkingEpoch = project.documentEpoch;
+    beforeScreenCount = project.doc.screens.length;
+    beforeBlueprint = project.doc.blueprint?.text || '';
+    beforeProgress = previous.progress;
+    const card = project.addRail({
+      role: 'card',
+      text: 'Thinking',
+      card: {
+        kind: 'thinking',
+        state: 'pending',
+        data: {
+          expanded: false,
+          lines: [],
+          entryIds: [],
+          active: true,
+          summary: 'Thinking',
+        },
+      },
+    });
+    thinkingId = card.id;
+  }
+  if (!thinkingId || thinkingEpoch !== useProject.getState().documentEpoch) return;
+  const project = useProject.getState();
+  const card = project.doc.rail.find((item) => item.id === thinkingId);
+  if (!card?.card) return;
+  if (state.busy && state.liveLine && state.liveLine !== previous.liveLine) {
+    const lines = Array.isArray(card.card.data.lines) ? card.card.data.lines : [];
+    project.patchRail(card.id, {
+      card: {
+        ...card.card,
+        data: { ...card.card.data, lines: [...lines, state.liveLine] },
+      },
+    });
+  }
+  if (state.busy && state.progress && state.progress !== previous.progress) {
+    const current = useProject.getState().doc.rail.find((item) => item.id === thinkingId);
+    if (current?.card) {
+      const data = current.card.data;
+      const lines = Array.isArray(data.lines) ? data.lines : [];
+      const done = state.progress.parts.filter((part) => part.state === 'done').length;
+      const changed = state.progress.parts.find(
+        (part) =>
+          !previous.progress?.parts.some(
+            (old) =>
+              old.id === part.id && old.state === part.state && old.note === part.note,
+          ),
+      );
+      const detail = changed
+        ? ` · ${changed.label}: ${changed.state}${changed.note ? ` — ${changed.note}` : ''}`
+        : '';
+      const line = `${state.progress.title} — ${done} of ${state.progress.parts.length}${detail}`;
+      if (lines[lines.length - 1] !== line)
+        project.patchRail(current.id, {
+          card: { ...current.card, data: { ...data, lines: [...lines, line] } },
+        });
+    }
+  }
+  if (!state.busy && previous.busy) {
+    const current = project.doc.rail.find((item) => item.id === thinkingId);
+    if (!current?.card) return;
+    const parts: string[] = [];
+    if (project.doc.blueprint?.text && project.doc.blueprint.text !== beforeBlueprint)
+      parts.push('Planned');
+    const built =
+      (state.progress !== beforeProgress
+        ? state.progress?.parts.filter((part) => part.state === 'done').length
+        : 0) || Math.max(0, project.doc.screens.length - beforeScreenCount);
+    if (built) parts.push(`built ${built} screen${built === 1 ? '' : 's'}`);
+    const generated = (
+      Array.isArray(current.card.data.lines) ? current.card.data.lines : []
+    ).filter(
+      (line) => typeof line === 'string' && /saved — image is undoable\./.test(line),
+    ).length;
+    if (generated) parts.push(`generated ${generated} image${generated === 1 ? '' : 's'}`);
+    const lines = Array.isArray(current.card.data.lines) ? current.card.data.lines : [];
+    project.patchRail(current.id, {
+      card: {
+        ...current.card,
+        state: 'answered',
+        data: {
+          ...current.card.data,
+          active: false,
+          expanded: false,
+          summary: parts.join(', ') || (state.interrupted ? 'Stopped' : 'Finished'),
+          lines: state.liveText ? [...lines, state.liveText] : lines,
+        },
+      },
+    });
+    thinkingId = null;
+  }
+});

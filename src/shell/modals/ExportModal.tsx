@@ -4,6 +4,7 @@ import { Modal, Button } from '../../components/ui';
 import { useProject } from '../../store/useProject';
 import { useUi } from '../../store/useUi';
 import { downloadZip, downloadTextFile } from '../../export/zip';
+import { downloadScreenshots } from '../../export/screenshots';
 import { installInstructions, manifestFor, serviceWorkerTemplate } from '../../export/pwa';
 
 const CORE_FILES = [
@@ -23,6 +24,8 @@ const CORE_FILES = [
 export function ExportModal({ onClose }: { onClose: () => void }) {
   const doc = useProject((s) => s.doc);
   const toast = useUi((s) => s.toast);
+  const activeScreenId = useUi((s) => s.activeScreenId);
+  const [capturing, setCapturing] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const install = useMemo(() => installInstructions(doc), [doc]);
   // §6.1 legal guard: contributor-tier output trades training consent for a 20x
@@ -46,6 +49,27 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         <>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={blocked || capturing || !doc.screens.length}
+            onClick={async () => {
+              setCapturing(true);
+              try {
+                await downloadScreenshots(doc, activeScreenId);
+                toast('Screenshots downloaded', 'ok');
+              } catch (err) {
+                toast(
+                  err instanceof Error ? err.message : 'Screenshots could not be created',
+                  'warn',
+                );
+              } finally {
+                setCapturing(false);
+              }
+            }}
+          >
+            {capturing ? 'Creating screenshots…' : 'Download screenshots'}
+          </Button>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>

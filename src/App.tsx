@@ -10,7 +10,7 @@ import { resolveStaleKeyCards } from './muse/cards';
 import { diagnose, houseKeySentence } from './muse/connection';
 import { hasSessionKey } from './muse/sessionKey';
 import { Editor } from './shell/Editor';
-import { Landing } from './shell/Landing';
+import { Home } from './shell/Home';
 import { Gallery } from './shell/Gallery';
 import { Modals } from './shell/Modals';
 import { RunMode } from './preview/RunMode';
@@ -37,7 +37,13 @@ export default function App() {
       let restored = createProject();
       try {
         const stored = await loadProject();
-        if (stored) restored = parseProjectDoc(stored);
+        if (stored) {
+          restored = parseProjectDoc(stored);
+          if (!window.location.hash || window.location.hash === '#/')
+            useUi.getState().setRoute('editor');
+        } else if (window.location.hash.startsWith('#/app')) {
+          useUi.getState().setRoute('landing');
+        }
       } catch {
         restored = createProject();
       }
@@ -216,7 +222,7 @@ export default function App() {
 
   return (
     <>
-      {route === 'landing' && <Landing />}
+      {route === 'landing' && <Home />}
       {route === 'gallery' && <Gallery />}
       {route === 'editor' && <Editor />}
       {runMode && route === 'editor' && <RunMode />}

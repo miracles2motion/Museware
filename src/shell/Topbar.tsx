@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Home,
   Copy,
   Download,
   Laptop,
@@ -30,7 +31,7 @@ import {
   renameScreenBatch,
 } from '../ops/screenOps';
 import { stopAgent } from '../muse/loop';
-import { downloadProjectFile, readProjectFile } from '../persist/save';
+import { closeProject, downloadProjectFile, readProjectFile } from '../persist/save';
 import { parseProjectDoc } from '../persist/schema';
 
 const BPS: Array<{ value: Breakpoint; label: string; icon: typeof Smartphone }> = [
@@ -206,6 +207,19 @@ export function Topbar() {
           </IconButton>
         </span>
         <div className="topbar-desktop mw-shell-util-2">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Projects home"
+            disabled={busy}
+            onClick={() => {
+              void closeProject()
+                .then(() => setRoute('landing'))
+                .catch(() => toast('Could not save this project.', 'warn'));
+            }}
+          >
+            <Home size={16} />
+          </button>
           <IconButton
             label="Screen actions"
             size="sm"

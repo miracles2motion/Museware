@@ -91,6 +91,35 @@ interface UiStore {
 
 let toastSeq = 0;
 
+function readPreferences() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('museware/preferences') || '{}');
+    return {
+      breakpoint: (['compact', 'medium', 'expanded'].includes(raw.breakpoint)
+        ? raw.breakpoint
+        : 'compact') as Breakpoint,
+      leftTab: (raw.leftTab === 'layers' ? 'layers' : 'insert') as 'insert' | 'layers',
+      leftCollapsed: raw.leftCollapsed === true,
+      railCollapsed: raw.railCollapsed === true,
+      inspectorCollapsed: raw.inspectorCollapsed === true,
+      inspectorWide: raw.inspectorWide === true,
+      paletteFilter:
+        typeof raw.paletteFilter === 'string' ? raw.paletteFilter.slice(0, 200) : '',
+    };
+  } catch {
+    return {
+      breakpoint: 'compact' as Breakpoint,
+      leftTab: 'insert' as const,
+      leftCollapsed: false,
+      railCollapsed: false,
+      inspectorCollapsed: false,
+      inspectorWide: false,
+      paletteFilter: '',
+    };
+  }
+}
+const preferences = readPreferences();
+
 export const useUi = create<UiStore>((set, get) => ({
   route: (typeof window !== 'undefined' && window.location.hash.startsWith('#/app')
     ? 'editor'
@@ -99,11 +128,11 @@ export const useUi = create<UiStore>((set, get) => ({
       : 'landing') as Route,
   selectedId: null,
   activeScreenId: null,
-  breakpoint: 'compact',
-  leftTab: 'insert',
-  leftCollapsed: false,
+  breakpoint: preferences.breakpoint,
+  leftTab: preferences.leftTab,
+  leftCollapsed: preferences.leftCollapsed,
   leftFlyout: false,
-  railCollapsed: false,
+  railCollapsed: preferences.railCollapsed,
   chatExpanded: (() => {
     try {
       return localStorage.getItem('museware/chatExpanded') === '1';
@@ -121,8 +150,8 @@ export const useUi = create<UiStore>((set, get) => ({
   },
   mobileRailOpen: false,
   propertiesOpen: false,
-  inspectorCollapsed: false,
-  inspectorWide: false,
+  inspectorCollapsed: preferences.inspectorCollapsed,
+  inspectorWide: preferences.inspectorWide,
   runMode: false,
   runScreenId: null,
   onboardingOpen: false,
@@ -141,7 +170,7 @@ export const useUi = create<UiStore>((set, get) => ({
     }
   })(),
   toasts: [],
-  paletteFilter: '',
+  paletteFilter: preferences.paletteFilter,
   draft: '',
   activePreset: null,
 
@@ -238,3 +267,41 @@ export interface RailDraft {
   entry: RailEntry;
   tokens?: DesignTokens;
 }
+
+useUi.subscribe((state, previous) => {
+  const keys = [
+    'breakpoint',
+    'leftTab',
+    'leftCollapsed',
+    'railCollapsed',
+    'inspectorCollapsed',
+    'inspectorWide',
+    'paletteFilter',
+  ] as const;
+  if (keys.every((key) => state[key] === previous[key])) return;
+  try {
+    const {
+      breakpoint,
+      leftTab,
+      leftCollapsed,
+      railCollapsed,
+      inspectorCollapsed,
+      inspectorWide,
+      paletteFilter,
+    } = state;
+    localStorage.setItem(
+      'museware/preferences',
+      JSON.stringify({
+        breakpoint,
+        leftTab,
+        leftCollapsed,
+        railCollapsed,
+        inspectorCollapsed,
+        inspectorWide,
+        paletteFilter,
+      }),
+    );
+  } catch {
+    /* storage unavailable */
+  }
+});

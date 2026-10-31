@@ -154,6 +154,29 @@ interface AgentStore {
   setPendingRetry: (text: string | null) => void;
 }
 
+type Usage = Pick<AgentStore, 'receipts' | 'sessionCents' | 'sessionRequests' | 'turns'>;
+export function readUsage(): Usage {
+  const empty: Usage = { receipts: [], sessionCents: 0, sessionRequests: 0, turns: 0 };
+  try {
+    const raw = JSON.parse(localStorage.getItem('museware/usage') || 'null');
+    if (!raw || typeof raw !== 'object') return empty;
+    return {
+      receipts: Array.isArray(raw.receipts)
+        ? raw.receipts.filter((r: unknown) => r && typeof r === 'object').slice(-200)
+        : [],
+      sessionCents:
+        Number.isFinite(raw.sessionCents) && raw.sessionCents >= 0 ? raw.sessionCents : 0,
+      sessionRequests:
+        Number.isFinite(raw.sessionRequests) && raw.sessionRequests >= 0
+          ? raw.sessionRequests
+          : 0,
+      turns: Number.isFinite(raw.turns) && raw.turns >= 0 ? raw.turns : 0,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export const useAgent = create<AgentStore>((set, get) => ({
   busy: false,
   stopping: false,
@@ -162,10 +185,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   heartbeatAt: 0,
   turnCalls: 0,
   turnStartedAt: 0,
-  receipts: [],
-  sessionCents: 0,
-  sessionRequests: 0,
-  turns: 0,
+  ...readUsage(),
   configured: false,
   demoMode: true,
   houseKey: 'absent',
@@ -286,6 +306,35 @@ export const useAgent = create<AgentStore>((set, get) => ({
   setError: (lastError) => set({ lastError }),
   setPendingRetry: (pendingRetry) => set({ pendingRetry }),
 }));
+
+let usageTimer: ReturnType<typeof setTimeout> | undefined;
+function writeUsage() {
+  const { receipts, sessionCents, sessionRequests, turns } = useAgent.getState();
+  try {
+    localStorage.setItem(
+      'museware/usage',
+      JSON.stringify({ receipts, sessionCents, sessionRequests, turns }),
+    );
+  } catch {
+    /* storage unavailable */
+  }
+}
+useAgent.subscribe((state, previous) => {
+  if (
+    state.receipts === previous.receipts &&
+    state.sessionCents === previous.sessionCents &&
+    state.sessionRequests === previous.sessionRequests &&
+    state.turns === previous.turns
+  )
+    return;
+  clearTimeout(usageTimer);
+  usageTimer = setTimeout(writeUsage, 300);
+});
+if (typeof window !== 'undefined')
+  window.addEventListener('pagehide', () => {
+    clearTimeout(usageTimer);
+    writeUsage();
+  });
 
 export const RAIL_ENTRY_CAP = 100;
 

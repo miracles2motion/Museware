@@ -4758,3 +4758,49 @@ button.how-card .field-hint {
     bottom: var(--mw-space-4);
   }
 }
+
+.projects-home {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--mw-space-8);
+  color: var(--mw-ink);
+}
+.projects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--mw-space-4);
+  margin: var(--mw-space-5) 0;
+}
+.projects-card {
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-lg);
+  background: var(--mw-surface);
+  padding: var(--mw-space-4);
+}
+.projects-card p {
+  color: var(--mw-ink-2);
+}
+.projects-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mw-space-2);
+}
+.thinking-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  color: var(--mw-ink-2);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.thinking-transcript {
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+  white-space: pre-wrap;
+}
+.thinking-transcript p {
+  margin: var(--mw-space-2) 0;
+}

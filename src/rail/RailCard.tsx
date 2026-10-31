@@ -599,11 +599,61 @@ function ErrorCard({ entry }: { entry: RailEntry }) {
   );
 }
 
+function ThinkingCard({ entry }: { entry: RailEntry }) {
+  const card = entry.card!;
+  const data = card.data;
+  const busy = useAgent((s) => s.busy);
+  const liveLine = useAgent((s) => s.liveLine);
+  const liveText = useAgent((s) => s.liveText);
+  const expanded = Boolean(data.expanded);
+  const active = Boolean(data.active) && busy;
+  const lines = Array.isArray(data.lines)
+    ? data.lines.filter((line): line is string => typeof line === 'string')
+    : [];
+  return (
+    <div className="thinking-card chat-card chat-card--work">
+      <button
+        type="button"
+        className="thinking-toggle"
+        aria-expanded={expanded}
+        onClick={() =>
+          useProject
+            .getState()
+            .patchRail(entry.id, {
+              card: { ...card, data: { ...data, expanded: !expanded } },
+            })
+        }
+      >
+        {active && <span className="spin" />} <strong>Thinking</strong>
+        <span>
+          {' '}
+          · {active ? liveLine || 'working…' : String(data.summary || 'Finished')}
+        </span>
+        <span aria-hidden="true">{expanded ? ' ▴' : ' ▾'}</span>
+      </button>
+      {expanded && (
+        <div className="thinking-transcript">
+          {lines.map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+          {active && liveText && <p>{liveText}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Cards leave on answer (law 11): non-pending cards render nothing. */
 export function RailCard({ entry }: { entry: RailEntry }) {
   const card = entry.card;
-  if (!card || (card.state !== 'pending' && card.kind !== 'progress')) return null;
+  if (
+    !card ||
+    (card.state !== 'pending' && card.kind !== 'progress' && card.kind !== 'thinking')
+  )
+    return null;
   switch (card.kind) {
+    case 'thinking':
+      return <ThinkingCard entry={entry} />;
     case 'build_choice':
       return <BuildChoiceCard entry={entry} />;
     case 'blueprint':

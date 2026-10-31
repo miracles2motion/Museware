@@ -169,7 +169,15 @@ export interface RailEntry {
   text: string;
   reasoningReplayed?: boolean;
   card?: {
-    kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error' | 'key';
+    kind:
+      | 'build_choice'
+      | 'blueprint'
+      | 'choice'
+      | 'color'
+      | 'progress'
+      | 'error'
+      | 'key'
+      | 'thinking';
     state: 'pending' | 'answered' | 'cancelled' | 'expired';
     data: RailCardData;
   };

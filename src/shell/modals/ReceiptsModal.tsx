@@ -10,7 +10,6 @@ export function ReceiptsModal({ onClose }: { onClose: () => void }) {
   const receipts = useAgent((s) => s.receipts);
   const sessionCents = useAgent((s) => s.sessionCents);
   const sessionRequests = useAgent((s) => s.sessionRequests);
-  const demoMode = useAgent((s) => s.demoMode);
   const setModal = useUi((s) => s.setModal);
   const recent = receipts.slice(-60).reverse();
 
@@ -32,17 +31,14 @@ export function ReceiptsModal({ onClose }: { onClose: () => void }) {
     >
       <div className="insp-section">
         <div className="insp-section-head">
-          <span className="eyebrow">This session</span>
-          <span className="chip chip-static">
-            {demoMode ? 'local engine · $0.000' : money(sessionCents)}
-          </span>
+          <span className="eyebrow">Lifetime on this device</span>
+          <span className="chip chip-static">{money(sessionCents)}</span>
         </div>
         <p className="field-hint">
-          {sessionRequests} request{sessionRequests === 1 ? '' : 's'} on this tab, priced at
-          the §6.1 rate card. The Key column says whose money each call spent.
-          {demoMode
-            ? ' The local engine makes no network calls — every receipt here is labelled demo and costs nothing.'
-            : ' Every model call is logged with its role, model, latency and token usage the moment it returns.'}
+          {sessionRequests} request{sessionRequests === 1 ? '' : 's'} recorded on this
+          device, priced at the §6.1 rate card. The Key column says whose money each call
+          spent. Local-engine calls cost nothing; earlier paid calls remain in the lifetime
+          totals.
         </p>
       </div>
 

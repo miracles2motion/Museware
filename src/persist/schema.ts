@@ -13,6 +13,7 @@ const actionSchemaLoose = z
 const railCardSchema = z
   .object({
     kind: z.enum([
+      'thinking',
       'build_choice',
       'blueprint',
       'choice',

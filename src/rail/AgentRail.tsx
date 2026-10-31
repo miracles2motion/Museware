@@ -111,12 +111,25 @@ export function AgentRail({ focused = false }: { focused?: boolean }) {
   const modelMatrix = useAgent((s) => s.models);
   const demoMode = useAgent((s) => s.demoMode);
   const configured = useAgent((s) => s.configured);
-  const progress = useAgent((s) => s.progress);
   const wonder = useAgent((s) => s.wonder);
   const setWonder = useAgent((s) => s.setWonder);
   const receipts = useAgent((s) => s.receipts);
   const preview = useAgent((s) => s.screenshotPreview);
-  const [filter, setFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('museware/receiptFilter');
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (filter) localStorage.setItem('museware/receiptFilter', filter);
+      else localStorage.removeItem('museware/receiptFilter');
+    } catch {
+      /* storage unavailable */
+    }
+  }, [filter]);
   const [imageSize, setImageSize] = useState({ width: 1, height: 1 });
   const [showAll, setShowAll] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -126,7 +139,15 @@ export function AgentRail({ focused = false }: { focused?: boolean }) {
   const chunksRef = useRef<Blob[]>([]);
   const stickToBottom = useRef(true);
 
-  const visible = showAll ? rail : rail.slice(-VISIBLE);
+  const hiddenThinkingEntries = new Set(
+    rail.flatMap((entry) =>
+      entry.card?.kind === 'thinking' && Array.isArray(entry.card.data.entryIds)
+        ? entry.card.data.entryIds.filter((id): id is string => typeof id === 'string')
+        : [],
+    ),
+  );
+  const visibleRail = rail.filter((entry) => !hiddenThinkingEntries.has(entry.id));
+  const visible = showAll ? visibleRail : visibleRail.slice(-VISIBLE);
 
   useLayoutEffect(() => {
     const el = bodyRef.current;
@@ -426,13 +447,13 @@ export function AgentRail({ focused = false }: { focused?: boolean }) {
         </div>
       )}
       <div className="rail-body" ref={bodyRef}>
-        {rail.length > VISIBLE && !showAll && (
+        {visibleRail.length > VISIBLE && !showAll && (
           <button
             type="button"
             className="chat-chip chat-load-earlier"
             onClick={() => setShowAll(true)}
           >
-            Load earlier ({rail.length - VISIBLE})
+            Load earlier ({visibleRail.length - VISIBLE})
           </button>
         )}
         {!filter &&
@@ -443,40 +464,7 @@ export function AgentRail({ focused = false }: { focused?: boolean }) {
               fresh={Date.now() - entry.at < 1200}
             />
           ))}
-        {busy && (
-          <div className="rail-msg">
-            <div className="live-line chat-card chat-card--work" aria-busy="true">
-              <span className="spin" />
-              <span>{liveLine || 'Writing canvas changes…'}</span>
-            </div>
-            {liveText ? (
-              <div className="prose-agent chat-bubble chat-bubble--agent">{liveText}</div>
-            ) : null}
-            <div className="typing" aria-label="muse is working">
-              <i />
-              <i />
-              <i />
-            </div>
-          </div>
-        )}
       </div>
-
-      {busy && progress && (
-        <div className="rail-status">
-          <span className="spin" />
-          <span className="chat-grow">
-            {progress.title} — {progress.parts.filter((p) => p.state === 'done').length} of{' '}
-            {progress.parts.length}
-          </span>
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            onClick={() => stopAgent()}
-          >
-            Stop
-          </button>
-        </div>
-      )}
 
       <div className="composer">
         {!busy && (
