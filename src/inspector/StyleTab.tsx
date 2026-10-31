@@ -262,10 +262,14 @@ export function StyleTab({ node, tokens, isRoot, breakpoint, ...writers }: Props
   return (
     <>
       {sections.map((section) => (
-        <div className="insp-section" key={section.group}>
-          <div className="insp-section-head">
+        <details
+          className="insp-section"
+          key={section.group}
+          open={['Layout', 'Space', 'Size'].includes(section.group) || undefined}
+        >
+          <summary className="insp-section-head">
             <span className="eyebrow">{sectionHeading(section.group, node)}</span>
-          </div>
+          </summary>
           {section.group === 'Layout' && isGrid && breakpoint !== 'compact' && (
             <ColumnsField node={node} writers={writers} />
           )}
@@ -279,7 +283,7 @@ export function StyleTab({ node, tokens, isRoot, breakpoint, ...writers }: Props
               breakpoint={breakpoint}
             />
           ))}
-        </div>
+        </details>
       ))}
       <p className="field-hint">
         Tokens first — the swatches are the theme, so one edit restyles everything that uses

@@ -60,7 +60,7 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Events ride on setProps: {events:{tap:[{type:"navigate",to:"home"}]}} — types navigate, setState, toggle, toast, openUrl, when. ' +
     'styles keys: gap, align(start|center|end|stretch = align children), justify(start|center|end|space-between = distribute), wrap, grow(1 = fill leftover space), selfAlign, padding, width/height ("match"|"hug"|length), background, color, fontSize, fontWeight, textAlign, borderRadius, boxShadow, opacity. ' +
     'styles also include colSpan(1–4|full), rowSpan(1–3), backdropBlur(none|sm|md|lg), aspectRatio(auto|1/1|4/3|16/9|4/5|21/9), position(static|relative|sticky). ' +
-    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}, section{eyebrow,title,subtitle,align,surface,bleed}, marquee{label,items comma string,variant,speed}, accordion{items Question | Answer lines or dataKey}, navbar{variant}. ' +
+    'props are per-type: button{text,variant,icon,disabled}, input{placeholder,bindKey,inputType}, list{dataKey}, grid{columns}, section{eyebrow,title,subtitle,align,surface,bleed}, marquee{label,items comma string,variant,speed}, accordion{items Question | Answer lines or dataKey}, navbar{variant}, scene3d{preset,speed,interactive,title,subtitle}, video{src,poster,autoplayMuted,caption}. Video src must be in the user prompt; leave it empty for a procedural reel. ' +
     'Long batches: split them into several edit_canvas calls of at most 12 ops each. An oversized call can be cut off mid-JSON and dropped without being applied.',
   illustrate_images:
     'Generate images for up to six existing hero, image or card nodes: targets [{id, prompt?}]. One image per target, with palette-aware prompts.',
@@ -256,8 +256,8 @@ function addSystem(text: string) {
 }
 
 function addAgent(text: string) {
-  if (!text.trim()) return;
-  useProject.getState().addRail({ role: 'agent', text: text.slice(0, 4000) });
+  if (!text.trim()) return undefined;
+  return useProject.getState().addRail({ role: 'agent', text: text.slice(0, 4000) });
 }
 
 function addCard(
@@ -561,7 +561,9 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
     (contributor
       ? models?.contributor.id
       : opts.role === 'architect'
-        ? models?.architect.id
+        ? useAgent.getState().wonder
+          ? 'muse-wonder-1.0'
+          : models?.architect.id
         : models?.builder.id) ||
     'muse-spark-1.3';
   if (contributor) useProject.getState().markContributor();
@@ -572,6 +574,7 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
   let choiceAsked = false;
   let correctedPick = false;
   let stopped = false;
+  let replayRailId: string | undefined;
   const changedBefore = useProject.getState().doc.opLog.length;
 
   while (calls < opts.maxCalls) {
@@ -602,6 +605,10 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         onText: (t) => useAgent.getState().appendText(t),
         onNotice: (n) => addSystem(n),
       });
+      if (replayRailId) {
+        useProject.getState().patchRail(replayRailId, { reasoningReplayed: true });
+        replayRailId = undefined;
+      }
       if (opts.scope) {
         const r = opts.scope.receipt;
         r.model = result.model;
@@ -688,7 +695,8 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       break;
     }
 
-    if (result.text && !opts.scope && !opts.repairIds) addAgent(result.text);
+    let assistantRailId =
+      result.text && !opts.scope && !opts.repairIds ? addAgent(result.text) : undefined;
     const repaired = result.toolCalls.map((call, index) => ({
       call,
       id: call.id || `call_${calls}_${call.name}_${index}`,
@@ -707,6 +715,9 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
       messages.push({
         role: 'assistant',
         content: result.text || '',
+        ...(result.reasoningEncrypted
+          ? { reasoning: { encrypted_content: result.reasoningEncrypted } }
+          : {}),
         tool_calls: usable.map(({ call, id, args }) => ({
           id,
           type: 'function' as const,
@@ -714,6 +725,11 @@ async function executeToolLoop(opts: ToolLoopOptions): Promise<ToolLoopResult> {
         })),
       });
 
+    if (usable.length && result.reasoningEncrypted) {
+      if (!assistantRailId && !opts.scope && !opts.repairIds)
+        assistantRailId = addAgent('Applying the next tool actions.');
+      replayRailId = assistantRailId?.id;
+    }
     let endTurn = false;
     for (const { call, id, args: cleanArgs } of usable) {
       calls += 1;

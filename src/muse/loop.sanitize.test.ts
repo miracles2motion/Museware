@@ -62,6 +62,31 @@ describe('repairJson', () => {
 });
 
 describe('tool history sanitation', () => {
+  it('replays encrypted reasoning in tool history and marks the matching receipt after the next successful call', async () => {
+    const requests: ChatMessage[][] = [];
+    vi.mocked(chatStream).mockImplementation(async (opts) => {
+      requests.push(JSON.parse(JSON.stringify(opts.messages)) as ChatMessage[]);
+      return requests.length === 1
+        ? {
+            ...reply([call('read_canvas', '{}')]),
+            text: 'Checking the canvas.',
+            reasoningEncrypted: 'opaque-test',
+          }
+        : finish;
+    });
+    await runAgentTurn('Check the canvas', { skipVerify: true });
+    expect(
+      requests[1].find((m) => m.role === 'assistant' && m.tool_calls)?.reasoning,
+    ).toEqual({ encrypted_content: 'opaque-test' });
+    expect(
+      useProject
+        .getState()
+        .doc.rail.some(
+          (entry) => entry.text === 'Checking the canvas.' && entry.reasoningReplayed,
+        ),
+    ).toBe(true);
+  });
+
   it('drops all length-truncated tool calls without applying them and requests smaller batches', async () => {
     const calls: ChatMessage[][] = [];
     vi.mocked(chatStream).mockImplementation(async (opts) => {

@@ -257,34 +257,37 @@ export function ColorField({
           {d.draft ? d.draft.replace('var(--openui-', '').replace(')', '') : 'none'}
         </span>
       </span>
-      <div className="swatch-grid">
-        {allowTransparent && (
-          <button
-            type="button"
-            className="swatch"
-            aria-label="Transparent"
-            data-selected={!d.draft}
-            style={{
-              background:
-                'linear-gradient(135deg, transparent 44%, var(--mw-danger) 44%, var(--mw-danger) 56%, transparent 56%)',
-              borderColor: 'var(--mw-border)',
-            }}
-            onClick={() => onCommit('')}
-          />
-        )}
-        {COLOR_KEYS.map((key) => (
-          <button
-            type="button"
-            key={key}
-            className="swatch"
-            aria-label={key.replace(/_/g, '-')}
-            data-tip={key.replace(/_/g, '-')}
-            data-selected={currentVar === key}
-            style={{ background: colors[key] }}
-            onClick={() => onCommit(`var(--${key.replace(/_/g, '-')})`)}
-          />
-        ))}
-      </div>
+      <details>
+        <summary>More tokens</summary>
+        <div className="swatch-grid">
+          {allowTransparent && (
+            <button
+              type="button"
+              className="swatch"
+              aria-label="Transparent"
+              data-selected={!d.draft}
+              style={{
+                background:
+                  'linear-gradient(135deg, transparent 44%, var(--mw-danger) 44%, var(--mw-danger) 56%, transparent 56%)',
+                borderColor: 'var(--mw-border)',
+              }}
+              onClick={() => onCommit('')}
+            />
+          )}
+          {COLOR_KEYS.map((key) => (
+            <button
+              type="button"
+              key={key}
+              className="swatch"
+              aria-label={key.replace(/_/g, '-')}
+              data-tip={key.replace(/_/g, '-')}
+              data-selected={currentVar === key}
+              style={{ background: colors[key] }}
+              onClick={() => onCommit(`var(--${key.replace(/_/g, '-')})`)}
+            />
+          ))}
+        </div>
+      </details>
       <div className="token-row">
         <input
           className="input"

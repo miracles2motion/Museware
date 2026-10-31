@@ -41,6 +41,8 @@ export function Canvas() {
   // The frame always lays out at its true breakpoint width; `k` shrinks what
   // you SEE so a 1280 artboard still fits a phone. Layout stays honest.
   const scaleRef = useRef(1);
+  const actualSizeRef = useRef(false);
+  const [actualSize, setActualSize] = useState(false);
   const [fit, setFit] = useState({ k: 1, w: 0, h: 0 });
   // `fitFrame` must stay stable (it is a listener), so it reads the live
   // breakpoint through a ref rather than a dependency.
@@ -106,12 +108,9 @@ export function Canvas() {
     if (availW <= 0 || (breakpointRef.current !== 'compact' && availH <= 0)) return;
     // Compact is the working phone canvas: preserve its natural size when
     // it fits horizontally, and scroll vertically instead of shrinking it.
-    const k = fitScale(
-      availW,
-      breakpointRef.current === 'compact' ? Infinity : availH,
-      w,
-      h,
-    );
+    const k = actualSizeRef.current
+      ? 1
+      : fitScale(availW, breakpointRef.current === 'compact' ? Infinity : availH, w, h);
     const size = fitSize(w, h, k);
     scaleRef.current = k;
     setFit((prev) =>
@@ -347,13 +346,37 @@ export function Canvas() {
   const width = BREAKPOINT_WIDTHS[breakpoint];
   const frameHeight = fit.h && fit.k ? Math.round(fit.h / fit.k) : 780;
   const BpIcon = breakpoint === 'compact' ? Smartphone : Monitor;
+  const findPath = (
+    node: typeof screen.root,
+    id: string,
+  ): (typeof screen.root)[] | null => {
+    if (node.id === id) return [node];
+    for (const child of node.children) {
+      const found = findPath(child, id);
+      if (found) return [node, ...found];
+    }
+    return null;
+  };
+  const path = selectedId
+    ? findPath(screen.root, selectedId) || [screen.root]
+    : [screen.root];
 
   return (
     <div className="canvas-area" data-dragging={drag.active || undefined}>
       <div className="canvas-toolbar">
-        <span className="mono" style={{ fontSize: 11, color: 'var(--mw-ink-2)' }}>
-          {screen.name}
-        </span>
+        <nav
+          aria-label="Selection breadcrumb"
+          style={{ display: 'flex', gap: 4, minWidth: 0, overflow: 'auto' }}
+        >
+          {path.map((node, index) => (
+            <span key={node.id} style={{ whiteSpace: 'nowrap' }}>
+              {index > 0 && ' › '}
+              <button type="button" className="link-btn" onClick={() => select(node.id)}>
+                {index === 0 ? screen.name : node.name || node.type}
+              </button>
+            </span>
+          ))}
+        </nav>
         <span className="faint mono" style={{ fontSize: 9 }}>
           {screen.id} · {width}px {screen.entry ? '· entry' : ''}
         </span>
@@ -380,6 +403,18 @@ export function Canvas() {
           {fit.k < 0.999 && (
             <span className="faint mono"> · {Math.round(fit.k * 100)}%</span>
           )}
+        </button>
+        <button
+          type="button"
+          className="chip"
+          aria-label="Toggle fit or 100 percent"
+          onClick={() => {
+            actualSizeRef.current = !actualSizeRef.current;
+            setActualSize(actualSizeRef.current);
+            fitFrame();
+          }}
+        >
+          {actualSize ? '100%' : 'Fit'}
         </button>
         {/* On a phone the tab bar already owns Run and the overflow menu owns
             Add screen, so these two would be the same action twice in 56px. */}

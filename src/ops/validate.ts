@@ -362,7 +362,7 @@ export function fieldIssues(
       if (
         value !== undefined &&
         value !== '' &&
-        (typeof value !== 'string' || !allowed.test(value))
+        (typeof value !== 'string' || !allowed.test(value) || /[\s<>"'`]/.test(value))
       )
         errors.push(
           error(

@@ -278,6 +278,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       at: entry.at || Date.now(),
       role: entry.role,
       text: entry.text,
+      ...(entry.reasoningReplayed ? { reasoningReplayed: true } : {}),
       ...(entry.card ? { card: entry.card } : {}),
     });
     set((s) => ({ doc: { ...s.doc, rail: [...s.doc.rail, full].slice(-RAIL_CAP) } }));

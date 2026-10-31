@@ -96,6 +96,16 @@ interface AgentStore {
   /** Set while a turn is parked waiting for the visitor's key. */
   pendingRetry: string | null;
   /** Opt-in Wonder mode: planning rounds run on the architect role. */
+  screenshotPreview: {
+    image: string;
+    boxes: Array<{ label: string; box: [number, number, number, number] }>;
+  } | null;
+  setScreenshotPreview: (
+    preview: {
+      image: string;
+      boxes: Array<{ label: string; box: [number, number, number, number] }>;
+    } | null,
+  ) => void;
   wonder: boolean;
   setWonder: (on: boolean) => void;
   /** Dev/testing only: the 20x-cheaper contributor tier. Never ships. */
@@ -170,6 +180,8 @@ export const useAgent = create<AgentStore>((set, get) => ({
   imageWarnings: new Set<string>(),
   imageWarningEpoch: null,
   pendingRetry: null,
+  screenshotPreview: null,
+  setScreenshotPreview: (screenshotPreview) => set({ screenshotPreview }),
   wonder: (() => {
     try {
       return localStorage.getItem('museware/wonder') === '1';

@@ -17,6 +17,7 @@ export interface ChatMessage {
   }>;
   tool_call_id?: string;
   name?: string;
+  reasoning?: { encrypted_content: string };
 }
 
 export interface Usage {

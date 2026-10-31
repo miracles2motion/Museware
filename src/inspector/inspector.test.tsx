@@ -39,7 +39,10 @@ function screenDoc(): ScreenDoc {
       node(
         'row_a',
         'row',
-        [node('txt_a', 'text', [], { text: 'Left' }), node('btn_a', 'button', [], { text: 'Go' })],
+        [
+          node('txt_a', 'text', [], { text: 'Left' }),
+          node('btn_a', 'button', [], { text: 'Go' }),
+        ],
         {},
         { gap: 'var(--gap-item)', align: 'center' },
       ),
@@ -70,8 +73,10 @@ function seed(selectedId: string) {
 
 function labels(): string[] {
   const out: string[] = [];
-  for (const el of document.querySelectorAll('.field-label')) out.push(el.textContent || '');
-  for (const el of document.querySelectorAll('.checkbox-row span')) out.push(el.textContent || '');
+  for (const el of document.querySelectorAll('.field-label'))
+    out.push(el.textContent || '');
+  for (const el of document.querySelectorAll('.checkbox-row span'))
+    out.push(el.textContent || '');
   return out.map((t) => t.replace(/\s+/g, ' ').trim());
 }
 
@@ -161,7 +166,9 @@ describe('a Row gets the fields a Row needs', () => {
     expect(hug.getAttribute('aria-pressed')).toBe('true');
     expect(match.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(match);
-    expect(useProject.getState().doc.screens[0].root.children[0].styles.height).toBe('match');
+    expect(useProject.getState().doc.screens[0].root.children[0].styles.height).toBe(
+      'match',
+    );
     expect(match.getAttribute('aria-pressed')).toBe('true');
   });
 
@@ -276,5 +283,19 @@ describe('the events tab tells the truth', () => {
     render(<Inspector />);
     openTab('Events');
     expect(screen.getByText('When tapped')).toBeTruthy();
+  });
+});
+
+describe('judge-friendly inspector sections', () => {
+  it('opens layout, space and size and collapses the rest by default', () => {
+    seed('row_a');
+    render(<Inspector />);
+    openTab('Style');
+    const groups = Array.from(
+      document.querySelectorAll('details.insp-section'),
+    ) as HTMLDetailsElement[];
+    expect(groups.find((e) => e.textContent?.startsWith('Layout'))?.open).toBe(true);
+    expect(groups.find((e) => e.textContent?.startsWith('Size'))?.open).toBe(true);
+    expect(groups.find((e) => e.textContent?.startsWith('Effects'))?.open).toBe(false);
   });
 });

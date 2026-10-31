@@ -76,6 +76,11 @@ function RailMessage({ entry, fresh }: { entry: RailEntry; fresh: boolean }) {
     <div className="rail-msg">
       <div className="prose-agent" data-fresh={fresh || undefined}>
         {entry.text}
+        {entry.reasoningReplayed && (
+          <span className="chip" aria-label="Reasoning replayed">
+            reasoning replayed
+          </span>
+        )}
       </div>
     </div>
   );
@@ -102,6 +107,12 @@ export function AgentRail() {
   const demoMode = useAgent((s) => s.demoMode);
   const configured = useAgent((s) => s.configured);
   const progress = useAgent((s) => s.progress);
+  const wonder = useAgent((s) => s.wonder);
+  const setWonder = useAgent((s) => s.setWonder);
+  const receipts = useAgent((s) => s.receipts);
+  const preview = useAgent((s) => s.screenshotPreview);
+  const [filter, setFilter] = useState<string | null>(null);
+  const [imageSize, setImageSize] = useState({ width: 1, height: 1 });
   const [showAll, setShowAll] = useState(false);
   const [recording, setRecording] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -320,6 +331,89 @@ export function AgentRail() {
         )}
       </div>
 
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 8px' }}>
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={wonder}
+          onClick={() => setWonder(!wonder)}
+        >
+          Wonder {wonder ? '· 4x cost' : '· off'}
+        </button>
+        {['Wonder', 'Spark', 'Image', 'SAM', 'Voice'].map((model) => (
+          <button
+            key={model}
+            type="button"
+            className="chip"
+            aria-pressed={filter === model}
+            data-selected={filter === model}
+            onClick={() => setFilter(filter === model ? null : model)}
+          >
+            {model}
+            {receipts.some(
+              (r) =>
+                r.model.toLowerCase().includes(model.toLowerCase()) ||
+                r.role.toLowerCase() === model.toLowerCase(),
+            )
+              ? ' ●'
+              : ''}
+          </button>
+        ))}
+      </div>
+      {filter && (
+        <div style={{ padding: '4px 8px' }} aria-label={`${filter} calls`}>
+          {receipts
+            .filter(
+              (r) =>
+                r.model.toLowerCase().includes(filter.toLowerCase()) ||
+                r.role.toLowerCase() === filter.toLowerCase(),
+            )
+            .map((r) => (
+              <div className="sys-pill" key={r.id}>
+                {r.model} · {r.status || 'success'} · {r.latencyMs}ms
+              </div>
+            ))}
+        </div>
+      )}
+      {preview && (
+        <div style={{ position: 'relative', margin: '8px', maxWidth: 260 }}>
+          <img
+            src={preview.image}
+            alt="Screenshot segmented by SAM"
+            style={{ width: '100%', display: 'block' }}
+            onLoad={(e) =>
+              setImageSize({
+                width: e.currentTarget.naturalWidth,
+                height: e.currentTarget.naturalHeight,
+              })
+            }
+          />
+          <svg
+            viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+            preserveAspectRatio="none"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+            }}
+          >
+            {preview.boxes.map((item, i) => (
+              <rect
+                key={i}
+                x={item.box[0]}
+                y={item.box[1]}
+                width={item.box[2]}
+                height={item.box[3]}
+                fill="none"
+                stroke="var(--mw-accent)"
+                strokeWidth={Math.max(1, imageSize.width / 400)}
+              />
+            ))}
+          </svg>
+        </div>
+      )}
       <div className="rail-body" ref={bodyRef}>
         {rail.length > VISIBLE && !showAll && (
           <button
@@ -331,9 +425,14 @@ export function AgentRail() {
             Load earlier ({rail.length - VISIBLE})
           </button>
         )}
-        {visible.map((entry) => (
-          <RailMessage key={entry.id} entry={entry} fresh={Date.now() - entry.at < 1200} />
-        ))}
+        {!filter &&
+          visible.map((entry) => (
+            <RailMessage
+              key={entry.id}
+              entry={entry}
+              fresh={Date.now() - entry.at < 1200}
+            />
+          ))}
         {busy && (
           <div className="rail-msg">
             <div className="live-line">

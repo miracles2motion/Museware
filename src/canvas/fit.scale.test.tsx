@@ -180,3 +180,18 @@ describe('the breakpoint switcher keeps its own scale', () => {
     expect(scaleNow()).toBeCloseTo(phone, 3);
   });
 });
+
+describe('selection breadcrumbs', () => {
+  it('selects an ancestor from the breadcrumb', () => {
+    useUi.setState({ selectedId: 'col_main' });
+    renderCanvas();
+    const nav = document.querySelector(
+      '[aria-label="Selection breadcrumb"]',
+    ) as HTMLElement;
+    expect(nav.textContent).toContain('Screen 1');
+    expect(nav.textContent).toContain('col');
+    const buttons = nav.querySelectorAll('button');
+    act(() => buttons[0].click());
+    expect(useUi.getState().selectedId).toBe('screen_1_root');
+  });
+});

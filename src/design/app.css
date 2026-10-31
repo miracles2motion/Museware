@@ -4340,3 +4340,36 @@ button.how-card .field-hint {
   animation: none;
   color: var(--mw-danger);
 }
+
+.scope-design-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-md);
+}
+.chip[data-event-kind='navigate'] {
+  border-color: var(--mw-accent);
+  color: var(--mw-accent);
+}
+.chip[data-event-kind='setState'] {
+  border-color: var(--mw-warn);
+  color: var(--mw-warn);
+}
+.chip[data-event-kind='toggle'] {
+  border-color: var(--mw-accent-soft);
+  color: var(--mw-ink);
+}
+.chip[data-event-kind='toast'] {
+  border-color: var(--mw-warn);
+  color: var(--mw-ink);
+}
+.chip[data-event-kind='openUrl'] {
+  border-color: var(--mw-danger);
+  color: var(--mw-danger);
+}
+.chip[data-event-kind='when'] {
+  border-color: var(--mw-ink-3);
+  color: var(--mw-ink-2);
+}

@@ -148,7 +148,7 @@ ${pad}</nav>`;
     case 'scene3d':
       return `${pad}<div className={${str(`${cls} mw-motion`)}}><MotionCanvas preset=${str(p.preset || 'globe')} speed={${Number(p.speed) || 1}} interactive={${Boolean(p.interactive)}} /><div className="mw-motion-overlay">${p.title ? `<h2>${jsxText(p.title)}</h2>` : ''}${p.subtitle ? `<p>${jsxText(p.subtitle)}</p>` : ''}</div></div>`;
     case 'video':
-      return `${pad}<div className={${str(cls)}}><div className="mw-motion">${p.src ? `<video controls src=${str(p.src)}${p.poster ? ` poster=${str(p.poster)}` : ''} autoPlay={${Boolean(p.autoplayMuted)}} muted={${Boolean(p.autoplayMuted)}} playsInline />` : '<><MotionCanvas preset="reel"/><div className="mw-reel-controls"><button type="button" data-reel-toggle>Pause</button><input type="range" min="0" max="100" defaultValue="0" aria-label="Reel position" data-reel-scrub /></div></>'}</div>${p.caption ? `<p>${jsxText(p.caption)}</p>` : ''}</div>`;
+      return `${pad}<div className={${str(cls)}}><div className="mw-motion"><VideoContent src={${str(p.src || '')}} poster={${str(p.poster || '')}} autoplayMuted={${Boolean(p.autoplayMuted)}} /></div>${p.caption ? `<p>${jsxText(p.caption)}</p>` : ''}</div>`;
     case 'marquee': {
       const items = marqueeItems(p.items);
       const itemMarkup = items
@@ -358,7 +358,7 @@ function screenModule(doc: ProjectDoc, screen: ScreenDoc): string {
   return `import type { CSSProperties } from 'react';
 import { useApp, TabsBlock, matchesValue } from '../runtime';
 import { Icon } from '../icons';
-import { MotionCanvas } from '../MotionCanvas';
+import { MotionCanvas, VideoContent } from '../MotionCanvas';
 
 export function ${name}Screen() {
   const { state, setKey, run, go } = useApp();
@@ -379,9 +379,10 @@ export function generateProjectFiles(doc: ProjectDoc): Record<string, string> {
   files['src/motion.js'] = motionSource;
   files['src/motion.d.ts'] =
     'export function mountMotion(canvas: HTMLCanvasElement, options?: { preset?: string; speed?: number; interactive?: boolean }): () => void;';
-  files['src/MotionCanvas.tsx'] = `import { useEffect, useRef } from 'react';
+  files['src/MotionCanvas.tsx'] = `import { useEffect, useRef, useState } from 'react';
 import { mountMotion } from './motion';
-export function MotionCanvas({preset,speed,interactive}:{preset:string;speed?:number;interactive?:boolean}) { const ref=useRef<HTMLCanvasElement>(null); useEffect(()=>ref.current ? mountMotion(ref.current,{preset,speed,interactive}) : undefined,[preset,speed,interactive]); return <canvas ref={ref} aria-hidden="true"/>; }`;
+export function MotionCanvas({preset,speed,interactive}:{preset:string;speed?:number;interactive?:boolean}) { const ref=useRef<HTMLCanvasElement>(null); useEffect(()=>ref.current ? mountMotion(ref.current,{preset,speed,interactive}) : undefined,[preset,speed,interactive]); return <canvas ref={ref} aria-hidden="true"/>; }
+export function VideoContent({src,poster,autoplayMuted}:{src:string;poster?:string;autoplayMuted?:boolean}) { const [failed,setFailed]=useState(false); if(src && !failed) return <video controls src={src} poster={poster || undefined} autoPlay={autoplayMuted} muted={autoplayMuted} playsInline onError={()=>setFailed(true)}/>; return <><MotionCanvas preset="reel"/><div className="mw-reel-controls"><button type="button" data-reel-toggle>Pause</button><input type="range" min="0" max="100" defaultValue="0" aria-label="Reel position" data-reel-scrub/></div>{failed && <span role="status">Video unavailable; showing a procedural reel.</span>}</>; }`;
 
   const entry = doc.screens.find((s) => s.entry) || doc.screens[0];
   const usedIcons = new Set<string>(['star']);

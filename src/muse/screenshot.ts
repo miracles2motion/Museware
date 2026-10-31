@@ -273,42 +273,38 @@ async function describeBlueprint(
     });
   } catch (error) {
     const source = useAgent.getState().keySource;
-    useAgent
-      .getState()
-      .addReceipt({
-        role: 'vision',
-        model,
-        status: 'failed',
-        latencyMs: Date.now() - started,
-        promptChars: sheet.length + index.length + outline.length,
-        toolNames: [],
-        ...(source === 'none'
-          ? {}
-          : { key: source === 'session' ? ('user' as const) : ('house' as const) }),
-      });
-    throw error;
-  }
-  useAgent
-    .getState()
-    .addReceipt({
+    useAgent.getState().addReceipt({
       role: 'vision',
-      model: result.model,
-      latencyMs: result.latencyMs,
+      model,
+      status: 'failed',
+      latencyMs: Date.now() - started,
       promptChars: sheet.length + index.length + outline.length,
       toolNames: [],
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      cachedTokens: result.usage.cachedTokens,
-      cents: estimateCents(result.model, result.usage),
-      ...(useAgent.getState().keySource === 'none'
+      ...(source === 'none'
         ? {}
-        : {
-            key:
-              useAgent.getState().keySource === 'session'
-                ? ('user' as const)
-                : ('house' as const),
-          }),
+        : { key: source === 'session' ? ('user' as const) : ('house' as const) }),
     });
+    throw error;
+  }
+  useAgent.getState().addReceipt({
+    role: 'vision',
+    model: result.model,
+    latencyMs: result.latencyMs,
+    promptChars: sheet.length + index.length + outline.length,
+    toolNames: [],
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    cachedTokens: result.usage.cachedTokens,
+    cents: estimateCents(result.model, result.usage),
+    ...(useAgent.getState().keySource === 'none'
+      ? {}
+      : {
+          key:
+            useAgent.getState().keySource === 'session'
+              ? ('user' as const)
+              : ('house' as const),
+        }),
+  });
   return result.text;
 }
 
@@ -320,6 +316,7 @@ export async function recreateFromScreenshot(file: File): Promise<void> {
   const addAgent = (text: string) => useProject.getState().addRail({ role: 'agent', text });
   try {
     const dataUrl = await readAsDataUrl(file);
+    useAgent.getState().setScreenshotPreview({ image: dataUrl, boxes: [] });
     // Only an explicitly chosen local engine pre-empts the pipeline. A stale or
     // failed boot status must NOT: if a key exists, dropping a screenshot should
     // just work, and if it truly does not, the proxy will say so in its own words.
@@ -346,6 +343,12 @@ export async function recreateFromScreenshot(file: File): Promise<void> {
     try {
       const seg = await segmentImage(dataUrl);
       roots = layoutSegments(normalizeSegments(seg));
+      useAgent
+        .getState()
+        .setScreenshotPreview({
+          image: dataUrl,
+          boxes: flattenSegments(roots).map(({ label, box }) => ({ label, box })),
+        });
       const total = flattenSegments(roots).length;
       addSystem(
         `SAM found ${total} element${total === 1 ? '' : 's'} — sorted in reading order, nested by containment, spark is naming all of them in one pass…`,

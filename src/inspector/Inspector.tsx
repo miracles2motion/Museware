@@ -694,6 +694,25 @@ export function Inspector() {
                   </span>
                 </div>
                 <p className="field-hint">{ev.hint}</p>
+                {eventValue(ev.name).map((action, index) => (
+                  <span
+                    key={index}
+                    className="chip"
+                    data-event-kind={action.type}
+                    style={{ marginRight: 4 }}
+                  >
+                    {ev.name === 'tap' ? 'WHEN TAPPED' : ev.label.toUpperCase()} →{' '}
+                    {action.type === 'navigate'
+                      ? `Go to screen: ${action.to}`
+                      : action.type === 'toast'
+                        ? `Show: ${action.text}`
+                        : action.type === 'openUrl'
+                          ? `Open: ${action.url}`
+                          : action.type === 'when'
+                            ? `When ${action.key}`
+                            : `${action.type}: ${action.key}`}
+                  </span>
+                ))}
                 <ActionEditor
                   actions={eventValue(ev.name)}
                   screens={doc.screens}
@@ -706,15 +725,31 @@ export function Inspector() {
       </div>
 
       <div className="inspector-foot">
-        <input
-          className="input"
-          aria-label="Scoped design instruction"
-          placeholder="Optional: describe the change"
-          value={scopeInstruction}
-          maxLength={1000}
-          onChange={(event) => setScopeInstruction(event.target.value)}
-        />
-        {isContainerType(node.type) && (
+        <div className="scope-design-card">
+          <input
+            className="input"
+            aria-label="Scoped design instruction"
+            placeholder="Optional: describe the change"
+            value={scopeInstruction}
+            maxLength={1000}
+            onChange={(event) => setScopeInstruction(event.target.value)}
+          />
+          {isContainerType(node.type) && (
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary btn-block"
+              disabled={agentBusy}
+              onClick={() =>
+                void runScopedAction(
+                  node.id,
+                  scopeInstruction.trim() ||
+                    'Redesign this section to be polished, coherent, and appropriate for its content.',
+                )
+              }
+            >
+              <Sparkles size={13} /> Redesign this section
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-sm btn-secondary btn-block"
@@ -723,28 +758,14 @@ export function Inspector() {
               void runScopedAction(
                 node.id,
                 scopeInstruction.trim() ||
-                  'Redesign this section to be polished, coherent, and appropriate for its content.',
+                  'Restyle this widget while preserving its content and structure.',
+                true,
               )
             }
           >
-            <Sparkles size={13} /> Redesign this section
+            <Sparkles size={13} /> Restyle this widget
           </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-sm btn-secondary btn-block"
-          disabled={agentBusy}
-          onClick={() =>
-            void runScopedAction(
-              node.id,
-              scopeInstruction.trim() ||
-                'Restyle this widget while preserving its content and structure.',
-              true,
-            )
-          }
-        >
-          <Sparkles size={13} /> Restyle this widget
-        </button>
+        </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             type="button"

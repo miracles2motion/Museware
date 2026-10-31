@@ -167,6 +167,7 @@ export interface RailEntry {
   at: number;
   role: 'user' | 'agent' | 'system' | 'card';
   text: string;
+  reasoningReplayed?: boolean;
   card?: {
     kind: 'build_choice' | 'blueprint' | 'choice' | 'color' | 'progress' | 'error' | 'key';
     state: 'pending' | 'answered' | 'cancelled' | 'expired';
