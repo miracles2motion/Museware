@@ -172,7 +172,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   houseKeyDetail: null,
   budget: null,
   live: false,
-  buildImages: 3,
+  buildImages: 6,
   buildImageUsage: null,
   assetJobs: [],
   assetDocumentEpoch: null,

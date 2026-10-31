@@ -425,7 +425,7 @@ async function handleMuse(req, res, env) {
           0,
           Math.min(
             30,
-            Number.isFinite(Number(env.MUSE_BUILD_IMAGES)) && env.MUSE_BUILD_IMAGES !== void 0 && env.MUSE_BUILD_IMAGES.trim() !== "" ? Math.floor(Number(env.MUSE_BUILD_IMAGES)) : 3
+            Number.isFinite(Number(env.MUSE_BUILD_IMAGES)) && env.MUSE_BUILD_IMAGES !== void 0 && env.MUSE_BUILD_IMAGES.trim() !== "" ? Math.floor(Number(env.MUSE_BUILD_IMAGES)) : 6
           )
         ),
         baseUrl: cfg.baseUrl,

@@ -124,6 +124,19 @@ describe('build imagery', () => {
         ),
     ).toBe(true);
   });
+  it('reports successful images and budget skips without mistaking failures for successes', async () => {
+    await autoIllustrate(['tea'], 'tea', 2);
+    const lines = useProject.getState().doc.rail.map((r) => r.text);
+    expect(lines).toContain('Images: 2 of 2 generated (this pass).');
+    expect(lines).toContain('image budget spent — 3 skipped');
+  });
+  it('does not blame the image cap when the shared key is unavailable', async () => {
+    useAgent.setState({ keySource: 'env', houseKey: 'exhausted' });
+    await autoIllustrate(['tea'], 'tea', 2);
+    const lines = useProject.getState().doc.rail.map((r) => r.text);
+    expect(lines).toContain('Images: 0 of 2 generated (this pass).');
+    expect(lines.some((line) => line.includes('image budget spent'))).toBe(false);
+  });
   it('generates strictly one at a time and updates pending states', async () => {
     const resolvers: Array<(src: string) => void> = [];
     vi.mocked(generateImage).mockImplementation(
@@ -135,9 +148,9 @@ describe('build imagery', () => {
     expect(useAgent.getState().assetJobs.map((j) => j.state)).toEqual([
       'running',
       'queued',
-      'skipped',
-      'skipped',
-      'skipped',
+      'queued',
+      'queued',
+      'queued',
     ]);
     resolvers[0]('https://example.com/one.png');
     await vi.waitFor(() => expect(generateImage).toHaveBeenCalledTimes(2));

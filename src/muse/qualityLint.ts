@@ -14,7 +14,9 @@ export interface LintFinding {
     | 'token'
     | 'spacing'
     | 'responsive'
-    | 'navbar';
+    | 'navbar'
+    | 'brand'
+    | 'hero';
   nodeId: string;
   message: string;
 }
@@ -72,7 +74,22 @@ export function lintScreen(
     }
   }
   const visit = (node: ComponentNode) => {
-    if (node.type === 'navbar') hasNavbar = true;
+    if (node.type === 'navbar') {
+      hasNavbar = true;
+      if (
+        ['brand', 'text'].some(
+          (key) =>
+            typeof node.props[key] === 'string' &&
+            (node.props[key] as string).trim().toLowerCase() === 'museware',
+        )
+      )
+        add(
+          node,
+          'warn',
+          'brand',
+          'Navbar uses the tool name as its brand; use the product name from the user’s brief.',
+        );
+    }
     if (node.type === 'scene3d' && ++sceneCount > 1)
       add(node, 'block', 'markup', 'More than one scene3d on this screen.');
     if (node.type === 'section') {
@@ -318,6 +335,13 @@ export function lintScreen(
       'warn',
       'imagery',
       'Landing has no image or hero node; check whether this visual design needs imagery.',
+    );
+  if (kind === 'web' && heroCount === 0)
+    add(
+      screen.root,
+      'warn',
+      'hero',
+      'Web screen has no hero node; lead landing pages with a complete hero.',
     );
   if (kind === 'web' && !hasResponsive)
     add(

@@ -278,6 +278,7 @@ a {
 }
 
 .stop-btn {
+  --mw-danger: var(--mw-red-600);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -285,8 +286,8 @@ a {
   padding: 0 12px;
   border-radius: var(--mw-radius-pill);
   border: 1px solid var(--mw-danger);
-  background: var(--mw-danger-subtle);
-  color: var(--mw-danger);
+  background: var(--mw-danger);
+  color: var(--mw-on-accent);
   font: 500 var(--mw-fs-12) / 1.4 var(--mw-font-ui);
   font-weight: 700;
   cursor: pointer;
@@ -4547,7 +4548,8 @@ button.how-card .field-hint {
 }
 .chat-card:disabled,
 .chat-chip:disabled {
-  opacity: 0.5;
+  background: var(--mw-surface-2);
+  border-color: var(--mw-border);
   cursor: not-allowed;
   transform: none;
 }

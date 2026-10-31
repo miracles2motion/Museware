@@ -29,6 +29,19 @@ import { runAgentTurn, stopAgent } from '../muse/loop';
 import { QUICK_SWATCHES } from '../design/palettes';
 import { KeyCard } from './KeyCard';
 
+export function assetSummary(assets: Array<{ state: string; reason?: string }>): string {
+  const count = (state: string) => assets.filter((job) => job.state === state).length;
+  const parts = [`${count('done')} generated`];
+  if (count('skipped')) parts.push(`${count('skipped')} skipped`);
+  if (count('failed')) parts.push(`${count('failed')} failed`);
+  const pending = count('queued') + count('running');
+  if (pending) parts.push(`${pending} pending`);
+  const budgetSpent = assets.some(
+    (job) => job.state === 'skipped' && /automated image call cap/i.test(job.reason || ''),
+  );
+  return `Assets: ${parts.join(', ')}${budgetSpent ? ' (image budget spent)' : ''}`;
+}
+
 function ScreenThumbs({ blueprint }: { blueprint: string }) {
   const doc = useProject((s) => s.doc);
   const parsed = useMemo(
@@ -437,7 +450,7 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
             <span className="grow">{part.label}</span>
             <span
               className="mono"
-              style={{ fontSize: 'var(--mw-fs-10)', color: 'var(--mw-ink-3)' }}
+              style={{ fontSize: 'var(--mw-fs-11)', color: 'var(--mw-ink-2)' }}
             >
               {part.state}
             </span>
@@ -521,17 +534,7 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
       ))}
       {Boolean(data.assets?.length) && (
         <div className="asset-progress" aria-live="polite">
-          <strong>Assets</strong>{' '}
-          {data.assets!.some((job) => job.state === 'queued' || job.state === 'running')
-            ? 'Generating assets…'
-            : 'Assets finished:'}{' '}
-          {
-            data.assets!.filter(
-              (job) =>
-                job.state === 'done' || job.state === 'failed' || job.state === 'skipped',
-            ).length
-          }{' '}
-          of {data.assets!.length}
+          <strong>{assetSummary(data.assets!)}</strong>
           <div className="asset-chips">
             {data.assets!.map((job) => (
               <span

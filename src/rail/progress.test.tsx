@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { RailCard } from './RailCard';
+import { RailCard, assetSummary } from './RailCard';
 import { createProject, useProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
 import { emptyScreen } from '../ops/screenOps';
@@ -29,8 +29,21 @@ describe('finished progress cards', () => {
       },
     };
     render(<RailCard entry={entry} />);
-    expect(screen.getByText(/Generating assets/).textContent).toContain('2 of 3');
+    expect(screen.getByText('Assets: 1 generated, 1 failed, 1 pending')).toBeTruthy();
     expect(screen.getByText(/tea_img: failed/).textContent).toContain('timeout');
+  });
+  it('reports mixed asset states without counting skips as generated', () => {
+    expect(
+      assetSummary([
+        { state: 'done' },
+        { state: 'done' },
+        { state: 'skipped', reason: 'Automated image call cap exhausted' },
+        { state: 'failed', reason: 'timeout' },
+      ]),
+    ).toBe('Assets: 2 generated, 1 skipped, 1 failed (image budget spent)');
+    expect(assetSummary([{ state: 'skipped', reason: 'Stopped' }])).toBe(
+      'Assets: 0 generated, 1 skipped',
+    );
   });
   it('stays visible and offers safe screen undo after a build', () => {
     useProject.getState().replaceDoc(createProject());

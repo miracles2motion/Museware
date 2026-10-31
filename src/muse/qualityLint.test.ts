@@ -47,6 +47,34 @@ beforeEach(() => {
   });
 });
 describe('quality lint and gate', () => {
+  it('warns for tool branding and missing web heroes', () => {
+    const s = useProject.getState().doc.screens[0];
+    s.root.children = [
+      node('nav', 'navbar', { brand: ' MuSeWaRe ', text: 'Tea' }),
+      node('picture', 'image', {}),
+    ];
+    expect(lintScreen(s, undefined, new Set(), 'web')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'brand', severity: 'warn' }),
+        expect.objectContaining({ code: 'hero', severity: 'warn' }),
+      ]),
+    );
+    s.root.children[0].props = { brand: 'Tea', text: 'museware' };
+    expect(lintScreen(s, undefined, new Set(), 'web').some((f) => f.code === 'brand')).toBe(
+      true,
+    );
+    s.root.children[0].props.text = 'Tea';
+    expect(lintScreen(s, undefined, new Set(), 'web').some((f) => f.code === 'brand')).toBe(
+      false,
+    );
+    expect(lintScreen(s, undefined, new Set(), 'app').some((f) => f.code === 'hero')).toBe(
+      false,
+    );
+    s.root.children.push(node('hero', 'hero', {}));
+    expect(lintScreen(s, undefined, new Set(), 'web').some((f) => f.code === 'hero')).toBe(
+      false,
+    );
+  });
   it('warns on Wave 3 composition and raw sizes without confusing tokens with pixels', () => {
     const s = useProject.getState().doc.screens[0];
     s.root.styles = { padding: '12px 32px', gap: 'var(--gap-section)' };

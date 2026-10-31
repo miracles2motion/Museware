@@ -166,12 +166,7 @@ function resolveKey(
  *   rate_limited  accepted, but throttled right now (429)
  */
 export type HouseKeyState =
-  | 'ok'
-  | 'absent'
-  | 'unverified'
-  | 'exhausted'
-  | 'rejected'
-  | 'rate_limited';
+  'ok' | 'absent' | 'unverified' | 'exhausted' | 'rejected' | 'rate_limited';
 
 /**
  * Which upstream failures actually mean "the KEY is the problem"?
@@ -548,7 +543,7 @@ export async function handleMuse(
               env.MUSE_BUILD_IMAGES !== undefined &&
               env.MUSE_BUILD_IMAGES.trim() !== ''
               ? Math.floor(Number(env.MUSE_BUILD_IMAGES))
-              : 3,
+              : 6,
           ),
         ),
         baseUrl: cfg.baseUrl,

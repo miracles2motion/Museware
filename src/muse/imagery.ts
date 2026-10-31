@@ -349,6 +349,10 @@ export async function illustrateTargets(
       break;
     }
   }
+  if (useProject.getState().documentEpoch === documentEpoch)
+    rail(
+      `Images: ${outcomes.filter((outcome) => outcome.ok).length} of 6 generated (manual pass).`,
+    );
   return outcomes;
 }
 
@@ -388,8 +392,8 @@ export async function queueAssetTargets(
   reserveAttempt?: () => boolean,
 ): Promise<ImageOutcome[]> {
   const documentEpoch = useProject.getState().documentEpoch;
-  const cap = Math.max(0, Math.min(30, Math.floor(Number.isFinite(limit) ? limit : 3)));
-  const jobs: AssetJob[] = targets.map((target, i) => {
+  const cap = Math.max(0, Math.min(30, Math.floor(Number.isFinite(limit) ? limit : 6)));
+  const jobs: AssetJob[] = targets.map((target) => {
     const hit = findNodeInDoc(useProject.getState().doc, target.id);
     return {
       nodeId: target.id,
@@ -403,8 +407,7 @@ export async function queueAssetTargets(
           )
         : target.prompt,
       size: hit ? imageSizeFor(hit.screen, hit.node) : '768x768',
-      state: i < cap ? 'queued' : 'skipped',
-      ...(i >= cap ? { reason: 'Automated image call cap' } : {}),
+      state: 'queued',
     };
   });
   const initialCard = cardId
@@ -479,7 +482,14 @@ export async function queueAssetTargets(
   }
   if (useProject.getState().documentEpoch === documentEpoch) {
     publish();
+    const generated = jobs.filter((job) => job.state === 'done').length;
+    const totalCap = useProject.getState().doc.automatedImageBudget?.cap ?? cap;
+    rail(`Images: ${generated} of ${totalCap} generated (this pass).`);
     const skipped = jobs.filter((job) => job.state === 'skipped');
+    const budgetSkipped = skipped.filter((job) =>
+      /automated image call cap/i.test(job.reason || ''),
+    );
+    if (budgetSkipped.length) rail(`image budget spent — ${budgetSkipped.length} skipped`);
     if (skipped.length)
       rail(
         `Auto-illustration skipped ${skipped.length} asset(s) (budget cap or unavailable): ${skipped.map((job) => `${job.nodeId} (${job.reason || 'not generated'})`).join(', ')}. Placeholders remain.`,
