@@ -128,7 +128,7 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
           product twice before the first sentence is what pushed the key field
           below the fold on a phone. */}
       <div style={{ marginBottom: 18 }}>
-        <h2 style={{ margin: '0 0 6px', fontSize: 22, lineHeight: 1.25 }}>
+        <h2 style={{ margin: '0 0 6px', fontSize: 'var(--mw-fs-22)', lineHeight: 1.25 }}>
           The canvas where Muse builds with you
         </h2>
         <p className="field-hint" style={{ margin: 0 }}>

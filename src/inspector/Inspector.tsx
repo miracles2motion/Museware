@@ -506,7 +506,7 @@ export function Inspector() {
                                   style={{
                                     display: 'flex',
                                     flexWrap: 'wrap',
-                                    gap: 4,
+                                    gap: 'var(--mw-space-1)',
                                     marginTop: -4,
                                   }}
                                 >

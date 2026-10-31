@@ -152,6 +152,26 @@ function declarations(block) {
 
 const primitives = declarations(blockFor(':root'));
 
+// Every referenced Museware variable must have a declaration, including local
+// layout variables. This catches dangling references after deleting dead tokens.
+const sourceFiles = walk(join(ROOT, 'src'));
+const sources = sourceFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+const cssSources = sourceFiles
+  .filter((file) => file.endsWith('.css'))
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
+const declaredTokens = new Set(
+  [...cssSources.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--mw-[a-z0-9-]+)\s*:/g)].map(
+    (m) => m[1],
+  ),
+);
+const referencedTokens = new Set(
+  [...sources.matchAll(/var\(\s*(--mw-[a-z0-9-]+)/g)].map((m) => m[1]),
+);
+for (const name of referencedTokens) {
+  if (!declaredTokens.has(name)) problems.push(`${name}: referenced but not declared`);
+}
+
 // A strict shared ladder: transient popups must outrank fullscreen chat.
 const Z_ORDER = [
   'canvas',
@@ -304,6 +324,7 @@ if (problems.length) {
 
 const worst = report.reduce((min, row) => (row[3] < min[3] ? row : min), report[0]);
 console.log(`✓ tokens: no raw hex outside ${TOKENS_FILE}`);
+console.log('✓ token references: no missing --mw-* declarations');
 console.log(
   '✓ stacking tokens: canvas < canvas-overlay < panels < sticky < chat < popover < modal < toast < tooltip',
 );

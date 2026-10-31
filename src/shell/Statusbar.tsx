@@ -22,7 +22,13 @@ export function Statusbar() {
 
   return (
     <footer className="statusbar">
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 'var(--mw-swatch-gap)',
+        }}
+      >
         <CircleDot size={10} color="var(--mw-ok)" />
         {screen ? `${screen.id} · ${nodes} nodes` : 'no screen'}
       </span>

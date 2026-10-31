@@ -11,6 +11,8 @@ const allowed = [
   /(?:^|\/)[^/]+\.(?:test|spec)\.[jt]sx?$/,
 ];
 const color = /(?:#[0-9a-f]{3,8}\b|\brgba?\s*\()/i;
+const shellTsx =
+  /^src\/(?:shell|inspector|rail|layers|preview)\/.*\.tsx$|^src\/canvas\/Canvas\.tsx$/;
 export function findStyleLiterals(source, name = 'sample.tsx') {
   const file = ts.createSourceFile(
     name,
@@ -39,6 +41,20 @@ export function findStyleLiterals(source, name = 'sample.tsx') {
         if (ts.isIdentifier(part) && declarations.has(part.text) && !seen.has(part.text)) {
           seen.add(part.text);
           scan(declarations.get(part.text));
+        }
+        if (
+          shellTsx.test(name) &&
+          node.name.getText(file) === 'style' &&
+          ts.isPropertyAssignment(part) &&
+          ['fontSize', 'height', 'width'].includes(part.name.getText(file)) &&
+          (ts.isNumericLiteral(part.initializer) ||
+            (ts.isPrefixUnaryExpression(part.initializer) &&
+              ts.isNumericLiteral(part.initializer.operand)))
+        ) {
+          const pos = file.getLineAndCharacterOfPosition(part.getStart(file));
+          errors.push(
+            `${name}:${pos.line + 1}: literal ${part.name.getText(file)} in style — use an mw token`,
+          );
         }
         if (
           (ts.isStringLiteral(part) ||
@@ -76,9 +92,23 @@ if (process.argv.includes('--self-test')) {
     'const styles = {color: "#fff"}; <div style={styles} className="text-[#abc]" />',
   );
   const good = findStyleLiterals('<div style={{ color: "var(--mw-ink)" }} />');
-  if (bad.length !== 2 || indirect.length !== 2 || good.length)
+  const sizes = findStyleLiterals(
+    '<div style={{fontSize: 11, height: 24, width: 160}} />',
+    'src/rail/Test.tsx',
+  );
+  const dynamic = findStyleLiterals(
+    '<div style={{fontSize: size, height: `${n}px`, width: "var(--mw-control-h)"}} />',
+    'src/rail/Test.tsx',
+  );
+  if (
+    bad.length !== 2 ||
+    indirect.length !== 2 ||
+    good.length ||
+    sizes.length !== 3 ||
+    dynamic.length
+  )
     throw new Error('shell style negative test failed');
-  console.log('✓ shell style checker rejects raw colors');
+  console.log('✓ shell style checker rejects raw colors and numeric shell sizes');
 } else {
   const failures = [];
   for (const path of files('src')) {
@@ -89,5 +119,5 @@ if (process.argv.includes('--self-test')) {
   if (failures.length) {
     console.error(failures.join('\n'));
     process.exitCode = 1;
-  } else console.log('✓ shell style objects and classes use tokens, not literal colors');
+  } else console.log('✓ shell styles reject literal colors and numeric shell sizes');
 }

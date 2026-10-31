@@ -118,7 +118,7 @@ export function Layers() {
     <div className="panel-body">
       <div className="palette-group-head">
         <span className="eyebrow">Layers · {screen.name}</span>
-        <span className="faint mono" style={{ fontSize: 9 }}>
+        <span className="faint mono" style={{ fontSize: 'var(--mw-fs-9)' }}>
           {rows.length}
         </span>
       </div>
@@ -240,7 +240,12 @@ function LayerRow({
       <button
         type="button"
         className="icon-btn icon-btn-sm"
-        style={{ width: 16, height: 16, cursor: 'grab', color: 'var(--mw-ink-3)' }}
+        style={{
+          width: 'var(--mw-control-h-sm)',
+          height: 'var(--mw-control-h-sm)',
+          cursor: 'grab',
+          color: 'var(--mw-ink-3)',
+        }}
         aria-label="Drag layer"
         {...attributes}
         {...listeners}
@@ -252,7 +257,12 @@ function LayerRow({
       {renaming ? (
         <input
           className="input"
-          style={{ height: 22, fontSize: 11, padding: '0 6px', flex: 1 }}
+          style={{
+            height: 'var(--mw-control-h-sm)',
+            fontSize: 'var(--mw-fs-11)',
+            padding: '0 var(--mw-space-1-5)',
+            flex: 1,
+          }}
           value={renameValue}
           autoFocus
           onChange={(e) => onRenameChange(e.target.value)}
@@ -272,7 +282,7 @@ function LayerRow({
       {row.hidden && (
         <span
           className="mono"
-          style={{ fontSize: 9, color: 'var(--mw-warn)' }}
+          style={{ fontSize: 'var(--mw-fs-9)', color: 'var(--mw-warn)' }}
           title="Has a visibility rule"
         >
           if

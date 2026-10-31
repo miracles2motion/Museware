@@ -211,7 +211,13 @@ function Fit({ children, max = 1.6 }: { children: ReactNode; max?: number }) {
   const fit = Math.min(scale, max);
   return (
     <div className="lp-fit" ref={ref}>
-      <div style={{ width: 390, transform: `scale(${fit})`, transformOrigin: 'top left' }}>
+      <div
+        style={{
+          width: 'var(--mw-landing-preview-w)',
+          transform: `scale(${fit})`,
+          transformOrigin: 'top left',
+        }}
+      >
         {children}
       </div>
     </div>
@@ -700,20 +706,18 @@ export function Landing() {
                   }
                 }}
                 onClick={() => {
-                  const result = useProject
-                    .getState()
-                    .applyBatch(
-                      [
-                        {
-                          op: 'setTokens',
-                          patch: {
-                            ...preset.tokens.openuiTheme,
-                            title: preset.tokens.title,
-                          },
+                  const result = useProject.getState().applyBatch(
+                    [
+                      {
+                        op: 'setTokens',
+                        patch: {
+                          ...preset.tokens.openuiTheme,
+                          title: preset.tokens.title,
                         },
-                      ],
-                      { source: 'user' },
-                    );
+                      },
+                    ],
+                    { source: 'user' },
+                  );
                   if (result.errors.length) {
                     useUi.getState().toast(result.errors[0].message, 'warn');
                     return;

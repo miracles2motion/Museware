@@ -2,98 +2,65 @@
    Museware's own token system — three tiers. This is the ONLY file allowed
    to contain raw hex values (CI greps for hexes outside this file).
    Tier 1: primitives · Tier 2: semantic aliases · Tier 3: component tokens.
+   Roles: --mw-type-* is generated-site typography, not shell typography;
+   --mw-fs-* is the shell UI text scale. --mw-radius-sm through --mw-radius-xl
+   are the generic radius scale; card, panel, input and chip aliases use it.
    ========================================================================== */
 
 :root {
   /* Tier 1 — primitives (never referenced by components) */
-  --mw-indigo-50: #eeebff;
-  --mw-indigo-100: #dfd9ff;
-  --mw-indigo-200: #c4baff;
-  --mw-indigo-300: #a897ff;
+
   --mw-indigo-400: #8f79ff;
   --mw-indigo-500: #6d5cff;
   --mw-indigo-600: #5b49f5;
   --mw-indigo-700: #4a38d6;
-  --mw-indigo-800: #3a2bb0;
-  --mw-indigo-900: #2b2090;
-  --mw-indigo-950: #1f1a66;
 
-  --mw-violet-50: #faf5ff;
-  --mw-violet-100: #f3e8ff;
-  --mw-violet-200: #e9d5ff;
-  --mw-violet-300: #d8b4fe;
-  --mw-violet-400: #c084fc;
   --mw-violet-500: #a855f7;
   --mw-violet-600: #9333ea;
-  --mw-violet-700: #7e22ce;
-  --mw-violet-800: #6b21a8;
-  --mw-violet-900: #581c87;
-  --mw-violet-950: #3b0764;
 
   --mw-neutral-0: #ffffff;
   --mw-neutral-50: #f7f8fa;
   --mw-neutral-100: #f0f2f5;
-  --mw-neutral-150: #e8ebef;
+
   --mw-neutral-200: #e3e6eb;
   --mw-neutral-300: #d3d7de;
   --mw-neutral-400: #b9bfc9;
   --mw-neutral-500: #8b93a3;
   --mw-neutral-600: #62697a;
-  --mw-neutral-700: #5a6170;
+
   --mw-neutral-800: #454b57;
-  --mw-neutral-850: #333947;
+
   --mw-neutral-900: #262b36;
   --mw-neutral-950: #151821;
   --mw-neutral-1000: #0e1015;
 
-  --mw-green-50: #ecfdf5;
-  --mw-green-100: #d1fae5;
-  --mw-green-200: #a7f3d0;
-  --mw-green-300: #6ee7b7;
   --mw-green-400: #34d399;
-  --mw-green-500: #10b981;
+
   --mw-green-600: #059669;
-  --mw-green-700: #047857;
-  --mw-green-950: #022c22;
 
-  --mw-amber-50: #fffbeb;
-  --mw-amber-100: #fef3c7;
-  --mw-amber-200: #fde68a;
-  --mw-amber-300: #fcd34d;
   --mw-amber-400: #f5b544;
-  --mw-amber-500: #f59e0b;
-  --mw-amber-600: #d97706;
-  --mw-amber-700: #b45309;
-  --mw-amber-950: #451a03;
 
-  --mw-red-50: #fef2f2;
-  --mw-red-100: #fee2e2;
-  --mw-red-200: #fecaca;
-  --mw-red-300: #fca5a5;
+  --mw-amber-600: #d97706;
+
   --mw-red-400: #f87171;
-  --mw-red-500: #ef4444;
+
   --mw-red-600: #dc2626;
-  --mw-red-700: #b91c1c;
-  --mw-red-950: #450a0a;
 
   /* Primitive geometry & type */
   --mw-space-half: 2px;
-  --mw-space-onehalf: 6px;
-  --mw-space-twohalf: 10px;
+  --mw-space-1-5: 6px;
+  --mw-space-2-5: 10px;
   --mw-space-1: 4px;
   --mw-space-2: 8px;
   --mw-space-3: 12px;
   --mw-space-4: 16px;
   --mw-space-5: 20px;
   --mw-space-6: 24px;
-  --mw-space-7: 32px;
-  --mw-space-8: 40px;
-  --mw-space-9: 48px;
-  --mw-space-10: 64px;
-  --mw-space-11: 80px;
-  --mw-space-12: 96px;
 
-  --mw-radius-none: 0px;
+  --mw-space-8: 40px;
+
+  --mw-space-10: 64px;
+
   --mw-radius-sm: 6px;
   --mw-radius-md: 10px;
   --mw-radius-lg: 12px;
@@ -104,13 +71,15 @@
   --mw-fs-10: 10px;
   --mw-fs-11: 11px;
   --mw-fs-12: 12px;
+  --mw-fs-12-5: 12.5px;
   --mw-fs-13: 13px;
   --mw-fs-14: 14px;
   --mw-fs-15: 15px;
   --mw-fs-16: 16px;
-  --mw-fs-18: 18px;
+
   --mw-fs-20: 20px;
-  --mw-fs-24: 24px;
+  --mw-fs-22: 22px;
+
   --mw-fs-28: 28px;
 
   --mw-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -128,7 +97,7 @@
      surface-2 (#262B36) too — #8B93A3, slightly lighter than the sketch. */
   --mw-ink-3: #8b93a3;
   --mw-on-accent: var(--mw-neutral-0);
-  --mw-on-danger: var(--mw-neutral-0);
+
   --mw-accent: var(--mw-indigo-500);
   --mw-accent-2: var(--mw-violet-500);
   /* Press and hover states of the one accent, so no control has to lean on a
@@ -152,8 +121,7 @@
      white around it. */
   --mw-preview-bg: #0a0c11;
   --mw-dot: rgba(255, 255, 255, 0.07);
-  --mw-canvas-bg-light: var(--mw-neutral-100);
-  --mw-grid-light: rgba(14, 16, 21, 0.06);
+
   --mw-scrim: rgba(14, 16, 21, 0.6);
 
   --mw-shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.25);
@@ -183,44 +151,45 @@
 
   /* Tier 3 — component tokens */
   --mw-topbar-h: 64px;
-  --mw-statusbar-h: 26px;
+  --mw-statusbar-h: var(--mw-control-h-sm);
   --mw-left-w: 264px;
   --mw-left-icon-rail: 48px;
   --mw-rail-w: 348px;
   --mw-inspector-w: 284px;
   --mw-inspector-wide: 420px;
   --mw-rail-peek: 88px;
-  --mw-flyout-w: 240px;
+
   --mw-menu-w: 208px;
   --mw-panel-pad: 12px;
-  --mw-section-gap: 16px;
+
   --mw-frame-radius: 18px;
 
   --mw-control-h: 36px;
-  --mw-chip-h: 28px;
-  --mw-row-h: 44px;
-  --mw-tab-h: 40px;
-  --mw-input-h: 36px;
-  --mw-icon-sm: 16px;
-  --mw-icon-md: 20px;
-  --mw-icon-lg: 24px;
-  --mw-touch-min: 40px;
+  --mw-control-h-sm: 28px;
+  --mw-run-urlbar-w: 160px;
+  --mw-color-control-w: 32px;
+  --mw-part-dot-size: 5px;
+  --mw-canvas-drag-h: 18px;
+  --mw-landing-preview-w: 390px;
+  --mw-preset-card-w: 200px;
+  --mw-shortcut-column-w: 190px;
+  /* Canvas overrides this at runtime to compensate for preview scaling. */
+  --mw-fit: 1;
 
-  --mw-card-radius: 16px;
-  --mw-panel-radius: 12px;
-  --mw-input-radius: 10px;
-  --mw-chip-radius: 999px;
-  --mw-card-pad: 16px;
-  --mw-card-gap: 12px;
+  --mw-tab-h: 40px;
+  --mw-input-h: var(--mw-control-h);
+
+  --mw-card-radius: var(--mw-radius-xl);
+  --mw-panel-radius: var(--mw-radius-lg);
+  --mw-input-radius: var(--mw-radius-md);
+  --mw-chip-radius: var(--mw-radius-pill);
+
   --mw-chip-pad-x: 12px;
-  --mw-chip-pad-y: 6px;
-  --mw-row-pad: 12px;
-  --mw-tab-pad: 10px;
 
   --mw-railcard-pad: 12px;
   --mw-railcard-head-size: 14px;
   --mw-railcard-gap: 8px;
-  --mw-rail-composer-min: 56px;
+
   --mw-rail-max-rows: 6;
   --mw-swatch-size: 16px;
   --mw-swatch-gap: 5px;
@@ -244,7 +213,7 @@
   --mw-chat-launcher-size: 56px;
   --mw-chat-preview-width: 260px;
   --mw-shell-rename-width: 110px;
-  --mw-shell-compact-height: 22px;
+
   --mw-shell-color-control-width: 36px;
   --mw-z-canvas-overlay: 5;
 
@@ -263,7 +232,7 @@
      light theme's faint ink is darker than the sketch's #8B93A3. */
   --mw-ink-3: #62697a;
   --mw-on-accent: var(--mw-neutral-0);
-  --mw-on-danger: var(--mw-neutral-0);
+
   --mw-accent: var(--mw-indigo-600);
   --mw-accent-2: var(--mw-violet-600);
   --mw-accent-hover: var(--mw-indigo-500);

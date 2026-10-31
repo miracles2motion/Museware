@@ -126,7 +126,7 @@ export function RunMode() {
           background: 'var(--mw-bg)',
         }}
       >
-        <div className="topbar" style={{ gap: 10 }}>
+        <div className="topbar" style={{ gap: 'var(--mw-space-2-5)' }}>
           <button
             type="button"
             className="btn btn-sm btn-ghost"
@@ -134,7 +134,7 @@ export function RunMode() {
           >
             <ArrowLeft size={13} /> Editor
           </button>
-          <span className="chip chip-static mono" style={{ fontSize: 10 }}>
+          <span className="chip chip-static mono" style={{ fontSize: 'var(--mw-fs-10)' }}>
             ▶ run · {doc.kind === 'web' ? 'web' : 'app'}
           </span>
           {assetsGenerating && (
@@ -148,7 +148,11 @@ export function RunMode() {
             className="select"
             value={screen.id}
             aria-label="Screen"
-            style={{ height: 30, fontSize: 11, width: 160 }}
+            style={{
+              height: 'var(--mw-control-h-sm)',
+              fontSize: 'var(--mw-fs-11)',
+              width: 'var(--mw-run-urlbar-w)',
+            }}
             onChange={(e) => setScreenId(e.target.value)}
           >
             {doc.screens.map((s) => (

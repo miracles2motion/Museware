@@ -75,7 +75,11 @@ export function TextField({
       ) : (
         <input
           className="input"
-          style={mono ? { fontFamily: 'var(--mw-font-mono)', fontSize: 11 } : undefined}
+          style={
+            mono
+              ? { fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }
+              : undefined
+          }
           value={d.draft}
           placeholder={placeholder}
           list={list}
@@ -249,11 +253,20 @@ export function ColorField({
   return (
     <div className="field">
       <span className="field-label">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--mw-space-1-5)',
+          }}
+        >
           {label}
           <OverrideDot on={overridden} />
         </span>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--mw-ink-3)' }}>
+        <span
+          className="mono"
+          style={{ fontSize: 'var(--mw-fs-10)', color: 'var(--mw-ink-3)' }}
+        >
           {d.draft ? d.draft.replace('var(--openui-', '').replace(')', '') : 'none'}
         </span>
       </span>
@@ -296,7 +309,7 @@ export function ColorField({
           onChange={(e) => d.setDraft(e.target.value)}
           onBlur={d.commit}
           onKeyDown={d.onKeyDown}
-          style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 11 }}
+          style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
         />
         {onScope && /^#[0-9a-fA-F]{6}$/.test(d.draft) && (
           <button type="button" className="chip" onClick={() => onScope(d.draft)}>
@@ -336,7 +349,13 @@ export function SpacingField({
   return (
     <div className="field">
       <span className="field-label">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--mw-space-1-5)',
+          }}
+        >
           {label}
           <OverrideDot on={overridden} />
         </span>
@@ -348,16 +367,20 @@ export function SpacingField({
         onChange={(e) => d.setDraft(e.target.value)}
         onBlur={d.commit}
         onKeyDown={d.onKeyDown}
-        style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 11 }}
+        style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
       />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
         {suggestions.map((token) => (
           <button
             type="button"
             key={token}
             className="chip"
             data-selected={d.draft === token}
-            style={{ height: 22, fontSize: 10, padding: '0 8px' }}
+            style={{
+              height: 'var(--mw-control-h-sm)',
+              fontSize: 'var(--mw-fs-10)',
+              padding: '0 var(--mw-space-2)',
+            }}
             onClick={() => onCommit(token)}
           >
             {token === '0' || token === 'auto'

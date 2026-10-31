@@ -77,13 +77,13 @@ export function ActionEditor({
           onRemove={() => remove(index)}
         />
       ))}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
         {[...KINDS, WHEN].map((kind) => (
           <button
             type="button"
             key={kind.value}
             className="chip"
-            style={{ height: 24, fontSize: 11 }}
+            style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
             onClick={() => add(kind.value)}
           >
             <Plus size={11} /> {kind.label}
@@ -119,7 +119,12 @@ function ActionRow({
       <div className="event-head">
         <select
           className="select"
-          style={{ height: 26, fontSize: 11, padding: '0 6px', flex: '0 0 auto' }}
+          style={{
+            height: 'var(--mw-control-h-sm)',
+            fontSize: 'var(--mw-fs-11)',
+            padding: '0 var(--mw-space-1-5)',
+            flex: '0 0 auto',
+          }}
           value={action.type}
           aria-label="Action kind"
           onChange={(e) => onChange(blankAction(e.target.value as Action['type'], screens))}
@@ -179,7 +184,12 @@ function StateValueInput({
   return (
     <input
       className="input"
-      style={{ height: 28, fontSize: 11, flex: 1, minWidth: 0 }}
+      style={{
+        height: 'var(--mw-control-h-sm)',
+        fontSize: 'var(--mw-fs-11)',
+        flex: 1,
+        minWidth: 0,
+      }}
       value={draft}
       aria-label={label}
       placeholder={placeholder}
@@ -216,7 +226,7 @@ function ActionArgs({
           <option key={k} value={k} />
         ))}
       </datalist>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
         {keys.map((k) => (
           <button
             type="button"
@@ -243,7 +253,7 @@ function ActionArgs({
       return (
         <select
           className="select"
-          style={{ height: 28, fontSize: 11 }}
+          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
           value={action.to}
           aria-label="Target screen"
           onChange={(e) => onChange({ type: 'navigate', to: e.target.value })}
@@ -259,17 +269,27 @@ function ActionArgs({
       return (
         <div
           className="set-state-args"
-          style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--mw-space-1-5)',
+            minWidth: 0,
+          }}
         >
           {keyPicker(action.key)}
           <div
             className="set-state-inputs"
-            style={{ display: 'flex', gap: 4, minWidth: 0 }}
+            style={{ display: 'flex', gap: 'var(--mw-space-1)', minWidth: 0 }}
           >
             <input
               list={listId}
               className="input"
-              style={{ height: 28, fontSize: 11, flex: 1, minWidth: 0 }}
+              style={{
+                height: 'var(--mw-control-h-sm)',
+                fontSize: 'var(--mw-fs-11)',
+                flex: 1,
+                minWidth: 0,
+              }}
               value={action.key}
               aria-label="State key"
               placeholder="key"
@@ -299,7 +319,7 @@ function ActionArgs({
           <input
             list={listId}
             className="input"
-            style={{ height: 28, fontSize: 11 }}
+            style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
             value={action.key}
             aria-label="State key"
             placeholder="key"
@@ -311,7 +331,7 @@ function ActionArgs({
       return (
         <input
           className="input"
-          style={{ height: 28, fontSize: 11 }}
+          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
           value={action.text}
           aria-label="Toast text"
           placeholder="Saved!"
@@ -322,7 +342,7 @@ function ActionArgs({
       return (
         <input
           className="input"
-          style={{ height: 28, fontSize: 11 }}
+          style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
           value={action.url}
           aria-label="URL"
           placeholder="https://"
@@ -331,12 +351,14 @@ function ActionArgs({
       );
     case 'when':
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mw-space-1-5)' }}
+        >
           {keyPicker(action.key)}
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 'var(--mw-space-1)' }}>
             <input
               className="input"
-              style={{ height: 28, fontSize: 11 }}
+              style={{ height: 'var(--mw-control-h-sm)', fontSize: 'var(--mw-fs-11)' }}
               value={action.key}
               list={listId}
               aria-label="Condition key"

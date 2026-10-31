@@ -137,7 +137,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">Your key</span>
-          <span className="chip chip-static" style={{ fontSize: 10 }}>
+          <span className="chip chip-static" style={{ fontSize: 'var(--mw-fs-10)' }}>
             {keySource === 'session'
               ? 'using your key'
               : demoMode
@@ -167,7 +167,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             value={key}
             autoComplete="off"
             onChange={(e) => setKey(e.target.value)}
-            style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 11 }}
+            style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
           />
           <button
             type="button"
@@ -178,7 +178,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {reveal ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
         </div>
-        <div className="token-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="token-row" style={{ gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
           <Button
             size="sm"
             variant="ghost"
@@ -270,7 +270,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
         ) : null}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
           {keySource === 'session' && (
             <Button
               size="sm"
@@ -310,7 +310,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <Sparkles size={12} /> {demoMode ? 'Local engine: on' : 'Try the local engine'}
           </Button>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
           <Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
             <RefreshCw size={12} /> Re-check status
           </Button>
@@ -413,7 +413,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                         className="chip chip-static"
                         data-tone={probe.ok ? 'ok' : 'danger'}
                         title={probe.detail || `${probe.ms} ms`}
-                        style={{ fontSize: 10 }}
+                        style={{ fontSize: 'var(--mw-fs-10)' }}
                       >
                         {probe.ok ? `ok · ${probe.ms}ms` : probe.detail || 'failed'}
                       </span>
@@ -439,7 +439,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             Import tokens…
           </Button>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
           {PRESETS.map((preset) => (
             <button
               type="button"
@@ -447,7 +447,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               className="preset-card"
               data-selected={activePreset === preset.id}
               onClick={() => applyPreset(preset.tokens, preset.id)}
-              style={{ width: 200 }}
+              style={{ width: 'var(--mw-preset-card-w)' }}
             >
               <span className="preset-swatches">
                 <i style={{ background: preset.tokens.openuiTheme.brand_color }} />

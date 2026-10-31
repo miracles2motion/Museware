@@ -81,7 +81,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       <div className="insp-section">
         <div className="insp-section-head">
           <span className="eyebrow">What ships</span>
-          <span className="faint mono" style={{ fontSize: 10 }}>
+          <span className="faint mono" style={{ fontSize: 'var(--mw-fs-10)' }}>
             React 18 + Vite
           </span>
         </div>
@@ -94,7 +94,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
             <span
               className="chip chip-static mono"
               key={file}
-              style={{ fontSize: 10, justifyContent: 'flex-start' }}
+              style={{ fontSize: 'var(--mw-fs-10)', justifyContent: 'flex-start' }}
             >
               <FileCode2 size={11} /> {file}
             </span>
@@ -111,7 +111,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         <div className="insp-section-head">
           <span className="eyebrow">PWA pieces</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--mw-space-2)', flexWrap: 'wrap' }}>
           <Button
             size="sm"
             variant="secondary"

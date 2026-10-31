@@ -103,9 +103,13 @@ function BlueprintCard({ entry }: { entry: RailEntry }) {
       <ScreenThumbs blueprint={text} />
       <div className="blueprint-text">{text}</div>
       {(data.stateKeys?.length || data.wiring?.length) && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
           {(data.stateKeys || []).slice(0, 6).map((key) => (
-            <span className="chip chip-static mono" key={key} style={{ fontSize: 10 }}>
+            <span
+              className="chip chip-static mono"
+              key={key}
+              style={{ fontSize: 'var(--mw-fs-10)' }}
+            >
               {key}
             </span>
           ))}
@@ -113,7 +117,7 @@ function BlueprintCard({ entry }: { entry: RailEntry }) {
             <span
               className="chip chip-static"
               key={line}
-              style={{ fontSize: 10 }}
+              style={{ fontSize: 'var(--mw-fs-10)' }}
               title={line}
             >
               {line.length > 34 ? `${line.slice(0, 34)}…` : line}
@@ -226,7 +230,7 @@ function BuildChoiceCard({ entry }: { entry: RailEntry }) {
           <span className="choice-label">
             {row.label}
             {row.recommended && (
-              <span className="chip chip-static" style={{ fontSize: 9 }}>
+              <span className="chip chip-static" style={{ fontSize: 'var(--mw-fs-9)' }}>
                 recommended
               </span>
             )}
@@ -294,7 +298,7 @@ function ColorCard({ entry }: { entry: RailEntry }) {
         </span>
         <span className="railcard-sub mono">{hex}</span>
       </div>
-      <div className="swatches" style={{ gap: 8 }}>
+      <div className="swatches" style={{ gap: 'var(--mw-space-2)' }}>
         {QUICK_SWATCHES.map((preset) => (
           <button
             type="button"
@@ -315,7 +319,12 @@ function ColorCard({ entry }: { entry: RailEntry }) {
           value={hex}
           aria-label="Custom colour"
           onChange={(e) => setHex(e.target.value)}
-          style={{ width: 32, height: 24, background: 'transparent', border: 'none' }}
+          style={{
+            width: 'var(--mw-color-control-w)',
+            height: 'var(--mw-control-h-sm)',
+            background: 'transparent',
+            border: 'none',
+          }}
         />
       </div>
       <div className="segmented" role="group" aria-label="Colour scope">
@@ -417,8 +426,8 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
               ) : (
                 <span
                   style={{
-                    width: 5,
-                    height: 5,
+                    width: 'var(--mw-part-dot-size)',
+                    height: 'var(--mw-part-dot-size)',
                     borderRadius: 9,
                     background: 'currentColor',
                   }}
@@ -426,7 +435,10 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
               )}
             </span>
             <span className="grow">{part.label}</span>
-            <span className="mono" style={{ fontSize: 10, color: 'var(--mw-ink-3)' }}>
+            <span
+              className="mono"
+              style={{ fontSize: 'var(--mw-fs-10)', color: 'var(--mw-ink-3)' }}
+            >
               {part.state}
             </span>
           </button>
@@ -440,7 +452,9 @@ function ProgressCard({ entry }: { entry: RailEntry }) {
                     `${part.label} landed — its ops are in the log with an undo step.`}
                 </p>
               )}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1-5)' }}
+              >
                 {part.state === 'done' && (
                   <button
                     type="button"
@@ -557,7 +571,7 @@ function ErrorCard({ entry }: { entry: RailEntry }) {
         </span>
         {data.code && <span className="railcard-sub mono">{data.code}</span>}
       </div>
-      <p className="prose-agent" style={{ fontSize: 13 }}>
+      <p className="prose-agent" style={{ fontSize: 'var(--mw-fs-13)' }}>
         {data.message || 'The request failed.'}
       </p>
       {data.retryText && (

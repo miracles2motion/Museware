@@ -612,8 +612,8 @@ export function Canvas() {
                       (selBox && selectedId && selectedId !== screen.root.id
                         ? selBox
                         : hoverBox)!.top + 2,
-                    width: 16,
-                    height: 18,
+                    width: 'var(--mw-space-4)',
+                    height: 'var(--mw-canvas-drag-h)',
                     display: 'grid',
                     placeItems: 'center',
                     borderRadius: 4,

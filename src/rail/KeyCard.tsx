@@ -73,7 +73,7 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
         </span>
         <span className="railcard-sub mono">{houseKeyLabel(houseKey)}</span>
       </div>
-      <p className="prose-agent" style={{ fontSize: 12.5 }}>
+      <p className="prose-agent" style={{ fontSize: 'var(--mw-fs-12-5)' }}>
         {houseKeySentence(houseKey, houseKeyDetail)}
       </p>
       {data.reason && data.reason !== '' && (
@@ -94,7 +94,7 @@ export function KeyCard({ entry }: { entry: RailEntry }) {
           onKeyDown={(e) => {
             if (e.key === 'Enter') void submit();
           }}
-          style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 11 }}
+          style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
         />
         <button
           type="button"
