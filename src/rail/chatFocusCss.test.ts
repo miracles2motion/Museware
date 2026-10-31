@@ -23,7 +23,7 @@ describe('fullscreen chat CSS', () => {
     expect(rule('.chat-focus-column')).toMatch(/width:\s*100%\s*;/);
     const messages = rule('.chat-focus .rail-body > *');
     expect(messages).toMatch(/width:\s*100%\s*;/);
-    expect(messages).toMatch(/max-width:\s*860px\s*;/);
+    expect(messages).toMatch(/max-width:\s*var\(--mw-chat-content-width\)\s*;/);
     expect(messages).toMatch(/margin-inline:\s*auto\s*;/);
     const header = rule('.chat-focus .rail[data-chat-focused] .rail-header');
     expect(header).toMatch(/border-bottom:\s*1px solid color-mix/);
@@ -32,7 +32,7 @@ describe('fullscreen chat CSS', () => {
     expect(composer).toMatch(/background:\s*transparent\s*;/);
     expect(composer).toMatch(/border-top:\s*1px solid color-mix/);
     expect(css).toMatch(
-      /\.chat-focus \.composer > \.composer-box[\s\S]*?max-width:\s*860px[\s\S]*?margin-inline:\s*auto/,
+      /\.chat-focus \.composer > \.composer-box[\s\S]*?max-width:\s*var\(--mw-chat-content-width\)[\s\S]*?margin-inline:\s*auto/,
     );
   });
   it('animates minimization toward the launcher and respects reduced motion', () => {
