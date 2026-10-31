@@ -73,7 +73,7 @@ describe('the shell actually renders', () => {
     render(<Landing />);
     expect(document.querySelector('.hero-copy')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(
-      /Describe it\.\s*Watch it build\./,
+      /Describe it\.\s*Approve the plan\.\s*Watch it build\./,
     );
     // One primary action on the first screen, and the real canvas beside it.
     const primary = document.querySelectorAll('.lp-hero .btn-accent');

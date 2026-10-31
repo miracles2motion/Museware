@@ -11,7 +11,7 @@ import { PRESETS } from '../design/presets';
 import { MUSEWARE_DEFAULT_THEME } from '../design/starter';
 import { Button } from '../components/ui';
 import { applyOps } from '../ops/apply';
-import { runAgentTurn } from '../muse/loop';
+import { startPromptProject } from './promptProject';
 import { createSavedProject, listProjects, openProject } from '../persist/save';
 import type { ComponentNode, ProjectDoc, ScreenDoc } from '../types/tree';
 import type { DesignTokens } from '../types/tokens';
@@ -256,13 +256,11 @@ function useReveal() {
 
 export function Landing() {
   const setRoute = useUi((s) => s.setRoute);
-  const startPrompt = useUi((s) => s.startPrompt);
   const doc = useProject((s) => s.doc);
   const demoMode = useAgent((s) => s.demoMode);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [prompt, setPrompt] = useState(
-    'Design me a landing page website for a small coffee roaster.',
-  );
+  const [prompt, setPrompt] = useState('');
+  const [promptWorking, setPromptWorking] = useState(false);
   const [added, setAdded] = useState<ComponentNode[]>([]);
   const [miniRun, setMiniRun] = useState(false);
   const [miniSelected, setMiniSelected] = useState<string | null>(null);
@@ -349,11 +347,10 @@ export function Landing() {
     });
   };
 
-  const go = async (want?: string, run = false) => {
+  const go = async () => {
     setMenuOpen(false);
     try {
       const projects = await listProjects();
-      if (want) startPrompt(want);
       if (projects.length) {
         setRoute('projects');
         return;
@@ -364,18 +361,29 @@ export function Landing() {
       if (!saved) throw new Error('Could not open project');
       useProject.getState().hydrate(saved, id);
       setRoute('editor', id);
-      if (want && run) {
-        useUi.getState().setDraft('');
-        await runAgentTurn(want);
-      }
     } catch {
       useUi.getState().toast('Could not open a project on this device.', 'warn');
     }
   };
 
-  const build = () => {
-    const text = prompt.trim();
-    if (text) void go(text, true);
+  const build = async () => {
+    if (!prompt.trim() || promptWorking) return;
+    setPromptWorking(true);
+    try {
+      await startPromptProject(prompt, 'landing');
+    } catch (error) {
+      useUi
+        .getState()
+        .toast(
+          error instanceof Error &&
+            error.message === 'Connection is not ready. Try again shortly.'
+            ? error.message
+            : 'Could not open a project on this device.',
+          'warn',
+        );
+    } finally {
+      setPromptWorking(false);
+    }
   };
 
   const gallery = () => {
@@ -484,28 +492,50 @@ export function Landing() {
 
       <section className="lp-hero">
         <div className="lp-hero-copy lp-reveal">
-          <h1>
-            Describe it. <br />
-            Watch it build.
-          </h1>
+          <h1>Describe it. Approve the plan. Watch it build.</h1>
           <p className="lp-lead">
-            Describe it. Approve the plan. Watch it build. Muse turns your idea into a
-            working site you can edit, run, and make your own.
+            Muse turns your idea into a working site you can edit, run, and make your own.
           </p>
-          <div className="lp-actions">
-            <Button
-              variant="accent"
-              size="lg"
-              onClick={() => {
-                void go();
-              }}
-            >
-              Start building <ArrowRight size={16} />
-            </Button>
-            <Button variant="secondary" size="lg" onClick={() => setRoute('projects')}>
-              Your projects
-            </Button>
-          </div>
+          <form
+            className="lp-hero-prompt"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void build();
+            }}
+          >
+            <label htmlFor="landing-idea">Describe your idea</label>
+            <div className="lp-hero-prompt-controls">
+              <input
+                id="landing-idea"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="A tea shop with a calm online storefront"
+              />
+              <button
+                className="btn btn-accent"
+                type="submit"
+                disabled={!prompt.trim() || promptWorking}
+              >
+                Make a project <ArrowRight size={14} />
+              </button>
+            </div>
+          </form>
+          <a
+            className="lp-how-link"
+            href="#how-it-works"
+            onClick={(event) => {
+              event.preventDefault();
+              document
+                .getElementById('how-it-works')
+                ?.scrollIntoView({
+                  behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+                    ? 'auto'
+                    : 'smooth',
+                });
+            }}
+          >
+            See how it works ↓
+          </a>
           <p className="lp-note">
             {demoMode
               ? 'The local engine runs offline — judge the pipeline before you spend a cent.'
@@ -558,20 +588,6 @@ export function Landing() {
                   : 'Click a block to select it'}
             </span>
           </div>
-          <div className="lp-prompt">
-            <Sparkles size={14} className="lp-prompt-mark" />
-            <input
-              value={prompt}
-              aria-label="Prompt muse"
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') build();
-              }}
-            />
-            <Button variant="primary" size="sm" onClick={build}>
-              Build
-            </Button>
-          </div>
           <div className="lp-try">
             <button type="button" className="lp-chip" onClick={() => addToMini('heading')}>
               + Heading
@@ -604,6 +620,7 @@ export function Landing() {
 
       <section className="lp-batch">
         <div className="lp-batch-copy lp-reveal">
+          <span className="lp-eyebrow">BUILT TO BE EDITED</span>
           <h2>One batch, one undo.</h2>
           <p className="lp-sub">
             The agent does not type a screen. It posts a batch of ops against the same tree
@@ -650,7 +667,8 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="lp-how lp-reveal">
+      <section className="lp-how lp-reveal" id="how-it-works">
+        <span className="lp-eyebrow">FROM IDEA TO APP</span>
         <h2>How it works</h2>
         <div className="lp-how-grid">
           <article>
@@ -673,6 +691,7 @@ export function Landing() {
 
       <section className="lp-presets">
         <div className="lp-presets-head lp-reveal">
+          <span className="lp-eyebrow">YOUR LOOK, YOUR WAY</span>
           <h2>Two design systems, not templates.</h2>
           <p className="lp-sub">
             The same five nodes below, rendered twice. Apply a preset and every screen
@@ -753,8 +772,8 @@ export function Landing() {
           zip.
         </p>
         <div className="lp-actions">
-          <Button variant="secondary" size="lg" onClick={() => setRoute('projects')}>
-            Your projects <ArrowRight size={16} />
+          <Button variant="secondary" size="lg" onClick={() => void go()}>
+            Start building <ArrowRight size={16} />
           </Button>
           <Button variant="ghost" size="lg" onClick={gallery}>
             See four real starting points
@@ -763,21 +782,38 @@ export function Landing() {
       </section>
 
       <footer className="lp-footer">
-        <span>museware — built with the muse family</span>
-        <span className="lp-footer-right">
+        <div>
+          <strong>Product</strong>
           <button type="button" className="lp-footer-link" onClick={gallery}>
             Gallery
           </button>
           <button
             type="button"
             className="lp-footer-link"
-            onClick={() => {
-              void go();
+            onClick={() => setRoute('projects')}
+          >
+            Your projects
+          </button>
+        </div>
+        <div>
+          <strong>Help</strong>
+          <a
+            href="#how-it-works"
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById('how-it-works')?.scrollIntoView();
             }}
           >
-            Editor
-          </button>
-        </span>
+            How it works
+          </a>
+        </div>
+        <div>
+          <strong>Identity</strong>
+          <span className="lp-footer-mark">
+            <Sparkles size={16} /> museware
+          </span>
+          <span>Built with the muse family</span>
+        </div>
       </footer>
     </div>
   );

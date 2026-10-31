@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react';
 import { createProject, useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
-import { runAgentTurn } from '../muse/loop';
+import { startPromptProject } from './promptProject';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { emptyScreen } from '../ops/screenOps';
 import { n, TEMPLATES, buildScreensFor } from '../muse/demo/build';
@@ -139,29 +139,6 @@ function starter(kind: 'tea' | 'habits'): ProjectDoc {
   return { ...doc, kind: 'web', screens: [screen] };
 }
 
-async function waitForConnection(): Promise<void> {
-  const known = () => {
-    const state = useAgent.getState();
-    return Boolean(
-      state.models || state.statusError || state.configured || state.houseKey !== 'absent',
-    );
-  };
-  if (known()) return;
-  await new Promise<void>((resolve, reject) => {
-    const unsubscribe = useAgent.subscribe(() => {
-      if (known()) {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve();
-      }
-    });
-    const timer = window.setTimeout(() => {
-      unsubscribe();
-      reject(new Error('Connection is not ready. Try again shortly.'));
-    }, 15000);
-  });
-}
-
 export function Home() {
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,21 +204,7 @@ export function Home() {
       return;
     }
     void act(async () => {
-      await waitForConnection();
-      if (useUi.getState().route !== 'projects') return;
-      if (useAgent.getState().busy) {
-        useUi
-          .getState()
-          .toast('Muse is already working — stop the current turn first.', 'warn');
-        return;
-      }
-      const id = await createSavedProject(createProject());
-      useUi.getState().setDraft(text);
-      await open(id);
-      // Start the same first-message path as Send, without opening the chat automatically.
-      useUi.getState().setDraft('');
-      useProject.getState().addRail({ role: 'user', text });
-      void runAgentTurn(text);
+      await startPromptProject(text, 'projects');
     });
   };
   const shown = projects

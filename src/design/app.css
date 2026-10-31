@@ -5506,3 +5506,175 @@ button.how-card .field-hint {
   background: var(--mw-surface-2);
   cursor: not-allowed;
 }
+
+/* Landing — the same rhythm and one prompt-first action, phone first. */
+.landing .lp-hero {
+  gap: var(--mw-space-6);
+  padding-block: var(--mw-space-6);
+}
+.landing .lp-hero h1 {
+  font-size: clamp(var(--mw-fs-28), 5vw, 56px);
+  line-height: 1.04;
+  margin-bottom: var(--mw-space-4);
+}
+.landing :is(.lp-lead, .lp-sub, .lp-family, .lp-close-line, .lp-how p) {
+  max-width: 65ch;
+}
+.lp-hero-prompt {
+  display: grid;
+  gap: var(--mw-space-2);
+  margin: var(--mw-space-5) 0 var(--mw-space-3);
+}
+.lp-hero-prompt label {
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+  font-weight: 600;
+}
+.lp-hero-prompt-controls {
+  display: flex;
+  gap: var(--mw-space-2);
+  flex-wrap: wrap;
+}
+.lp-hero-prompt-controls input {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: var(--mw-control-h);
+  padding: 0 var(--mw-space-3);
+  border: 1px solid var(--mw-border-strong);
+  border-radius: var(--mw-radius-md);
+  background: var(--mw-surface);
+  color: var(--mw-ink);
+  font: 500 var(--mw-fs-13) var(--mw-font-ui);
+}
+.lp-hero-prompt-controls button {
+  min-height: var(--mw-control-h);
+}
+.lp-how-link {
+  display: inline-block;
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-12);
+  text-decoration: none;
+}
+.lp-how-link:hover {
+  color: var(--mw-ink);
+}
+.lp-eyebrow {
+  display: block;
+  margin-bottom: var(--mw-space-2);
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.landing :is(.lp-batch, .lp-presets, .lp-how, .lp-close) {
+  padding-block: var(--mw-space-6);
+}
+.landing .lp-how {
+  max-width: none;
+  padding-inline: 0;
+}
+.landing .lp-how-grid,
+.landing .lp-preset-row {
+  gap: var(--mw-space-4);
+  margin-top: var(--mw-space-5);
+}
+.landing .lp-how-grid article {
+  padding: var(--mw-space-3);
+  border-radius: var(--mw-radius-lg);
+}
+.landing .lp-how-grid h3 {
+  margin: var(--mw-space-2) 0;
+}
+.landing .lp-how-grid p {
+  color: var(--mw-ink-2);
+}
+.landing .lp-family {
+  margin-bottom: var(--mw-space-5);
+}
+.landing :is(.lp-device, .lp-batch-frame, .lp-preset-render) {
+  aspect-ratio: 16 / 10;
+  height: auto;
+  padding: var(--mw-space-3) var(--mw-space-3) 0;
+}
+.landing :is(.lp-stage, .lp-preset, .lp-batch-frame) {
+  border-radius: var(--mw-radius-lg);
+  border-color: color-mix(in srgb, var(--mw-border) 80%, var(--mw-accent) 20%);
+}
+.landing :is(.lp-stage, .lp-preset, .lp-batch-frame) {
+  transition:
+    transform var(--mw-motion-fast) var(--mw-ease-out),
+    border-color var(--mw-motion-fast) var(--mw-ease-out);
+}
+.landing :is(.lp-stage, .lp-preset, .lp-batch-frame):hover {
+  transform: translateY(-1px);
+  border-color: var(--mw-accent);
+}
+.landing :is(.lp-caption, .lp-preset-blurb, .lp-stage-bar) {
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-2);
+}
+.landing .lp-preset-meta {
+  gap: var(--mw-space-1);
+  padding: var(--mw-space-3);
+}
+.landing .lp-footer {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--mw-space-5);
+  border-top: 1px solid var(--mw-border);
+  padding-block: var(--mw-space-5) var(--mw-space-6);
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-2);
+}
+.lp-footer > div {
+  display: grid;
+  gap: var(--mw-space-2);
+  justify-items: start;
+}
+.lp-footer strong {
+  color: var(--mw-ink);
+  font-weight: 600;
+}
+.lp-footer a {
+  color: inherit;
+}
+.lp-footer-mark {
+  display: inline-flex;
+  gap: var(--mw-space-1);
+  align-items: center;
+  font-weight: 700;
+}
+@media (max-width: 599px) {
+  .lp-hero-prompt-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lp-hero-prompt-controls input,
+  .lp-hero-prompt-controls button {
+    width: 100%;
+  }
+  .landing .lp-preset-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .landing .lp-footer {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing :is(.lp-stage, .lp-preset, .lp-batch-frame) {
+    transition: none;
+  }
+  .landing :is(.lp-stage, .lp-preset, .lp-batch-frame):hover {
+    transform: none;
+  }
+}
+/* Keep the single chrome row at its token height on phones too. */
+@media (max-width: 1023px) {
+  .topbar {
+    height: var(--mw-topbar-h);
+  }
+  .topbar-right .run-btn {
+    display: inline-flex;
+  }
+}
