@@ -179,7 +179,7 @@ function StateValueInput({
   return (
     <input
       className="input"
-      style={{ height: 28, fontSize: 11 }}
+      style={{ height: 28, fontSize: 11, flex: 1, minWidth: 0 }}
       value={draft}
       aria-label={label}
       placeholder={placeholder}
@@ -257,27 +257,39 @@ function ActionArgs({
       );
     case 'setState':
       return (
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div
+          className="set-state-args"
+          style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}
+        >
           {keyPicker(action.key)}
-          <input
-            list={listId}
-            className="input"
-            style={{ height: 28, fontSize: 11 }}
-            value={action.key}
-            aria-label="State key"
-            placeholder="key"
-            onChange={(e) =>
-              onChange({ type: 'setState', key: e.target.value, value: action.value })
-            }
-          />
-          <StateValueInput
-            value={action.value as string | number | boolean}
-            label="State value"
-            placeholder="value"
-            onCommit={(value) =>
-              onChange({ type: 'setState', key: action.key, value: parseStateValue(value) })
-            }
-          />
+          <div
+            className="set-state-inputs"
+            style={{ display: 'flex', gap: 4, minWidth: 0 }}
+          >
+            <input
+              list={listId}
+              className="input"
+              style={{ height: 28, fontSize: 11, flex: 1, minWidth: 0 }}
+              value={action.key}
+              aria-label="State key"
+              placeholder="key"
+              onChange={(e) =>
+                onChange({ type: 'setState', key: e.target.value, value: action.value })
+              }
+            />
+            <StateValueInput
+              value={action.value as string | number | boolean}
+              label="State value"
+              placeholder="value"
+              onCommit={(value) =>
+                onChange({
+                  type: 'setState',
+                  key: action.key,
+                  value: parseStateValue(value),
+                })
+              }
+            />
+          </div>
         </div>
       );
     case 'toggle':

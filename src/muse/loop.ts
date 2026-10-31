@@ -1559,7 +1559,7 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
       try {
         const buildResult = await executeToolLoop({
           messages: contextMessages(useProject.getState().doc, fillText),
-          maxCalls: 6,
+          maxCalls: 14,
           role: 'builder',
           effort: options.mode === 'fast' ? 'low' : 'medium',
           imageBudget,
@@ -1570,6 +1570,15 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
             note: 'Stopped before the screen finished.',
           });
           break;
+        }
+        if (!buildResult.finished) {
+          useAgent
+            .getState()
+            .patchPart(target.id, {
+              state: 'failed',
+              note: 'The builder stopped before finishing this screen.',
+            });
+          continue;
         }
         completed.add(target.id);
         useAgent.getState().patchPart(target.id, { state: 'done' });

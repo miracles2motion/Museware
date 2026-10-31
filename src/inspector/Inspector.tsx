@@ -487,7 +487,9 @@ export function Inspector() {
             )}
             {(info?.props || []).length === 0 && (
               <p className="field-hint">
-                This block has no content props. Its look lives in the Style tab.
+                {info?.container
+                  ? `${info.label} has no content of its own — what it holds and how it spaces it lives in the Style tab.`
+                  : 'This block has no content props. Its look lives in the Style tab.'}
               </p>
             )}
 

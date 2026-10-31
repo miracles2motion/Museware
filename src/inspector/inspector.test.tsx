@@ -101,6 +101,11 @@ describe('a Row gets the fields a Row needs', () => {
     openTab('Style');
   });
 
+  it('explains that container spacing and contents live in Style', () => {
+    openTab('Props');
+    expect(screen.getByText(/Row \(horizontal\) has no content of its own/i)).toBeTruthy();
+  });
+
   it('offers scoped redesign and restyle controls for a container', () => {
     expect(screen.getByRole('button', { name: /Redesign this section/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Restyle this widget/i })).toBeTruthy();
