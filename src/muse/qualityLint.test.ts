@@ -181,6 +181,64 @@ describe('quality lint and gate', () => {
     expect(useAgent.getState().reviewNotes).toContain('review offline');
     expect(lintScreen(useProject.getState().doc.screens[0])).toEqual([]);
   });
+  it('repairs an oversized screen padding before reviewer approval', async () => {
+    const doc = useProject.getState().doc;
+    doc.screens[0].root.children[0].props.text = 'Whole leaf tea';
+    doc.screens[0].root.children[1].props.subtitle = 'Fresh and fragrant';
+    doc.screens[0].root.styles.padding = '390px';
+    vi.mocked(chatStream)
+      .mockResolvedValueOnce(
+        reply([
+          {
+            id: 'repair',
+            name: 'edit_canvas',
+            arguments: JSON.stringify({
+              ops: [
+                {
+                  op: 'setStyles',
+                  id: doc.screens[0].root.id,
+                  styles: { padding: '24px' },
+                },
+              ],
+            }),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        reply([
+          {
+            id: 'done',
+            name: 'finish',
+            arguments: JSON.stringify({ summary: 'Repaired' }),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(reply([], 'PASS'));
+    await verifyGate('Tea landing', doc, ['tea']);
+    expect(useProject.getState().doc.screens[0].root.styles.padding).toBe('24px');
+    expect(useAgent.getState().verification).toBe('pass');
+    expect(
+      useProject
+        .getState()
+        .doc.rail.some(
+          (entry) => entry.text.includes('spacing') || entry.text.includes('96px'),
+        ),
+    ).toBe(true);
+  });
+  it('names the finish reason when the reviewer response is empty', async () => {
+    const doc = useProject.getState().doc;
+    doc.screens[0].root.children[0].props.text = 'Whole leaf tea';
+    doc.screens[0].root.children[1].props.subtitle = 'Fresh and fragrant';
+    vi.mocked(chatStream).mockResolvedValueOnce({
+      ...reply([], ''),
+      finishReason: 'length',
+    });
+    await verifyGate('Tea landing', doc, ['tea']);
+    expect(useAgent.getState().verification).toBe('unverified');
+    expect(useAgent.getState().reviewNotes).toContain(
+      'empty response (finish_reason: length)',
+    );
+  });
   it('never calls the reviewer or passes when repair fails and blockers remain', async () => {
     vi.mocked(chatStream).mockRejectedValue(new Error('offline'));
     await verifyGate('Tea landing', useProject.getState().doc, ['tea']);

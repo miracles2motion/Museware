@@ -63,24 +63,63 @@ export function defaultLook(tokens: DesignTokens): LookNumbers {
   };
 }
 
+/** A LOOK section ends at the next blueprint heading, never at viewport rules. */
+const LOOK_BLOCK =
+  /^\s*(?:#{1,6}\s*)?LOOK\s*:\s*([\s\S]*?)(?=\n\s*(?:#{1,6}\s*)?(?:SCREEN\b[^\n:]*:|STATE\s*:|WIRING\s*:|RULES\s*:|LOOK\s*:)|(?![\s\S]))/im;
+
 export function parseLook(text: string, tokens: DesignTokens): LookNumbers {
   const fallback = defaultLook(tokens);
-  const grab = (re: RegExp): number | null => {
-    const m = text.match(re);
-    return m ? Number(m[1]) : null;
+  const block = text.match(LOOK_BLOCK)?.[1] || '';
+  const number = '(-?\\d+(?:\\.\\d+)?)';
+  const unit = '\\s*(?:dp|px)?';
+  const grab = (...patterns: string[]): number | null => {
+    for (const pattern of patterns) {
+      const match = block.match(new RegExp(pattern, 'i'));
+      if (match) return Number(match[1]);
+    }
+    return null;
   };
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
   return {
-    pad:
-      grab(/(\d{1,3})\s*(?:dp|px)?\s*(?:outer\s*)?padding/i) ??
-      grab(/(\d{1,3})\s*(?:dp|px)/) ??
-      fallback.pad,
-    gap: grab(/(\d{1,3})\s*(?:dp|px)?\s*(?:between|gap)/i) ?? fallback.gap,
-    cardRadius:
-      grab(/radius\s*(\d{1,3})/i) ??
-      grab(/card radius\s*(\d{1,3})/i) ??
-      fallback.cardRadius,
-    title: grab(/title\s*(\d{1,3})/i) ?? fallback.title,
-    body: grab(/body\s*(\d{1,3})/i) ?? fallback.body,
+    pad: clamp(
+      grab(
+        `\\b(?:outer\\s+)?(?:pad|padding)\\s*[:=]?\\s*${number}${unit}`,
+        `${number}${unit}\\s*(?:outer\\s*)?padding\\b`,
+      ) ?? fallback.pad,
+      0,
+      64,
+    ),
+    gap: clamp(
+      grab(
+        `\\b(?:section\\s+)?gap\\s*[:=]?\\s*${number}${unit}`,
+        `${number}${unit}\\s*(?:between(?:\\s+sections)?|gap)\\b`,
+      ) ?? fallback.gap,
+      0,
+      64,
+    ),
+    cardRadius: clamp(
+      grab(
+        `\\b(?:card\\s+)?radius\\s*[:=]?\\s*${number}${unit}`,
+        `${number}${unit}\\s*(?:card\\s+)?radius\\b`,
+      ) ?? fallback.cardRadius,
+      0,
+      40,
+    ),
+    title: clamp(
+      grab(
+        `\\b(?:title|heading)\\s*[:=]?\\s*${number}${unit}`,
+        `${number}${unit}\\s*(?:title|heading)\\b`,
+      ) ?? fallback.title,
+      12,
+      80,
+    ),
+    body: clamp(
+      grab(`\\bbody\\s*[:=]?\\s*${number}${unit}`, `${number}${unit}\\s*body\\b`) ??
+        fallback.body,
+      10,
+      32,
+    ),
   };
 }
 

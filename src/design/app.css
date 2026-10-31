@@ -50,8 +50,37 @@ a {
   outline-offset: 2px;
 }
 
-/* Use native scrollbars so the browser and OS can honor overlay/auto-hide
-   and accessibility preferences instead of forcing permanent custom bars. */
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mw-scroll-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--mw-scroll-w);
+  height: var(--mw-scroll-w);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mw-scroll-thumb);
+  border-radius: var(--mw-radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mw-scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--mw-scroll-thumb-active);
+  background-clip: padding-box;
+}
 
 /* ---------- type helpers ---------- */
 .mono {

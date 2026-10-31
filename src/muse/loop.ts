@@ -944,7 +944,12 @@ async function reviewer(
     const text = result.text.trim();
     if (/^PASS\b/i.test(text)) return { verdict: 'pass', notes: '' };
     if (/^PROBLEMS/i.test(text)) return { verdict: 'problems', notes: text.slice(0, 1200) };
-    return { verdict: text ? 'problems' : 'error', notes: text.slice(0, 1200) };
+    return text
+      ? { verdict: 'problems', notes: text.slice(0, 1200) }
+      : {
+          verdict: 'error',
+          notes: `empty response (finish_reason: ${result.finishReason || 'unknown'})`,
+        };
   } catch (err) {
     return {
       verdict: 'error',
@@ -1572,12 +1577,10 @@ export async function runFillQueue(options: FillOptions): Promise<void> {
           break;
         }
         if (!buildResult.finished) {
-          useAgent
-            .getState()
-            .patchPart(target.id, {
-              state: 'failed',
-              note: 'The builder stopped before finishing this screen.',
-            });
+          useAgent.getState().patchPart(target.id, {
+            state: 'failed',
+            note: 'The builder stopped before finishing this screen.',
+          });
           continue;
         }
         completed.add(target.id);

@@ -4,7 +4,7 @@ import type { ComponentNode, ScreenDoc } from '../types/tree';
 
 export interface LintFinding {
   severity: 'block' | 'warn';
-  code: 'scaffold' | 'imagery' | 'markup' | 'cramped' | 'button' | 'token';
+  code: 'scaffold' | 'imagery' | 'markup' | 'cramped' | 'button' | 'token' | 'spacing';
   nodeId: string;
   message: string;
 }
@@ -91,6 +91,38 @@ export function lintScreen(
       node.props.text.trim().length < 3
     )
       add(node, 'warn', 'button', 'Button text is shorter than 3 characters');
+    // Inspect shorthands, side-specific values, and responsive overrides. Only
+    // literal pixels/unitless values are measured; percentages and tokens are
+    // not pixel values and must not be mistaken for them.
+    const excessiveSpacing = (value: unknown): boolean => {
+      if (typeof value === 'number') return Math.abs(value) > 96;
+      if (value && typeof value === 'object')
+        return Object.values(value).some(excessiveSpacing);
+      if (typeof value !== 'string') return false;
+      return [...value.matchAll(/(?<![\w.%#-])-?\d+(?:\.\d+)?(?:px|dp)?(?![\w.%])/gi)].some(
+        (match) => Math.abs(Number.parseFloat(match[0])) > 96,
+      );
+    };
+    const checkSpacing = (styles: Record<string, unknown>, prefix = '') => {
+      for (const [key, value] of Object.entries(styles)) {
+        if (key === 'responsive' && value && typeof value === 'object') {
+          for (const [breakpoint, override] of Object.entries(value))
+            if (override && typeof override === 'object')
+              checkSpacing(override as Record<string, unknown>, `${breakpoint}.`);
+        } else if (
+          /^(?:padding|margin|gap|rowGap|columnGap)(?:$|[A-Z-])/i.test(key) &&
+          excessiveSpacing(value)
+        ) {
+          add(
+            node,
+            'block',
+            'spacing',
+            `${prefix}${key} exceeds 96px, likely a misread viewport width.`,
+          );
+        }
+      }
+    };
+    checkSpacing(node.styles);
     const checkStyles = (styles: Record<string, unknown>) => {
       for (const [key, value] of Object.entries(styles)) {
         if (value && typeof value === 'object')
