@@ -27,7 +27,27 @@ const alternatives = names.map((name, index) => {
   if (index >= 11) return `\\b${name}\\b`;
   return name;
 });
-const pattern = new RegExp(`(?:${alternatives.join('|')})`, 'gi');
+const platformCases = [
+  ['i', 'phone'],
+  ['i', 'pad'],
+  ['mac', 'book'],
+  ['mac', 'os'],
+  ['i', 'os', ' 27'],
+  ['win', 'dows', ' 11'],
+  ['mi', 'ca'],
+  ['liquid', ' ', 'glass'],
+  ['dynamic', ' ', 'island'],
+  ['cuper', 'tino'],
+  ['fluent', ' ', 'design'],
+].map((parts) => parts.join(''));
+const platformPatterns = platformCases
+  .map((name, index) => {
+    if (index === 4) return `${name.slice(0, -3)}\\s+2[0-9]`;
+    if (index === 5) return `${name.slice(0, -3)}\\s*1[01]`;
+    return name.replace(' ', '\\s+');
+  })
+  .map((term) => `\\b${term}\\b`);
+const pattern = new RegExp(`(?:${alternatives.concat(platformPatterns).join('|')})`, 'gi');
 function matches(text) {
   return [...text.matchAll(pattern)].map((hit) => hit[0]);
 }
@@ -46,7 +66,22 @@ if (process.argv.includes('--self-test')) {
     if (!matches(`Example: ${name.toUpperCase()}!`).length)
       throw new Error('brand checker missed a forbidden name');
   }
-  if (matches('canvas frameRef -apple-system Inter SF Pro Meta muse-image').length)
+  for (const name of platformCases) {
+    if (!matches(`Example: ${name.toUpperCase()}!`).length)
+      throw new Error('brand checker missed a forbidden platform reference');
+  }
+  const allowedPlatforms = [
+    ['i', 'os'],
+    ['and', 'roid'],
+    ['win', 'dows'],
+  ]
+    .map((p) => p.join(''))
+    .join(' ');
+  if (
+    matches(
+      `canvas frameRef -apple-system Inter SF Pro Segoe UI Meta muse-image ${allowedPlatforms}`,
+    ).length
+  )
     throw new Error('brand checker flagged an allowed term');
   console.log('✓ brand checker rejects forbidden names and accepts ordinary terms');
 } else {

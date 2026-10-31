@@ -3970,7 +3970,7 @@ button.how-card .field-hint {
   }
 }
 
-/* Very small phones (iPhone SE, 320px): keep the chrome, shrink the type. */
+/* Very small phones (320px): keep the chrome, shrink the type. */
 @media (max-width: 380px) {
   .mobile-bottom-bar button {
     font-size: 9px;

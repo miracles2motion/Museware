@@ -273,7 +273,8 @@ export function OnboardingModal({ onClose }: { onClose: () => void }) {
             <div>
               <strong>Import a preset</strong>
               <p className="field-hint">
-                iPhone 17 Pro Max or a Windows 11 Pro frame, in one tap.
+                Two complete design systems — Glasshouse and Prism — applied to a live frame
+                in one tap.
               </p>
             </div>
           </button>
