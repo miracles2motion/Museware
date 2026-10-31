@@ -2280,17 +2280,17 @@ a {
 .lp-hero h1 {
   margin: 0 0 20px;
   font-size: var(--mw-display);
-  line-height: 0.94;
+  line-height: 0.98;
   letter-spacing: -0.045em;
   font-weight: 700;
 }
 
 .lp-lead {
   margin: 0 0 26px;
-  max-width: 44ch;
-  color: var(--mw-ink);
+  max-width: 42ch;
+  color: var(--mw-ink-2);
   font-size: var(--mw-lead);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .lp-actions {
@@ -4765,17 +4765,14 @@ button.how-card .field-hint {
   padding: var(--mw-space-8);
   color: var(--mw-ink);
 }
-.projects-list {
+.project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--mw-space-4);
   margin: var(--mw-space-5) 0;
 }
 .projects-card {
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-radius-lg);
-  background: var(--mw-surface);
-  padding: var(--mw-space-4);
+  min-width: 0;
 }
 .projects-card p {
   color: var(--mw-ink-2);
@@ -4784,6 +4781,11 @@ button.how-card .field-hint {
   display: flex;
   flex-wrap: wrap;
   gap: var(--mw-space-2);
+}
+@media (max-width: 420px) {
+  .project-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .thinking-toggle {
   display: flex;
@@ -4939,36 +4941,112 @@ button.how-card .field-hint {
   margin-bottom: var(--mw-space-4);
 }
 .projects-card {
-  transition:
-    transform var(--mw-motion-base),
-    box-shadow var(--mw-motion-base);
+  transition: transform var(--mw-motion-base);
 }
 .projects-card:hover {
   transform: translateY(calc(-1 * var(--mw-space-1)));
-  box-shadow: var(--mw-shadow-e2);
 }
 .projects-home :focus-visible {
   outline: 2px solid var(--mw-accent);
   outline-offset: var(--mw-space-1);
 }
 .project-preview {
-  height: var(--mw-project-preview-height);
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-radius: var(--mw-radius-md);
+  border: 1px solid color-mix(in srgb, var(--mw-border) 80%, var(--mw-accent) 20%);
+  border-radius: var(--mw-radius-lg);
   background: var(--mw-surface-2);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 .project-preview-frame {
-  width: var(--mw-project-preview-width);
-  height: var(--mw-project-preview-frame-height);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: 0;
-  transform: scale(var(--mw-project-preview-scale));
-  transform-origin: top left;
   pointer-events: none;
 }
 .project-preview-empty {
   display: grid;
   place-items: center;
+  width: 100%;
+  height: 100%;
   color: var(--mw-ink-2);
+}
+.project-meta {
+  padding: var(--mw-space-3) var(--mw-space-1);
+}
+.project-meta h2 {
+  margin: 0;
+  font-size: var(--mw-fs-14);
+  color: var(--mw-ink);
+}
+.project-meta p {
+  margin: var(--mw-space-1) 0 var(--mw-space-2);
+  font-size: var(--mw-fs-12);
+}
+.project-chips {
+  display: flex;
+  gap: var(--mw-space-2);
+  flex-wrap: wrap;
+}
+.projects-actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mw-motion-base);
+}
+.projects-card:hover .projects-actions,
+.projects-card:focus-within .projects-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .projects-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.project-prompt {
+  margin: var(--mw-space-5) 0;
+  padding: var(--mw-space-6);
+  border-radius: var(--mw-radius-lg);
+  border: 1px solid var(--mw-accent-soft);
+  background: linear-gradient(135deg, var(--mw-accent-subtle), var(--mw-surface));
+}
+.project-prompt h2 {
+  margin: var(--mw-space-2) 0;
+  font-size: var(--mw-fs-20);
+  color: var(--mw-ink);
+}
+.project-prompt p {
+  color: var(--mw-ink-2);
+  margin: 0 0 var(--mw-space-4);
+}
+.project-prompt-eyebrow {
+  color: var(--mw-accent);
+  font-size: var(--mw-fs-11);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.project-prompt-controls {
+  display: flex;
+  gap: var(--mw-space-2);
+  flex-wrap: wrap;
+}
+.project-prompt-controls input {
+  min-width: 0;
+  flex: 1 1 240px;
+  padding: var(--mw-space-3);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-md);
+  color: var(--mw-ink);
+  background: var(--mw-surface);
+  font: inherit;
 }
 .projects-starters {
   display: flex;

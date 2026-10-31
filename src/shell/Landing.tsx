@@ -430,14 +430,6 @@ export function Landing() {
         </nav>
 
         <div className="lp-nav-actions">
-          <Button
-            variant="accent"
-            onClick={() => {
-              void go();
-            }}
-          >
-            Start building
-          </Button>
           <button
             type="button"
             className="lp-menu-btn"
@@ -497,9 +489,8 @@ export function Landing() {
             Watch it build.
           </h1>
           <p className="lp-lead">
-            A real editor with a real agent inside it. The model plans a blueprint, writes
-            batched ops into the same tree you drag, and a verify gate has to pass before it
-            shows you anything.
+            Describe it. Approve the plan. Watch it build. Muse turns your idea into a
+            working site you can edit, run, and make your own.
           </p>
           <div className="lp-actions">
             <Button
@@ -511,8 +502,8 @@ export function Landing() {
             >
               Start building <ArrowRight size={16} />
             </Button>
-            <Button variant="secondary" size="lg" onClick={gallery}>
-              See what it builds
+            <Button variant="secondary" size="lg" onClick={() => setRoute('projects')}>
+              Your projects
             </Button>
           </div>
           <p className="lp-note">
@@ -762,14 +753,8 @@ export function Landing() {
           zip.
         </p>
         <div className="lp-actions">
-          <Button
-            variant="accent"
-            size="lg"
-            onClick={() => {
-              void go();
-            }}
-          >
-            Start building <ArrowRight size={16} />
+          <Button variant="secondary" size="lg" onClick={() => setRoute('projects')}>
+            Your projects <ArrowRight size={16} />
           </Button>
           <Button variant="ghost" size="lg" onClick={gallery}>
             See four real starting points

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles } from 'lucide-react';
 import { createProject, useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
+import { useAgent } from '../store/useAgent';
+import { runAgentTurn } from '../muse/loop';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { emptyScreen } from '../ops/screenOps';
 import { n, TEMPLATES, buildScreensFor } from '../muse/demo/build';
@@ -29,30 +31,75 @@ export function relativeUpdated(at: number, now = Date.now()): string {
   return `Updated ${days}d ago`;
 }
 
-function ProjectPreview({ doc }: { doc: ProjectDoc | null | undefined }) {
+export function previewScale(cardWidth: number): number {
+  return cardWidth > 0 ? cardWidth / 390 : 1;
+}
+
+function ProjectPreview({
+  doc,
+  name,
+  onOpen,
+  disabled,
+}: {
+  doc: ProjectDoc | null | undefined;
+  name: string;
+  onOpen: () => void;
+  disabled: boolean;
+}) {
   const [body, setBody] = useState<HTMLElement | null>(null);
+  const [width, setWidth] = useState(390);
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => {
+      if (element.clientWidth) setWidth(element.clientWidth);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const screen = doc?.screens.find((item) => item.entry) || doc?.screens[0];
-  if (!doc || !screen)
-    return <div className="project-preview project-preview-empty">No screen yet</div>;
   return (
-    <div className="project-preview" aria-label={`Preview of ${doc.name}`}>
+    <button
+      type="button"
+      className="project-preview"
+      ref={ref}
+      disabled={disabled}
+      aria-label={`Open ${name}`}
+      onClick={onOpen}
+    >
       <iframe
-        title={`Preview of ${doc.name}`}
+        title={`Preview of ${name}`}
         tabIndex={-1}
         aria-hidden="true"
         className="project-preview-frame"
-        srcDoc="<!doctype html><html><head><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}</style></head><body></body></html>"
+        srcDoc="<!doctype html><html><head><style>:root{--mw-project-viewport-width:390px}html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}</style></head><body></body></html>"
         onLoad={(e) => setBody(e.currentTarget.contentDocument?.body || null)}
       />
-      {body &&
+      {doc &&
+        screen &&
+        body &&
         createPortal(
-          <>
+          <div
+            style={{
+              width: 'var(--mw-project-viewport-width)',
+              transform: `scale(${previewScale(width)})`,
+              transformOrigin: 'top left',
+            }}
+          >
             <CanvasStyle doc={doc} />
             <NodeView doc={doc} screen={screen} mode="edit" />
-          </>,
+          </div>,
           body,
         )}
-    </div>
+      {!screen && <span className="project-preview-empty">No screen yet</span>}
+    </button>
   );
 }
 
@@ -92,6 +139,29 @@ function starter(kind: 'tea' | 'habits'): ProjectDoc {
   return { ...doc, kind: 'web', screens: [screen] };
 }
 
+async function waitForConnection(): Promise<void> {
+  const known = () => {
+    const state = useAgent.getState();
+    return Boolean(
+      state.models || state.statusError || state.configured || state.houseKey !== 'absent',
+    );
+  };
+  if (known()) return;
+  await new Promise<void>((resolve, reject) => {
+    const unsubscribe = useAgent.subscribe(() => {
+      if (known()) {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      }
+    });
+    const timer = window.setTimeout(() => {
+      unsubscribe();
+      reject(new Error('Connection is not ready. Try again shortly.'));
+    }, 15000);
+  });
+}
+
 export function Home() {
   const [projects, setProjects] = useState<ProjectMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +170,12 @@ export function Home() {
   const [working, setWorking] = useState(false);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
+  const [idea, setIdea] = useState('');
+  const [example, setExample] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setExample((value) => (value + 1) % 2), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
   const ready = useProject((s) => s.ready);
   const refresh = async () => {
     const items = await listProjects();
@@ -130,11 +206,43 @@ export function Home() {
       setError('');
       await fn();
       await refresh();
-    } catch {
-      setError('Could not complete that action. Check device storage and try again.');
+    } catch (err) {
+      setError(
+        err instanceof Error &&
+          err.message === 'Connection is not ready. Try again shortly.'
+          ? err.message
+          : 'Could not complete that action. Check device storage and try again.',
+      );
     } finally {
       setWorking(false);
     }
+  };
+  const makeProject = () => {
+    const text = idea.trim();
+    if (!text || working || !ready) return;
+    if (useAgent.getState().busy) {
+      useUi
+        .getState()
+        .toast('Muse is already working — stop the current turn first.', 'warn');
+      return;
+    }
+    void act(async () => {
+      await waitForConnection();
+      if (useUi.getState().route !== 'projects') return;
+      if (useAgent.getState().busy) {
+        useUi
+          .getState()
+          .toast('Muse is already working — stop the current turn first.', 'warn');
+        return;
+      }
+      const id = await createSavedProject(createProject());
+      useUi.getState().setDraft(text);
+      await open(id);
+      // Start the same first-message path as Send, without opening the chat automatically.
+      useUi.getState().setDraft('');
+      useProject.getState().addRail({ role: 'user', text });
+      void runAgentTurn(text);
+    });
   };
   const shown = projects
     .filter((item) => item.name.toLowerCase().includes(query.toLowerCase().trim()))
@@ -169,6 +277,42 @@ export function Home() {
           New project
         </button>
       </header>
+      <form
+        className="project-prompt"
+        onSubmit={(event) => {
+          event.preventDefault();
+          makeProject();
+        }}
+      >
+        <div>
+          <span className="project-prompt-eyebrow">MAKE SOMETHING REAL</span>
+          <h2>
+            {!loading && projects.length === 0
+              ? 'Describe your first project — muse does the rest'
+              : 'Describe your idea and watch it build.'}
+          </h2>
+          <p>Start with an idea. Approve the plan. Get a working site.</p>
+        </div>
+        <div className="project-prompt-controls">
+          <input
+            aria-label="Describe your idea"
+            value={idea}
+            onChange={(event) => setIdea(event.target.value)}
+            placeholder={
+              example === 0
+                ? 'A tea shop with a calm online storefront'
+                : 'A habit tracker for a healthier week'
+            }
+          />
+          <button
+            type="submit"
+            className="btn btn-accent"
+            disabled={!idea.trim() || working || !ready}
+          >
+            Make a project →
+          </button>
+        </div>
+      </form>
       {error && <p role="alert">{error}</p>}
       {loading && <p role="status">Loading projects…</p>}
       {projects.length > 0 && (
@@ -235,23 +379,33 @@ export function Home() {
         </div>
       )}
       {projects.length > 0 && !shown.length && <p>No projects match your search.</p>}
-      <div className="projects-list">
+      <div className="project-grid">
         {shown.map((project) => (
           <article className="projects-card" key={project.id}>
-            <ProjectPreview doc={docs[project.id]} />
-            <h2>{project.name}</h2>
-            <p>
-              {relativeUpdated(project.updatedAt)} · {project.screenCount}{' '}
-              {project.screenCount === 1 ? 'screen' : 'screens'}{' '}
-              <span className="chip chip-static">
-                {docs[project.id]?.kind || project.kind || 'web'}
-              </span>
-            </p>
+            <ProjectPreview
+              key={`${project.id}:${project.updatedAt}`}
+              doc={docs[project.id]}
+              name={project.name}
+              disabled={working || !ready}
+              onOpen={() => void act(() => open(project.id))}
+            />
+            <div className="project-meta">
+              <h2>{project.name}</h2>
+              <p>{relativeUpdated(project.updatedAt)}</p>
+              <div className="project-chips">
+                <span className="chip chip-static">
+                  {project.screenCount} {project.screenCount === 1 ? 'screen' : 'screens'}
+                </span>
+                <span className="chip chip-static">
+                  {docs[project.id]?.kind || project.kind || 'web'}
+                </span>
+              </div>
+            </div>
             <div className="projects-actions">
               <button
                 type="button"
                 disabled={working || !ready}
-                className="btn btn-sm"
+                className="btn btn-sm btn-accent"
                 onClick={() => void act(() => open(project.id))}
               >
                 Open
@@ -259,7 +413,7 @@ export function Home() {
               <button
                 type="button"
                 disabled={working || !ready}
-                className="btn btn-sm"
+                className="btn btn-sm btn-ghost"
                 onClick={() => {
                   const name = window.prompt('Project name', project.name);
                   if (name?.trim()) void act(() => renameSavedProject(project.id, name));
@@ -270,7 +424,7 @@ export function Home() {
               <button
                 type="button"
                 disabled={working || !ready}
-                className="btn btn-sm"
+                className="btn btn-sm btn-ghost"
                 onClick={() =>
                   void act(async () => {
                     const id = await duplicateSavedProject(project.id);
@@ -283,7 +437,7 @@ export function Home() {
               <button
                 type="button"
                 disabled={working || !ready}
-                className="btn btn-sm"
+                className="btn btn-sm btn-ghost"
                 onClick={() => {
                   if (window.confirm(`Delete “${project.name}”? This cannot be undone.`))
                     void act(() => deleteSavedProject(project.id));

@@ -263,10 +263,7 @@
 }
 
 :root {
-  --mw-project-preview-width: 320px;
-  --mw-project-preview-height: 160px;
-  --mw-project-preview-frame-height: 228px;
-  --mw-project-preview-scale: 0.7;
+  --mw-project-viewport-width: 390px;
   --mw-boot-progress-width: 180px;
   --mw-boot-progress-height: 3px;
 }
