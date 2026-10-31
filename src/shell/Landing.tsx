@@ -525,13 +525,11 @@ export function Landing() {
             href="#how-it-works"
             onClick={(event) => {
               event.preventDefault();
-              document
-                .getElementById('how-it-works')
-                ?.scrollIntoView({
-                  behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-                    ? 'auto'
-                    : 'smooth',
-                });
+              document.getElementById('how-it-works')?.scrollIntoView({
+                behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+                  ? 'auto'
+                  : 'smooth',
+              });
             }}
           >
             See how it works ↓
@@ -673,16 +671,75 @@ export function Landing() {
         <div className="lp-how-grid">
           <article>
             <span>01</span>
+            <div className="lp-mock lp-mock--blueprint" aria-hidden="true">
+              <div className="lp-mock-header">✎ Blueprint</div>
+              <div className="lp-mock-screen">Home screen</div>
+              <div className="lp-mock-lines">
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
+              <span className="lp-mock-approve">Approve plan</span>
+            </div>
             <h3>Blueprint</h3>
             <p>Muse proposes the screens, layout and wiring.</p>
           </article>
           <article>
             <span>02</span>
+            <div className="lp-mock lp-mock--choice" aria-hidden="true">
+              <div className="lp-mock-header">Choose a direction</div>
+              {PRESETS.map((preset, index) => {
+                const colors = preset.tokens.openuiTheme.light_colors;
+                const swatches =
+                  index === 0
+                    ? [
+                        colors.openui_accent,
+                        colors.openui_accent_pressed,
+                        colors.openui_accent_subtle,
+                        colors.openui_border_accent,
+                      ]
+                    : [
+                        colors.openui_bg,
+                        colors.openui_sunk,
+                        colors.openui_text_secondary,
+                        colors.openui_text_primary,
+                      ];
+                return (
+                  <div className="lp-mock-option" data-picked={index === 0} key={preset.id}>
+                    <span className="lp-mock-option-name">
+                      {index === 0 ? 'Bright & clear' : 'Quiet & neutral'}
+                    </span>
+                    <span className="lp-mock-swatches">
+                      {swatches.map((color, dot) => (
+                        <i key={dot} style={{ background: color }} />
+                      ))}
+                    </span>
+                    {index === 0 && <span className="lp-mock-picked">✓ Picked</span>}
+                  </div>
+                );
+              })}
+            </div>
             <h3>Approve</h3>
             <p>Review and adjust the plan before the build starts.</p>
           </article>
           <article>
             <span>03</span>
+            <div className="lp-mock lp-mock--run" aria-hidden="true">
+              <div className="lp-mock-device">
+                <div className="lp-mock-hero" />
+                <div className="lp-mock-grid">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              </div>
+              <div className="lp-mock-status">
+                <span>✓ verified</span>
+                <span className="lp-mock-run-chip">▶ run</span>
+              </div>
+            </div>
             <h3>Verified build</h3>
             <p>Watch the canvas fill, then review and run your app.</p>
           </article>
