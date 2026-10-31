@@ -17,7 +17,7 @@ import { useProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
 import { runScopedAction } from '../muse/loop';
 import { useUi, type Breakpoint } from '../store/useUi';
-import type { Action, ComponentNode, StyleSet } from '../types/tree';
+import type { Action, StyleSet } from '../types/tree';
 import { ICON_NAMES, eventsFor, isContainerType, spec } from '../types/library';
 import { StyleTab } from './StyleTab';
 import { boundKeys, findNode, findParent } from '../ops/treeUtils';
@@ -27,6 +27,8 @@ import { PRESETS } from '../design/presets';
 import { Icon } from '../canvas/Icon';
 import { Segmented } from '../components/ui';
 import { ActionEditor } from './ActionEditor';
+import { DataDrawer } from './DataDrawer';
+import { Bindings } from './Bindings';
 import { illustrate } from '../muse/cards';
 import { ClearOverride, NumberField, SelectField, TextField, ToggleField } from './Fields';
 
@@ -105,6 +107,7 @@ export function Inspector() {
   const toast = useUi((s) => s.toast);
   const propertiesOpen = useUi((s) => s.propertiesOpen);
   const [tab, setTab] = useState<Tab>('props');
+  const [dataDrawer, setDataDrawer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [compName, setCompName] = useState('');
   const [compNote, setCompNote] = useState('');
@@ -501,15 +504,32 @@ export function Inspector() {
                                 value={String(value)}
                                 onCommit={(next) => writeProps({ [def.key]: next })}
                               />
+                              {String(value).trim() && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={() =>
+                                      setDataDrawer(
+                                        dataDrawer === String(value) ? null : String(value),
+                                      )
+                                    }
+                                  >
+                                    Rows: {screen.mockData?.[String(value)]?.length || 0} ·
+                                    View
+                                  </button>
+                                  {dataDrawer === String(value) && (
+                                    <DataDrawer
+                                      key={`${screen.id}:${String(value)}`}
+                                      screenId={screen.id}
+                                      dataKey={String(value)}
+                                      onClose={() => setDataDrawer(null)}
+                                    />
+                                  )}
+                                </>
+                              )}
                               {keys.length > 0 && (
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    flexWrap: 'wrap',
-                                    gap: 'var(--mw-space-1)',
-                                    marginTop: -4,
-                                  }}
-                                >
+                                <div className="data-key-options">
                                   {keys.map((key) => (
                                     <button
                                       type="button"
@@ -891,6 +911,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
   const startPrompt = useUi((s) => s.startPrompt);
   const setActivePreset = useUi((s) => s.setActivePreset);
   const activePreset = useUi((s) => s.activePreset);
+  const runMode = useUi((s) => s.runMode);
   const screen = doc.screens.find((s) => s.id === screenId);
 
   if (!screen) return null;
@@ -904,20 +925,6 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
     if (ok) toast(ok);
     return true;
   };
-
-  const binds = new Set<string>();
-  const walk = (n: ComponentNode) => {
-    if (n.props.bindKey) binds.add(String(n.props.bindKey));
-    if (n.visibleWhen?.key) binds.add(n.visibleWhen.key);
-    for (const ev of Object.values(n.events || {})) {
-      for (const a of ev || []) {
-        if (a.type === 'setState' || a.type === 'toggle' || a.type === 'when')
-          binds.add(a.key);
-      }
-    }
-    n.children.forEach(walk);
-  };
-  walk(screen.root);
 
   return (
     <aside className="inspector" data-open={open}>
@@ -1008,26 +1015,7 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
           </p>
         </div>
 
-        <div className="insp-section">
-          <div className="insp-section-head">
-            <span className="eyebrow">Bindings on this screen</span>
-            <span className="faint mw-shell-util-12">{binds.size}</span>
-          </div>
-          {binds.size === 0 ? (
-            <p className="field-hint">
-              No state yet. Add a <span className="mono">bindKey</span> to an input to make
-              the screen stateful.
-            </p>
-          ) : (
-            <div className="mw-shell-util-13">
-              {[...binds].map((key) => (
-                <span className="chip chip-static mono mw-shell-util-12" key={key}>
-                  {key}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        <Bindings screen={screen} running={runMode} />
 
         <div className="insp-section">
           <div className="insp-section-head">
@@ -1056,11 +1044,27 @@ function ScreenInspector({ screenId, open }: { screenId: string; open: boolean }
                 }}
               >
                 <span className="preset-swatches">
-                  <i style={{ background: preset.tokens.openuiTheme.brand_color }} />
-                  <i style={{ background: preset.tokens.openuiTheme.secondary_color }} />
-                  <i
-                    style={{ background: preset.tokens.openuiTheme.light_colors.openui_bg }}
-                  />
+                  <svg aria-hidden="true">
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill={preset.tokens.openuiTheme.brand_color}
+                    />
+                  </svg>
+                  <svg aria-hidden="true">
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill={preset.tokens.openuiTheme.secondary_color}
+                    />
+                  </svg>
+                  <svg aria-hidden="true">
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill={preset.tokens.openuiTheme.light_colors.openui_bg}
+                    />
+                  </svg>
                 </span>
                 <span>{preset.name}</span>
               </button>

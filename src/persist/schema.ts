@@ -37,15 +37,17 @@ export const railEntrySchema = z
   })
   .passthrough();
 
+export const mockRowsSchema = z.array(
+  z.record(z.union([z.string(), z.number().finite(), z.boolean()])),
+);
+
 export const screenSchema = z
   .object({
     id: z.string().min(1).max(31),
     name: z.string().min(1).max(80),
     root: nodeSchema,
     entry: z.boolean().optional(),
-    mockData: z
-      .record(z.array(z.record(z.union([z.string(), z.number(), z.boolean()]))))
-      .optional(),
+    mockData: z.record(mockRowsSchema).optional(),
   })
   .passthrough();
 

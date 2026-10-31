@@ -143,6 +143,8 @@ export function materializeCss(tokens: DesignTokens, scope = ':root'): string {
   lines.push(...colorBlock(light).map((l) => `${l};`));
   lines.push(...scaleLines(scales).map((l) => `${l};`));
   lines.push(`--font-heading:${heading};`);
+  lines.push(`--openui-font-heading:var(--font-heading);`);
+  lines.push(`--openui-font-body:var(--font-body);`);
   lines.push(`--font-body:${body};`);
   lines.push('}');
   lines.push(
@@ -249,6 +251,8 @@ export function knownTokenNames(tokens: DesignTokens): Set<string> {
   names.add('type-body');
   names.add('type-label');
   for (const name of ['shadow-card', 'shadow-raised', 'shadow-glow']) names.add(name);
+  names.add('openui-font-heading');
+  names.add('openui-font-body');
   names.add('font-heading');
   names.add('font-body');
   return names;

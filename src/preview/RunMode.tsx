@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
+import { useRunState } from '../store/useRunState';
+import { Bindings } from '../inspector/Bindings';
 import { useAgent } from '../store/useAgent';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { screenSlugForLabel, type RuntimeApi } from './runtime';
@@ -74,6 +76,10 @@ export function RunMode() {
     return () => observer.disconnect();
   }, []);
   const [state, setState] = useState<Record<string, unknown>>({});
+  useEffect(() => {
+    useRunState.setState({ values: state });
+  }, [state]);
+  useEffect(() => () => useRunState.setState({ values: {} }), []);
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const toastSeq = useRef(0);
@@ -247,6 +253,10 @@ export function RunMode() {
             <X size={15} />
           </button>
         </div>
+        <details className="run-bindings">
+          <summary>Screen state</summary>
+          <Bindings screen={screen} running />
+        </details>
         <div className="run-stage" ref={stageRef} data-scroll={scrollable}>
           <CanvasStyle doc={doc} />
           {scrollable ? (

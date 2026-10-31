@@ -74,12 +74,7 @@ export function TextField({
         />
       ) : (
         <input
-          className="input"
-          style={
-            mono
-              ? { fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }
-              : undefined
-          }
+          className={mono ? 'input field-mono' : 'input'}
           value={d.draft}
           placeholder={placeholder}
           list={list}
@@ -188,11 +183,7 @@ export function ToggleField({
       />
       <span>
         {label}
-        {hint && (
-          <span className="field-hint" style={{ display: 'block' }}>
-            {hint}
-          </span>
-        )}
+        {hint && <span className="field-hint field-hint-block">{hint}</span>}
       </span>
     </label>
   );
@@ -253,78 +244,60 @@ export function ColorField({
   return (
     <div className="field color-field">
       <span className="field-label">
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--mw-space-1-5)',
-          }}
-        >
+        <span className="field-label-inline">
           {label}
           <OverrideDot on={overridden} />
         </span>
-        <span
-          className="mono"
-          style={{ fontSize: 'var(--mw-fs-10)', color: 'var(--mw-ink-3)' }}
-        >
-          {d.draft ? d.draft.replace('var(--openui-', '').replace(')', '') : 'none'}
-        </span>
       </span>
-      <details>
-        <summary>More tokens</summary>
-        <div className="swatch-grid">
-          {allowTransparent && (
-            <button
-              type="button"
-              className="swatch"
-              aria-label="Transparent"
-              data-selected={!d.draft}
-              style={{
-                background:
-                  'linear-gradient(135deg, transparent 44%, var(--mw-danger) 44%, var(--mw-danger) 56%, transparent 56%)',
-                borderColor: 'var(--mw-border)',
-              }}
-              onClick={() => onCommit('')}
-            />
-          )}
-          {COLOR_KEYS.map((key) => (
-            <button
-              type="button"
-              key={key}
-              className="swatch"
-              aria-label={key.replace(/_/g, '-')}
-              data-tip={key.replace(/_/g, '-')}
-              data-selected={currentVar === key}
-              style={{ background: colors[key] }}
-              onClick={() => onCommit(`var(--${key.replace(/_/g, '-')})`)}
-            />
-          ))}
-        </div>
-      </details>
-      <div className="token-row">
-        <span
-          className="color-field-swatch"
-          aria-hidden="true"
-          style={{
-            background:
-              colors[currentVar as keyof typeof colors] || d.draft || 'transparent',
-          }}
-        />
+      <div className="color-field-row">
+        <svg className="color-field-swatch" aria-hidden="true">
+          <rect
+            width="100%"
+            height="100%"
+            fill={colors[currentVar as keyof typeof colors] || d.draft || 'transparent'}
+          />
+        </svg>
         <input
-          className="input"
+          aria-label={label}
+          className="input field-mono"
           value={d.draft}
           placeholder="var(--openui-accent) or #RRGGBB"
           onChange={(e) => d.setDraft(e.target.value)}
           onBlur={d.commit}
           onKeyDown={d.onKeyDown}
-          style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
         />
-        {onScope && /^#[0-9a-fA-F]{6}$/.test(d.draft) && (
-          <button type="button" className="chip" onClick={() => onScope(d.draft)}>
-            Choose scope
-          </button>
-        )}
-        {onClearOverride ? (
+        <details className="color-field-tokens">
+          <summary aria-label={`Choose ${label} token`} title="Choose a color token">
+            ▾
+          </summary>
+          <div className="swatch-grid color-field-menu">
+            {allowTransparent && (
+              <button
+                type="button"
+                className="swatch swatch-transparent"
+                aria-label="Transparent"
+                data-selected={!d.draft}
+                onClick={() => onCommit('')}
+              />
+            )}
+            {COLOR_KEYS.map((key) => (
+              <button
+                type="button"
+                key={key}
+                className="swatch"
+                aria-label={key.replace(/_/g, '-')}
+                data-tip={key.replace(/_/g, '-')}
+                data-selected={currentVar === key}
+                onClick={() => onCommit(`var(--${key.replace(/_/g, '-')})`)}
+              >
+                <svg aria-hidden="true" width="100%" height="100%">
+                  <rect width="100%" height="100%" fill={colors[key]} />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </details>
+        {onClearOverride && (
           <button
             type="button"
             className="icon-btn icon-btn-sm"
@@ -334,8 +307,17 @@ export function ColorField({
           >
             <RotateCcw size={12} />
           </button>
-        ) : null}
+        )}
       </div>
+      {onScope && /^#[0-9a-fA-F]{6}$/.test(d.draft) && (
+        <button
+          type="button"
+          className="chip color-field-scope"
+          onClick={() => onScope(d.draft)}
+        >
+          Choose scope
+        </button>
+      )}
     </div>
   );
 }
@@ -357,38 +339,26 @@ export function SpacingField({
   return (
     <div className="field">
       <span className="field-label">
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--mw-space-1-5)',
-          }}
-        >
+        <span className="field-label-inline">
           {label}
           <OverrideDot on={overridden} />
         </span>
       </span>
       <input
-        className="input"
+        className="input field-mono"
         value={d.draft}
         placeholder={suggestions[0]}
         onChange={(e) => d.setDraft(e.target.value)}
         onBlur={d.commit}
         onKeyDown={d.onKeyDown}
-        style={{ fontFamily: 'var(--mw-font-mono)', fontSize: 'var(--mw-fs-11)' }}
       />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mw-space-1)' }}>
+      <div className="field-suggestions">
         {suggestions.map((token) => (
           <button
             type="button"
             key={token}
-            className="chip"
+            className="chip field-suggestion"
             data-selected={d.draft === token}
-            style={{
-              height: 'var(--mw-control-h-sm)',
-              fontSize: 'var(--mw-fs-10)',
-              padding: '0 var(--mw-space-2)',
-            }}
             onClick={() => onCommit(token)}
           >
             {token === '0' || token === 'auto'

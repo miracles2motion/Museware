@@ -181,6 +181,7 @@ const Z_ORDER = [
   'chat',
   'popover',
   'modal',
+  'launcher',
   'toast',
   'tooltip',
 ];
@@ -326,7 +327,7 @@ const worst = report.reduce((min, row) => (row[3] < min[3] ? row : min), report[
 console.log(`✓ tokens: no raw hex outside ${TOKENS_FILE}`);
 console.log('✓ token references: no missing --mw-* declarations');
 console.log(
-  '✓ stacking tokens: canvas < canvas-overlay < panels < sticky < chat < popover < modal < toast < tooltip',
+  '✓ stacking tokens: canvas < canvas-overlay < panels < sticky < chat < popover < modal < launcher < toast < tooltip',
 );
 console.log(
   `✓ stacking: .canvas-area traps its chrome; ${TRAPPED.length} overlays checked`,

@@ -35,7 +35,7 @@ export type StyleKind =
 /** Who the field is for. `child` means "when I sit inside a flex parent". */
 export type StyleScope = 'container' | 'child' | 'text' | 'every';
 
-export type StyleGroup = 'Layout' | 'Space' | 'Size' | 'Colour' | 'Type' | 'Effects';
+export type StyleGroup = 'Layout' | 'Space' | 'Size' | 'Colour' | 'Typography' | 'Effects';
 
 export interface StyleOption {
   value: string;
@@ -303,13 +303,30 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     ],
   },
 
-  /* ---------- Type ---------- */
+  /* ---------- Typography ---------- */
+  {
+    key: 'fontFamily',
+    label: 'Font family',
+    hint: 'Choose the typeface for this text.',
+    kind: 'choice',
+    group: 'Typography',
+    scope: 'text',
+    options: [
+      { value: '', label: 'Default token' },
+      { value: 'var(--openui-font-heading)', label: 'Heading token' },
+      { value: 'var(--openui-font-body)', label: 'Body token' },
+      { value: 'system-ui', label: 'System UI' },
+      { value: 'Georgia', label: 'Georgia' },
+      { value: "'Times New Roman'", label: 'Times New Roman' },
+      { value: "'Courier New', monospace", label: 'Courier mono' },
+    ],
+  },
   {
     key: 'fontSize',
     label: 'Text size',
     hint: 'The type scale, in tokens.',
     kind: 'spacing',
-    group: 'Type',
+    group: 'Typography',
     scope: 'text',
     suggestions: [
       'var(--type-display)',
@@ -324,7 +341,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     label: 'Weight',
     hint: 'How heavy the strokes are.',
     kind: 'choice',
-    group: 'Type',
+    group: 'Typography',
     scope: 'text',
     options: choice(['300', '400', '500', '600', '700', '800']),
   },
@@ -333,7 +350,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     label: 'Line height',
     hint: 'Distance between lines of text. 1.5 reads well at body size.',
     kind: 'length',
-    group: 'Type',
+    group: 'Typography',
     scope: 'text',
     suggestions: ['1.2', '1.4', '1.58', '1.8'],
   },
@@ -342,7 +359,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     label: 'Letter spacing',
     hint: 'Tighten headlines, open up small caps.',
     kind: 'length',
-    group: 'Type',
+    group: 'Typography',
     scope: 'text',
     suggestions: ['-0.02em', '0', '0.02em', '0.06em'],
   },
@@ -351,7 +368,7 @@ export const STYLE_FIELDS: StyleFieldDef[] = [
     label: 'Text align',
     hint: 'Where the text sits inside its own box.',
     kind: 'choice',
-    group: 'Type',
+    group: 'Typography',
     scope: 'text',
     options: choice(TEXT_ALIGN_VALUES),
   },
@@ -458,7 +475,7 @@ export const STYLE_GROUPS: StyleGroup[] = [
   'Space',
   'Size',
   'Colour',
-  'Type',
+  'Typography',
   'Effects',
 ];
 

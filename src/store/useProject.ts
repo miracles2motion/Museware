@@ -1,12 +1,19 @@
 import { create } from 'zustand';
 import { useAgent } from './useAgent';
 import { nanoid } from 'nanoid';
-import type { CustomComponent, ProjectDoc, RailEntry, ScreenDoc } from '../types/tree';
+import type {
+  CustomComponent,
+  MockRow,
+  ProjectDoc,
+  RailEntry,
+  ScreenDoc,
+} from '../types/tree';
 import type { DesignTokens } from '../types/tokens';
 import { MUSEWARE_DEFAULT_THEME, cloneTheme } from '../design/starter';
 import { applyOps, type ApplyResult } from '../ops/apply';
 import { clone } from '../ops/treeUtils';
 import { collectIds } from '../ops/ids';
+import { mockRowsSchema } from '../persist/schema';
 
 const RAIL_CAP = 400;
 const CARD_DATA_CAP = 8000;
@@ -111,6 +118,7 @@ interface ProjectStore {
   undo: () => string | null;
   redo: () => string | null;
   setName: (name: string) => void;
+  setDataRows: (screenId: string, key: string, rows: MockRow[]) => boolean;
   setKind: (kind: 'web' | 'app') => void;
   addRail: (
     entry: Omit<RailEntry, 'id' | 'at'> & { id?: string; at?: number },
@@ -219,6 +227,29 @@ export const useProject = create<ProjectStore>((set, get) => ({
       redoStack: [],
     });
     return '';
+  },
+
+  setDataRows: (screenId, key, rows) => {
+    const parsed = mockRowsSchema.safeParse(rows);
+    const state = get();
+    if (
+      !parsed.success ||
+      !key.trim() ||
+      ['__proto__', 'constructor', 'prototype'].includes(key) ||
+      !state.doc.screens.some((s) => s.id === screenId)
+    )
+      return false;
+    const screens = state.doc.screens.map((screen) =>
+      screen.id === screenId
+        ? { ...screen, mockData: { ...screen.mockData, [key]: parsed.data } }
+        : screen,
+    );
+    set({
+      doc: { ...state.doc, screens, updatedAt: Date.now() },
+      undoStack: [...state.undoStack, snapshotOf(state.doc)].slice(-50),
+      redoStack: [],
+    });
+    return true;
   },
 
   applyBatch: (rawOps, opts) => {

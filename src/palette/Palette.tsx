@@ -7,6 +7,7 @@ import type { ComponentType } from '../types/tree';
 import { useDrag } from '../canvas/drag';
 import { insertNodeBatch } from '../ops/screenOps';
 import { Icon } from '../canvas/Icon';
+import { findNode } from '../ops/treeUtils';
 
 export function Palette() {
   const doc = useProject((s) => s.doc);
@@ -101,7 +102,7 @@ export function Palette() {
       {doc.customComponents.length > 0 && (
         <div className="palette-group">
           <div className="palette-group-head">
-            <span className="eyebrow">My components</span>
+            <span className="eyebrow">Components</span>
             <span className="faint mono mw-shell-util-3">
               {doc.customComponents.length}
             </span>
@@ -118,12 +119,17 @@ export function Palette() {
                     toast('Create a screen first.', 'warn');
                     return;
                   }
+                  const selected = selectedId ? findNode(screen.root, selectedId) : null;
+                  const parentId =
+                    selected && isContainerType(selected.type)
+                      ? selected.id
+                      : screen.root.id;
                   const res = applyBatch(
                     [
                       {
                         op: 'placeComponent',
                         name: comp.name,
-                        parentId: selectedId || screen.root.id,
+                        parentId,
                       },
                     ],
                     { source: 'user' },
@@ -132,8 +138,14 @@ export function Palette() {
                   else toast(`${comp.name} placed`, 'ok');
                 }}
               >
-                <Component size={13} />
-                <span>{comp.name}</span>
+                <Component size={14} />
+                <span>
+                  {comp.name}{' '}
+                  <small className="palette-component-type">
+                    {spec(comp.root.type)?.label || comp.root.type} ·{' '}
+                    {comp.root.children.length} blocks
+                  </small>
+                </span>
               </button>
             ))}
           </div>

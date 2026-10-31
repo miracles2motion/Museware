@@ -338,7 +338,7 @@ a {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--mw-space-1-5);
 }
 
 .field > .field-label {
@@ -4454,7 +4454,7 @@ button.how-card .field-hint {
   left: auto;
   right: var(--mw-space-4);
   bottom: var(--mw-space-4);
-  z-index: var(--mw-z-chat);
+  z-index: var(--mw-z-launcher);
   width: var(--mw-chat-launcher-size);
   height: var(--mw-chat-launcher-size);
   border-radius: var(--mw-radius-pill);
@@ -5810,4 +5810,220 @@ button.how-card .field-hint {
   border-radius: var(--mw-radius-pill);
   background: var(--mw-surface-2);
   color: var(--mw-ink);
+}
+
+/* Inspector truth: full-width controls, compact data, and explicit bindings. */
+.inspector .field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--mw-space-1-5);
+  min-width: 0;
+}
+.inspector .field > .field-label {
+  font-size: var(--mw-fs-12);
+  color: var(--mw-ink-2);
+}
+.inspector .field > .field-hint,
+.inspector .field-hint {
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.inspector .field :is(.input, .select, .textarea) {
+  width: 100%;
+  min-width: 0;
+}
+.inspector .insp-section + .insp-section {
+  margin-top: var(--mw-space-3);
+}
+.field-mono {
+  font-family: var(--mw-font-mono);
+  font-size: var(--mw-fs-11);
+}
+.field-hint-block {
+  display: block;
+}
+.field-label-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mw-space-1-5);
+}
+.field-suggestions,
+.data-key-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mw-space-1);
+}
+.field-suggestion {
+  height: var(--mw-control-h-sm);
+  font-size: var(--mw-fs-10);
+  padding: 0 var(--mw-space-2);
+}
+.color-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-1);
+  height: var(--mw-control-h-sm);
+  min-width: 0;
+}
+.color-field-row .color-field-swatch {
+  display: block;
+  flex: 0 0 var(--mw-swatch-size);
+  width: var(--mw-swatch-size);
+  height: var(--mw-swatch-size);
+  border: 1px solid var(--mw-border-strong);
+  border-radius: var(--mw-radius-sm);
+}
+.color-field-row .input {
+  flex: 1;
+  min-width: 0;
+}
+.color-field-tokens {
+  position: relative;
+  flex: 0 0 auto;
+}
+.color-field-tokens > summary {
+  display: grid;
+  place-items: center;
+  width: var(--mw-control-h-sm);
+  height: var(--mw-control-h-sm);
+  cursor: pointer;
+  border-radius: var(--mw-radius-md);
+  color: var(--mw-ink-2);
+}
+.color-field-tokens > summary:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 1px;
+}
+.color-field-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: var(--mw-menu-w);
+  padding: var(--mw-space-2);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-md);
+  background: var(--mw-surface);
+  box-shadow: var(--mw-shadow-e3);
+  z-index: var(--mw-z-popover);
+}
+.swatch {
+  overflow: hidden;
+}
+.swatch-transparent {
+  background: linear-gradient(
+    135deg,
+    transparent 44%,
+    var(--mw-danger) 44%,
+    var(--mw-danger) 56%,
+    transparent 56%
+  );
+}
+.color-field-scope {
+  align-self: start;
+}
+.preset-swatches svg {
+  display: block;
+  width: var(--mw-swatch-size);
+  height: var(--mw-swatch-size);
+  border-radius: var(--mw-radius-sm);
+}
+.data-drawer {
+  display: grid;
+  gap: var(--mw-space-2);
+  padding: var(--mw-space-3);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-lg);
+  background: var(--mw-surface);
+}
+.data-drawer-head,
+.data-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-1);
+}
+.data-drawer-head strong,
+.data-row-head strong {
+  flex: 1;
+  font-size: var(--mw-fs-12);
+}
+.data-row {
+  display: grid;
+  gap: var(--mw-space-2);
+  padding: var(--mw-space-2);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius-md);
+  background: var(--mw-surface-2);
+}
+.data-row-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mw-space-1);
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+}
+.data-row-field :is(.input, .select),
+.data-add-field .input {
+  width: 100%;
+  min-width: 0;
+  height: var(--mw-control-h-sm);
+}
+.data-add-field {
+  display: flex;
+  gap: var(--mw-space-1);
+  min-width: 0;
+}
+.data-add-field .input {
+  flex: 1;
+}
+.palette-search {
+  margin-bottom: var(--mw-space-3);
+}
+.palette-group {
+  margin-bottom: var(--mw-space-4);
+}
+.palette-group-head {
+  margin-bottom: var(--mw-space-2);
+}
+.palette-group-head .eyebrow {
+  font-size: var(--mw-fs-11);
+  color: var(--mw-ink-2);
+  text-transform: uppercase;
+}
+.palette-grid {
+  gap: var(--mw-space-1);
+}
+.palette-item {
+  min-height: var(--mw-control-h-sm);
+  padding: var(--mw-space-1) var(--mw-space-2);
+  gap: var(--mw-space-1);
+}
+.palette-item > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.palette-component-type {
+  display: block;
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+}
+.run-bindings {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 0 var(--mw-space-3);
+  background: var(--mw-surface);
+  color: var(--mw-ink-2);
+  font-size: var(--mw-fs-11);
+}
+.run-bindings > summary {
+  cursor: pointer;
+  padding: var(--mw-space-1);
+}
+.run-bindings .bindings-section {
+  padding: var(--mw-space-2);
 }
