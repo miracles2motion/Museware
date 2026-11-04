@@ -1,4 +1,4 @@
-import { ArrowUpRight, Github, Keyboard, Sparkles } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 import { Modal, Button } from '../../components/ui';
 import { MusewareLogo } from '../../components/MusewareLogo';
 import { useUi } from '../../store/useUi';
@@ -137,36 +137,6 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <strong style={{ color: 'var(--mw-ink-2)' }}>Hackathon Track:</strong> Meta Global AI Developer Hackathon (Cerebral Valley), Indie Track
-          </div>
-          <div style={{ marginTop: 'var(--mw-space-1)', display: 'flex', gap: 'var(--mw-space-3)' }}>
-            <a
-              href="https://github.com/miracles2motion/museware"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                color: 'var(--mw-accent)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Github size={13} /> Source repository <ArrowUpRight size={11} />
-            </a>
-            <a
-              href="https://museware.vercel.app"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                color: 'var(--mw-accent)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Sparkles size={13} /> Live application <ArrowUpRight size={11} />
-            </a>
           </div>
         </div>
       </div>
