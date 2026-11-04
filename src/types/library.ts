@@ -246,6 +246,29 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'Content',
         'Optional heading rendered above the children.',
       ),
+      p(
+        'titleSize',
+        'Title size',
+        'select',
+        'Content',
+        'Font size for the card heading text.',
+        { options: ['sm', 'md', 'lg', 'xl'] },
+      ),
+      p(
+        'subtitle',
+        'Subtitle',
+        'text',
+        'Content',
+        'Optional descriptive text rendered below the card title.',
+      ),
+      p(
+        'subtitleSize',
+        'Subtitle size',
+        'select',
+        'Content',
+        'Font size for the card subtitle text.',
+        { options: ['xs', 'sm', 'md', 'lg'] },
+      ),
       p('variant', 'Variant', 'select', 'Content', 'Surface treatment.', {
         options: ['elevated', 'sunk', 'glass', 'outline', 'spotlight', 'accent'],
       }),
@@ -275,7 +298,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     },
     props: [
       p('title', 'Title', 'text', 'Content', 'The big line. Keep it under eight words.'),
+      p('titleSize', 'Headline size', 'select', 'Content', 'Font size for the hero headline.', {
+        options: ['md', 'lg', 'xl', '2xl'],
+      }),
       p('subtitle', 'Subtitle', 'text', 'Content', 'One sentence under the title.'),
+      p('subtitleSize', 'Subtitle size', 'select', 'Content', 'Font size for the hero subtitle.', {
+        options: ['sm', 'md', 'lg', 'xl'],
+      }),
       p('badge', 'Badge', 'text', 'Content', 'Optional eyebrow above the headline.'),
       p(
         'frame',
@@ -312,7 +341,13 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     props: [
       p('eyebrow', 'Eyebrow', 'text', 'Content', 'Optional pill above the title.'),
       p('title', 'Title', 'text', 'Content', 'Optional label above the group.'),
+      p('titleSize', 'Heading size', 'select', 'Content', 'Font size for the section title.', {
+        options: ['sm', 'md', 'lg', 'xl'],
+      }),
       p('subtitle', 'Subtitle', 'longtext', 'Content', 'Supporting section text.'),
+      p('subtitleSize', 'Subtitle size', 'select', 'Content', 'Font size for the section subtitle.', {
+        options: ['sm', 'md', 'lg'],
+      }),
       p('align', 'Heading alignment', 'select', 'Content', 'Align the section heading.', {
         options: ['start', 'center'],
       }),
@@ -848,7 +883,7 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     container: false,
     icon: 'grid',
     hint: 'Thumb-reach navigation. Each item jumps to a screen with a matching name.',
-    defaultProps: { items: ['Home', 'Stats', 'Settings'] },
+    defaultProps: { items: ['Home', 'Stats', 'Settings'], variant: 'glass', sticky: true },
     props: [
       p(
         'items',
@@ -856,6 +891,16 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
         'data',
         'Content',
         'Tabs, comma separated. Each should match a screen name.',
+      ),
+      p('variant', 'Variant', 'select', 'Content', 'Background and surface treatment.', {
+        options: ['glass', 'solid', 'floating'],
+      }),
+      p(
+        'sticky',
+        'Sticky bottom',
+        'toggle',
+        'Behavior',
+        'Keep nav stuck to the bottom of the screen while scrolling.',
       ),
     ],
   },

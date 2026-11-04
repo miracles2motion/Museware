@@ -105,3 +105,21 @@ it('Run chooses the web model for the scrolling stage and phone for the bezel', 
     ),
   ).toContain('min-height:100%');
 });
+
+it('bottomnav compiles sticky bottom positioning and supports non-sticky override', () => {
+  const d = fixture();
+  d.screens[0].root.children.push({
+    id: 'bnav',
+    type: 'bottomnav',
+    props: { items: ['Home', 'Stats'] },
+    styles: {},
+    children: [],
+  });
+  const stickyCss = generateFullCss(d);
+  expect(rule(stickyCss, 'bnav')).toContain('position:sticky;bottom:0;margin-top:auto');
+
+  d.screens[0].root.children[d.screens[0].root.children.length - 1].props.sticky = false;
+  const unpinnedCss = generateFullCss(d);
+  expect(rule(unpinnedCss, 'bnav')).not.toContain('position:sticky');
+  expect(rule(unpinnedCss, 'bnav')).not.toContain('bottom:0');
+});

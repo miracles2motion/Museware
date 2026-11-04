@@ -171,10 +171,10 @@ export function Gallery() {
       </header>
 
       <section className="gl-section">
-        <h1 className="gl-title">Four real starting points</h1>
+        <h1 className="gl-title">State-of-the-art starting points</h1>
         <p className="lp-sub">
           Each one is built from the same thirty components, token styles and action chips —
-          no images of apps. Open one and drag anything; every op is undoable.
+          no images of apps. Open one and edit anything; every op is undoable.
         </p>
         <div className="gl-grid">
           {TEMPLATES.map((template) => (

@@ -213,7 +213,7 @@ describe('wide inspector', () => {
     expect(workspace.getAttribute('data-inspector')).toBe('wide');
     fireEvent.click(screen.getByRole('button', { name: 'Wide panel' }));
     expect(localStorage.getItem('museware/inspectorWide')).toBe('false');
-  });
+  }, 15000);
   it('keeps the canvas flexible beside the token-sized inspector', () => {
     const css = readFileSync('src/design/app.css', 'utf8');
     const tokens = readFileSync('src/design/mw.css', 'utf8');

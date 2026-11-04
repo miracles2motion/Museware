@@ -104,5 +104,6 @@ describe('demo templates', () => {
     expect(pickTemplate('a landing page for a coffee roaster').id).toBe('shop');
     expect(pickTemplate('a revenue dashboard for our team').id).toBe('dashboard');
     expect(pickTemplate('design me a landing page website').id).toBe('landing');
+    expect(pickTemplate('a portfolio of my design work').id).toBe('portfolio');
   });
 });

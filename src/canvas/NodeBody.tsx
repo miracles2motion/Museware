@@ -119,6 +119,40 @@ function sampleFrame(content: ReactNode, sample: boolean): ReactNode {
   );
 }
 
+const CARD_TITLE_SIZES: Record<string, number> = { sm: 13, md: 15, lg: 18, xl: 22 };
+const CARD_SUBTITLE_SIZES: Record<string, number> = { xs: 11, sm: 13, md: 15, lg: 17 };
+const SEC_TITLE_SIZES: Record<string, string> = {
+  sm: '18px',
+  md: '22px',
+  lg: 'clamp(var(--type-headline),3cqw + 12px,var(--type-title))',
+  xl: '36px',
+};
+const SEC_SUBTITLE_SIZES: Record<string, string> = { sm: '13px', md: '15px', lg: '18px' };
+const HERO_TITLE_SIZES: Record<string, string> = {
+  md: '28px',
+  lg: '36px',
+  xl: 'clamp(var(--type-title),4cqw + 12px,var(--type-display))',
+  '2xl': '56px',
+};
+const HERO_SUBTITLE_SIZES: Record<string, string> = {
+  sm: '14px',
+  md: '16px',
+  lg: '18px',
+  xl: '20px',
+};
+
+function resolveBottomNavIcon(item: string, index: number): string {
+  const lower = item.toLowerCase();
+  if (/home|main|start/.test(lower)) return 'home';
+  if (/stat|analytic|chart|metric|report/.test(lower)) return 'grid';
+  if (/search|explore|discover|browse/.test(lower)) return 'compass';
+  if (/bell|notif|alert|activity/.test(lower)) return 'bell';
+  if (/user|profile|account|me|member/.test(lower)) return 'user';
+  if (/setting|pref|config|option/.test(lower)) return 'settings';
+  const cycle = ['home', 'grid', 'compass', 'bell', 'user', 'settings'];
+  return cycle[index % cycle.length];
+}
+
 export function NodeBody({ node, doc, mode, screenId, row }: Props) {
   const runtime = useRuntime();
   const staticExport = useContext(StaticExportContext);
@@ -597,8 +631,13 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     }
     case 'bottomnav': {
       const items = asList(p.items);
+      const isSticky = p.sticky !== false && p.sticky !== 'false';
       return (
-        <nav className={cls}>
+        <nav
+          className={cls}
+          data-variant={asText(p.variant, 'glass')}
+          style={isSticky ? { position: 'sticky', bottom: 0, marginTop: 'auto', zIndex: 20 } : undefined}
+        >
           {items.map((item, i) => (
             <button
               key={item}
@@ -620,7 +659,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
                 fire('tap');
               }}
             >
-              <Icon name={['home', 'grid', 'settings'][i % 3]} size={20} />
+              <Icon name={resolveBottomNavIcon(item, i)} size={20} />
               <span>{item}</span>
             </button>
           ))}
@@ -860,9 +899,21 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
         >
           <div className="mw-hero-copy">
             {Boolean(p.badge) && <span className="mw-hero-badge">{asText(p.badge)}</span>}
-            {Boolean(p.title) && <div className="mw-hero-title">{subst(p.title, row)}</div>}
+            {Boolean(p.title) && (
+              <div
+                className="mw-hero-title"
+                style={p.titleSize ? { fontSize: HERO_TITLE_SIZES[String(p.titleSize)] || undefined } : undefined}
+              >
+                {subst(p.title, row)}
+              </div>
+            )}
             {Boolean(p.subtitle) && (
-              <div className="mw-hero-sub">{subst(p.subtitle, row)}</div>
+              <div
+                className="mw-hero-sub"
+                style={p.subtitleSize ? { fontSize: HERO_SUBTITLE_SIZES[String(p.subtitleSize)] || undefined } : undefined}
+              >
+                {subst(p.subtitle, row)}
+              </div>
             )}
             {copy.map((child) => (
               <NodeBody
@@ -960,9 +1011,21 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
               {Boolean(p.eyebrow) && (
                 <span className="mw-sec-eyebrow">{subst(p.eyebrow, row)}</span>
               )}
-              {Boolean(p.title) && <h2 className="mw-sec-title">{subst(p.title, row)}</h2>}
+              {Boolean(p.title) && (
+                <h2
+                  className="mw-sec-title"
+                  style={p.titleSize ? { fontSize: SEC_TITLE_SIZES[String(p.titleSize)] || undefined } : undefined}
+                >
+                  {subst(p.title, row)}
+                </h2>
+              )}
               {Boolean(p.subtitle) && (
-                <p className="mw-sec-sub">{subst(p.subtitle, row)}</p>
+                <p
+                  className="mw-sec-sub"
+                  style={p.subtitleSize ? { fontSize: SEC_SUBTITLE_SIZES[String(p.subtitleSize)] || undefined } : undefined}
+                >
+                  {subst(p.subtitle, row)}
+                </p>
               )}
             </div>
           )}
@@ -1040,9 +1103,25 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
           )}
           {Boolean(p.title) && (
             <div
-              style={{ fontSize: 15, fontWeight: 700, color: 'var(--openui-text-primary)' }}
+              style={{
+                fontSize: CARD_TITLE_SIZES[String(p.titleSize)] || 15,
+                fontWeight: 700,
+                color: 'var(--openui-text-primary)',
+                lineHeight: 1.25,
+              }}
             >
               {subst(p.title, row)}
+            </div>
+          )}
+          {Boolean(p.subtitle) && (
+            <div
+              style={{
+                fontSize: CARD_SUBTITLE_SIZES[String(p.subtitleSize)] || 13,
+                color: 'var(--openui-text-secondary)',
+                lineHeight: 1.45,
+              }}
+            >
+              {subst(p.subtitle, row)}
             </div>
           )}
           {renderChildren()}

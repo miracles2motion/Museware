@@ -447,6 +447,9 @@ export function Landing() {
         </nav>
 
         <div className="lp-nav-actions">
+          <Button variant="accent" size="sm" onClick={() => void go()}>
+            Start building <ArrowRight size={14} />
+          </Button>
           <button
             type="button"
             className="lp-menu-btn"
@@ -472,14 +475,32 @@ export function Landing() {
               type="button"
               className="lp-sheet-link"
               onClick={() => {
+                setMenuOpen(false);
                 void go();
               }}
             >
               Start building
               <ArrowRight size={18} />
             </button>
-            <button type="button" className="lp-sheet-link" onClick={gallery}>
+            <button
+              type="button"
+              className="lp-sheet-link"
+              onClick={() => {
+                setMenuOpen(false);
+                gallery();
+              }}
+            >
               Gallery
+            </button>
+            <button
+              type="button"
+              className="lp-sheet-link"
+              onClick={() => {
+                setMenuOpen(false);
+                setRoute('projects');
+              }}
+            >
+              Your projects
             </button>
             <button
               type="button"
@@ -492,8 +513,7 @@ export function Landing() {
               Editor
             </button>
             <p className="lp-sheet-note">
-              No signup, no email wall. Your muse key is your account, and it stays in this
-              tab.
+              No signup, no email wall. Start creating with the shared house key.
             </p>
           </div>
         </div>
@@ -824,7 +844,7 @@ export function Landing() {
             Start building <ArrowRight size={16} />
           </Button>
           <Button variant="ghost" size="lg" onClick={gallery}>
-            See four real starting points
+            Explore starting points
           </Button>
         </div>
       </section>

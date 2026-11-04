@@ -48,13 +48,6 @@ function screen(
   };
 }
 
-function headingBlock(id: string, title: string, body: string): ComponentNode[] {
-  return [
-    n('heading', `${id}_title`, { props: { text: title, level: 3 } }),
-    n('text', `${id}_body`, { props: { text: body } }),
-  ];
-}
-
 const HABIT_ROWS: MockRow[] = [
   { title: 'Morning walk', detail: '20 minutes outside', meta: '6,204 steps' },
   { title: 'Deep work', detail: 'One focus block', meta: '2h 40m' },
@@ -75,7 +68,7 @@ const WEEK: MockRow[] = [
 ];
 
 export interface DemoTemplate {
-  id: 'landing' | 'habits' | 'dashboard' | 'shop';
+  id: 'landing' | 'habits' | 'dashboard' | 'shop' | 'portfolio';
   label: string;
   kind: 'web' | 'app';
   projectName: string;
@@ -146,31 +139,37 @@ function landing(_tokens: DesignTokens): ScreenDoc[] {
                 },
                 children: [
                   n('card', 'card_focus', {
-                    children: [
-                      ...headingBlock(
-                        'txt_focus',
-                        'Focus by default',
+                    props: {
+                      title: 'Focus by default',
+                      titleSize: 'md',
+                      subtitle:
                         'One screen, one week. No dashboards to configure before the work starts.',
-                      ),
-                    ],
+                      subtitleSize: 'sm',
+                      icon: 'compass',
+                      variant: 'elevated',
+                    },
                   }),
                   n('card', 'card_share', {
-                    children: [
-                      ...headingBlock(
-                        'txt_share',
-                        'Share a link',
+                    props: {
+                      title: 'Share a link',
+                      titleSize: 'md',
+                      subtitle:
                         'Send the plan as a live page. Everyone edits the same truth.',
-                      ),
-                    ],
+                      subtitleSize: 'sm',
+                      icon: 'tag',
+                      variant: 'elevated',
+                    },
                   }),
                   n('card', 'card_shipped', {
-                    children: [
-                      ...headingBlock(
-                        'txt_shipped',
-                        'Ship weekly',
+                    props: {
+                      title: 'Ship weekly',
+                      titleSize: 'md',
+                      subtitle:
                         'A soft reset every Monday, with the streak carried forward.',
-                      ),
-                    ],
+                      subtitleSize: 'sm',
+                      icon: 'star',
+                      variant: 'elevated',
+                    },
                   }),
                 ],
               }),
@@ -654,6 +653,212 @@ function shop(tokens: DesignTokens): ScreenDoc[] {
   return [screen('store', 'Shop', root, { entry: true })];
 }
 
+function portfolio(_tokens: DesignTokens): ScreenDoc[] {
+  void _tokens;
+  const root = n('screen', 'portfolio_root', {
+    props: { title: 'Portfolio', layout: 'flex-col', scroll: true },
+    styles: { padding: '0', gap: '0' },
+    children: [
+      n('navbar', 'nav_port', {
+        props: { brand: 'Aura', items: ['Work', 'About', 'Contact'] },
+        events: navigate('portfolio'),
+      }),
+      n('col', 'col_port_page', {
+        styles: { padding: 'var(--pad-screen)', gap: 'var(--gap-section)' },
+        children: [
+          n('hero', 'hero_bio', {
+            props: {
+              badge: 'Available for Q2 projects',
+              title: 'Designing resilient digital tools and design systems',
+              subtitle:
+                'Product designer and engineer crafting accessible interfaces for teams building the future of software.',
+              titleSize: 'xl',
+              subtitleSize: 'lg',
+              layout: 'split',
+            },
+            children: [
+              n('row', 'row_hero_port_actions', {
+                styles: { gap: '12px', align: 'center', marginTop: 'var(--gap-item)' },
+                children: [
+                  n('button', 'btn_view_work', {
+                    props: { text: 'View selected work', variant: 'primary' },
+                    styles: {
+                      width: 'auto',
+                      background: 'var(--openui-fg)',
+                      color: 'var(--openui-text-brand)',
+                    },
+                    events: toast('Scrolling to selected case studies…'),
+                  }),
+                  n('button', 'btn_inquire', {
+                    props: { text: 'Get in touch', variant: 'secondary' },
+                    styles: {
+                      width: 'auto',
+                      background: 'transparent',
+                      color: 'var(--openui-text-on-accent)',
+                      border: '1px solid rgba(255,255,255,0.45)',
+                    },
+                    events: toast('Opening contact details…'),
+                  }),
+                ],
+              }),
+            ],
+          }),
+          n('section', 'sec_projects', {
+            props: {
+              eyebrow: 'SELECTED WORK',
+              title: 'Case Studies & Production Releases',
+              subtitle:
+                'High-leverage products shaped from 0 to 1 across mobile, web, and design infrastructure.',
+              titleSize: 'lg',
+              subtitleSize: 'md',
+            },
+            children: [
+              n('grid', 'grid_projects', {
+                props: { columns: 2 },
+                styles: {
+                  gap: 'var(--gap-item)',
+                  responsive: { medium: { columns: 2 }, expanded: { columns: 2 } },
+                },
+                children: [
+                  n('card', 'card_proj_1', {
+                    props: {
+                      title: 'Kinetic Engine v2',
+                      titleSize: 'lg',
+                      subtitle:
+                        'A real-time motion and gesture library powering 4M+ daily active mobile interactions.',
+                      subtitleSize: 'sm',
+                      icon: 'zap',
+                      variant: 'elevated',
+                    },
+                    children: [
+                      n('row', 'row_tags_1', {
+                        styles: { gap: '6px', align: 'center', marginTop: '4px' },
+                        children: [
+                          n('badge', 'badge_tag_1a', { props: { text: 'Design System', tone: 'accent' } }),
+                          n('badge', 'badge_tag_1b', { props: { text: 'TypeScript' } }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  n('card', 'card_proj_2', {
+                    props: {
+                      title: 'Atlas Cloud Console',
+                      titleSize: 'lg',
+                      subtitle:
+                        'Complete overhaul of Kubernetes cluster diagnostics reducing mean time to resolve by 42%.',
+                      subtitleSize: 'sm',
+                      icon: 'grid',
+                      variant: 'elevated',
+                    },
+                    children: [
+                      n('row', 'row_tags_2', {
+                        styles: { gap: '6px', align: 'center', marginTop: '4px' },
+                        children: [
+                          n('badge', 'badge_tag_2a', { props: { text: 'Enterprise UX', tone: 'accent' } }),
+                          n('badge', 'badge_tag_2b', { props: { text: 'Analytics' } }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  n('card', 'card_proj_3', {
+                    props: {
+                      title: 'Beacon Ambient Reader',
+                      titleSize: 'lg',
+                      subtitle:
+                        'Minimalist reading companion engineered for ultra-low cognitive distraction and offline sync.',
+                      subtitleSize: 'sm',
+                      icon: 'compass',
+                      variant: 'elevated',
+                    },
+                    children: [
+                      n('row', 'row_tags_3', {
+                        styles: { gap: '6px', align: 'center', marginTop: '4px' },
+                        children: [
+                          n('badge', 'badge_tag_3a', { props: { text: 'Mobile UX', tone: 'accent' } }),
+                          n('badge', 'badge_tag_3b', { props: { text: 'Offline First' } }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  n('card', 'card_proj_4', {
+                    props: {
+                      title: 'Pulse Design Tokens',
+                      titleSize: 'lg',
+                      subtitle:
+                        'Automated multi-brand token pipeline compiling CSS variables and mobile assets on every commit.',
+                      subtitleSize: 'sm',
+                      icon: 'star',
+                      variant: 'elevated',
+                    },
+                    children: [
+                      n('row', 'row_tags_4', {
+                        styles: { gap: '6px', align: 'center', marginTop: '4px' },
+                        children: [
+                          n('badge', 'badge_tag_4a', { props: { text: 'Automation', tone: 'accent' } }),
+                          n('badge', 'badge_tag_4b', { props: { text: 'Tokens' } }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          n('grid', 'grid_port_metrics', {
+            props: { columns: 3 },
+            styles: {
+              gap: 'var(--gap-item)',
+              responsive: { medium: { columns: 3 }, expanded: { columns: 3 } },
+            },
+            children: [
+              n('stat', 'stat_reach', {
+                props: { label: 'Global users reached', value: '14M+', delta: 'across 4 products' },
+              }),
+              n('stat', 'stat_years', {
+                props: { label: 'Years leading craft', value: '8+', delta: 'fintech & devtools' },
+              }),
+              n('stat', 'stat_awards', {
+                props: { label: 'Industry recognitions', value: '12', delta: 'Design & Code awards' },
+              }),
+            ],
+          }),
+          n('section', 'sec_contact', {
+            props: {
+              title: 'Let’s build something extraordinary',
+              subtitle: 'Currently accepting select consulting engagements, advisory roles, and speaking invitations.',
+            },
+            children: [
+              n('card', 'card_inquiry', {
+                styles: { gap: 'var(--gap-item)' },
+                children: [
+                  n('input', 'inp_name', { props: { label: 'Your name', placeholder: 'Alex Chen' } }),
+                  n('input', 'inp_email', { props: { label: 'Work email', placeholder: 'alex@company.com' } }),
+                  n('textarea', 'inp_msg', {
+                    props: { label: 'Project details', placeholder: 'Tell me about the goals and timeline…' },
+                  }),
+                  n('button', 'btn_send_inquiry', {
+                    props: { text: 'Send inquiry', variant: 'primary' },
+                    styles: { width: 'auto', alignSelf: 'flex-start' },
+                    events: toast('Inquiry sent — will reply within one business day.'),
+                  }),
+                ],
+              }),
+            ],
+          }),
+          n('row', 'row_port_footer', {
+            styles: { justify: 'space-between', align: 'center' },
+            children: [
+              n('text', 'txt_port_copy', { props: { text: '© 2026 Aura · Crafted with Museware' } }),
+              n('link', 'link_port_top', { props: { text: 'Back to top', to: 'portfolio' } }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+  return [screen('portfolio', 'Portfolio', root, { entry: true })];
+}
+
 function blueprintHeader(rules: string[]): string {
   return [
     'RULES: ids are lower_snake_case with semantic prefixes (btn_, txt_, card_, row_, col_, input_), ONE shared state namespace, no invented hexes.',
@@ -795,10 +1000,49 @@ ${LOOK_LINE(tokens)}
 STATE: basket_count
 WIRING: Add buttons → toast + basket_count; nav stays on shop.`,
   },
+  {
+    id: 'portfolio',
+    label: 'Portfolio & Work',
+    kind: 'web',
+    projectName: 'Aura — Portfolio & Work',
+    screens: portfolio,
+    blueprint: (tokens) => `${blueprintHeader([
+      'One high-craft portfolio screen: split hero bio, 2x2 case study grid, metrics, and inquiry form.',
+    ])}
+SCREEN: Portfolio
+- nav_port (navbar) Aura — Work, About, Contact
+- col_port_page (col) page container
+  - hero_bio (hero) Designing resilient digital tools and design systems
+    - row_hero_port_actions (row)
+      - btn_view_work (button) View selected work
+      - btn_inquire (button) Get in touch
+  - sec_projects (section) Case Studies & Production Releases
+    - grid_projects (grid) 4 case study cards with tags
+      - card_proj_1 (card) Kinetic Engine v2
+      - card_proj_2 (card) Atlas Cloud Console
+      - card_proj_3 (card) Beacon Ambient Reader
+      - card_proj_4 (card) Pulse Design Tokens
+  - grid_port_metrics (grid) 3 stats
+    - stat_reach (stat) 14M+
+    - stat_years (stat) 8+
+    - stat_awards (stat) 12
+  - sec_contact (section) Let's build something extraordinary
+    - card_inquiry (card) contact form
+      - inp_name (input)
+      - inp_email (input)
+      - inp_msg (textarea)
+      - btn_send_inquiry (button)
+  - row_port_footer (row) copyright + back to top
+${LOOK_LINE(tokens)}
+STATE: none
+WIRING: btn_view_work → toast; btn_inquire → toast; btn_send_inquiry → toast; nav links stay on portfolio.`,
+  },
 ];
 
 export function pickTemplate(text: string): DemoTemplate {
   const t = text.toLowerCase();
+  if (/portfolio|designer|creator|cv|resume|case study|work/.test(t))
+    return TEMPLATES[4];
   if (/habit|routine|streak|daily|tracker/.test(t)) return TEMPLATES[1];
   if (/shop|store|product|coffee|cafe|bakery|boutique|ecommerce/.test(t))
     return TEMPLATES[3];

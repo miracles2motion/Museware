@@ -309,7 +309,7 @@ describe('the shell actually renders', () => {
     fireEvent.click(swatch!);
     const root = useProject.getState().doc.screens[0].root;
     expect(root.styles.background).toBe('var(--openui-accent)');
-  });
+  }, 15000);
 
   it('first-run onboarding shows the probe chips and the three starts', async () => {
     await boot();

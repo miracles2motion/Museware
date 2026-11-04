@@ -316,8 +316,13 @@ function baseDeclarations(
         'gap:8px',
         'width:100%',
         'height:var(--h-nav)',
+        'position:sticky',
+        'bottom:0',
+        'margin-top:auto',
+        'z-index:20',
+        'backdrop-filter:blur(14px)',
         'padding:0 var(--pad-card)',
-        'background:var(--openui-fg)',
+        'background:color-mix(in srgb, var(--openui-fg) 82%, transparent)',
         'border-top:1px solid var(--openui-border-default)',
       );
       break;
@@ -531,15 +536,25 @@ export function generateCss(
         rules.push(
           `@container mw (min-width:1024px){:where(.mw-section .${nodeClass(node.id)}){max-width:min(100%, 540px);margin-inline:auto}}`,
         );
-      const navbarVariant =
-        node.type === 'navbar' ? String(node.props.variant || 'glass') : '';
+      const navVariant =
+        node.type === 'navbar' || node.type === 'bottomnav'
+          ? String(node.props.variant || 'glass')
+          : '';
       const base = baseDeclarations(node, options.scrollModel).filter((decl) => {
         if (
-          navbarVariant === 'minimal' &&
-          /^(background|backdrop-filter|border-bottom):/.test(decl)
+          navVariant === 'minimal' &&
+          /^(background|backdrop-filter|border-bottom|border-top):/.test(decl)
         )
           return false;
-        if (navbarVariant === 'floating' && /^(width|border-bottom):/.test(decl))
+        if (navVariant === 'solid' && /^backdrop-filter:/.test(decl))
+          return false;
+        if (navVariant === 'floating' && /^(width|border-bottom|border-top):/.test(decl))
+          return false;
+        if (
+          node.type === 'bottomnav' &&
+          (node.props.sticky === false || node.props.sticky === 'false') &&
+          /^(position:sticky|bottom:0|margin-top:auto)/.test(decl)
+        )
           return false;
         return true;
       });

@@ -53,6 +53,18 @@ function iconName(node: ComponentNode): string {
   return (ICON_NAMES as readonly string[]).includes(name) ? name : 'star';
 }
 
+function resolveBottomNavIcon(item: string, index: number): string {
+  const lower = item.toLowerCase();
+  if (/home|main|start/.test(lower)) return 'home';
+  if (/stat|analytic|chart|metric|report/.test(lower)) return 'grid';
+  if (/search|explore|discover|browse/.test(lower)) return 'compass';
+  if (/bell|notif|alert|activity/.test(lower)) return 'bell';
+  if (/user|profile|account|me|member/.test(lower)) return 'user';
+  if (/setting|pref|config|option/.test(lower)) return 'settings';
+  const cycle = ['home', 'grid', 'compass', 'bell', 'user', 'settings'];
+  return cycle[index % cycle.length];
+}
+
 function attrEvents(node: ComponentNode, event: 'tap' | 'change' | 'submit'): string {
   const code = actionsCode(node.events?.[event]);
   return code ? code : '';
@@ -208,10 +220,12 @@ ${pad}</nav>`;
     }
     case 'bottomnav': {
       const items = asList(p.items);
-      return `${pad}<nav className={${str(cls)}}>${items
+      const isSticky = p.sticky !== false && p.sticky !== 'false';
+      const stickyStyle = isSticky ? ' style={{ position: \'sticky\', bottom: 0, marginTop: \'auto\', zIndex: 20 }}' : '';
+      return `${pad}<nav className={${str(cls)}} data-variant=${str(p.variant || 'glass')}${stickyStyle}>${items
         .map(
           (item, i) =>
-            `<button type="button" className="mw-nav-item" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3, fontSize: 11, color: ${str(i === 0 ? 'var(--openui-text-brand)' : 'var(--openui-text-secondary)')} }} onClick={() => { go(${str(item)}); ${tap || ''} }}><Icon name=${str(['home', 'grid', 'settings'][i % 3])} size={20} /><span>${jsxText(item)}</span></button>`,
+            `<button type="button" className="mw-nav-item" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3, fontSize: 11, color: ${str(i === 0 ? 'var(--openui-text-brand)' : 'var(--openui-text-secondary)')} }} onClick={() => { go(${str(item)}); ${tap || ''} }}><Icon name=${str(resolveBottomNavIcon(item, i))} size={20} /><span>${jsxText(item)}</span></button>`,
         )
         .join('')}</nav>`;
     }
@@ -332,11 +346,13 @@ ${pad}</div>`;
       );
       const hasMedia = Boolean(p.image || p.src || media.length);
       const browser = p.frame === 'browser';
+      const heroTitleStyle = p.titleSize ? ` style={{ fontSize: ${str(p.titleSize === 'md' ? '28px' : p.titleSize === 'lg' ? '36px' : p.titleSize === '2xl' ? '56px' : 'clamp(var(--type-title),4cqw + 12px,var(--type-display))')} }}` : '';
+      const heroSubStyle = p.subtitleSize ? ` style={{ fontSize: ${str(p.subtitleSize === 'sm' ? '14px' : p.subtitleSize === 'lg' ? '18px' : p.subtitleSize === 'xl' ? '20px' : '16px')} }}` : '';
       return `${pad}<div className={${str(`${cls} mw-hero`)}} data-layout=${str(p.layout || 'split')} data-surface=${str(p.surface || 'gradient')} data-frame=${str(p.frame || 'none')} data-has-media={${str(hasMedia)}}>
 ${pad}  <div className="mw-hero-copy">
 ${p.badge ? `${pad}    <span className="mw-hero-badge">${jsxText(p.badge)}</span>` : ''}
-${pad}    <h1 className="mw-hero-title">${jsxText(p.title)}</h1>
-${pad}    <p className="mw-hero-sub">${jsxText(p.subtitle)}</p>
+${pad}    <h1 className="mw-hero-title"${heroTitleStyle}>${jsxText(p.title)}</h1>
+${pad}    <p className="mw-hero-sub"${heroSubStyle}>${jsxText(p.subtitle)}</p>
 ${copy.map((child) => renderNode(child, indent + 2, screens, screen)).join('\n')}
 ${pad}  </div>
 ${
@@ -385,9 +401,11 @@ function renderNode(
         }>\n${children}${node.type === 'form' ? `\n${pad}  <button type="submit" className="mw-tab" style={{ minHeight: 44, background: 'var(--openui-accent)', color: 'var(--openui-text-on-accent)', fontSize: 15, borderRadius: 'var(--radius-button)' }}>${jsxText(p.submitLabel || 'Submit')}</button>` : ''}\n${pad}</${node.type === 'form' ? 'form' : 'section'}>`,
       );
     case 'section': {
+      const secTitleStyle = p.titleSize ? ` style={{ fontSize: ${str(p.titleSize === 'sm' ? '18px' : p.titleSize === 'md' ? '22px' : p.titleSize === 'xl' ? '36px' : 'clamp(var(--type-headline),3cqw + 12px,var(--type-title))')} }}` : '';
+      const secSubStyle = p.subtitleSize ? ` style={{ fontSize: ${str(p.subtitleSize === 'sm' ? '13px' : p.subtitleSize === 'lg' ? '18px' : '15px')} }}` : '';
       const head =
         p.eyebrow || p.title || p.subtitle
-          ? `<div className="mw-sec-head">${p.eyebrow ? `<span className="mw-sec-eyebrow">${jsxText(p.eyebrow)}</span>` : ''}${p.title ? `<h2 className="mw-sec-title">${jsxText(p.title)}</h2>` : ''}${p.subtitle ? `<p className="mw-sec-sub">${jsxText(p.subtitle)}</p>` : ''}</div>`
+          ? `<div className="mw-sec-head">${p.eyebrow ? `<span className="mw-sec-eyebrow">${jsxText(p.eyebrow)}</span>` : ''}${p.title ? `<h2 className="mw-sec-title"${secTitleStyle}>${jsxText(p.title)}</h2>` : ''}${p.subtitle ? `<p className="mw-sec-sub"${secSubStyle}>${jsxText(p.subtitle)}</p>` : ''}</div>`
           : '';
       return wrap(
         `<section className={${str(`${cls} mw-section`)}}${p.role === 'footer' || p.role === 'nav' ? ` role=${str(p.role === 'footer' ? 'contentinfo' : 'navigation')}` : ''} ${['rise', 'fade', 'slide', 'scale'].includes(String(p.motion)) ? 'data-motion-reveal="" ' : ''}data-surface=${str(p.surface || 'plain')} data-align=${str(p.align || 'start')} data-bleed={${str(Boolean(p.bleed))}}>${head}\n${children}\n${pad}</section>`,
@@ -396,8 +414,13 @@ function renderNode(
     case 'card': {
       const tag = node.type === 'card' ? 'div' : 'section';
       const tap = attrEvents(node, 'tap');
+      const titleSize = p.titleSize === 'sm' ? 13 : p.titleSize === 'lg' ? 18 : p.titleSize === 'xl' ? 22 : 15;
+      const subtitleSize = p.subtitleSize === 'xs' ? 11 : p.subtitleSize === 'md' ? 15 : p.subtitleSize === 'lg' ? 17 : 13;
       const title = p.title
-        ? `<div style={{ fontSize: ${node.type === 'card' ? 15 : 16}, fontWeight: 700, color: 'var(--openui-text-primary)' }}>${jsxText(p.title)}</div>`
+        ? `<div style={{ fontSize: ${titleSize}, fontWeight: 700, color: 'var(--openui-text-primary)', lineHeight: 1.25 }}>${jsxText(p.title)}</div>`
+        : '';
+      const subtitle = p.subtitle
+        ? `<div style={{ fontSize: ${subtitleSize}, color: 'var(--openui-text-secondary)', lineHeight: 1.45 }}>${jsxText(p.subtitle)}</div>`
         : '';
       const eyebrow = p.eyebrow
         ? `<span className="mw-sec-eyebrow">${jsxText(p.eyebrow)}</span>`
@@ -415,7 +438,7 @@ function renderNode(
           ? `<span className="mw-card-icon"><Icon name=${str(iconName(node))} size={20} /></span>`
           : '';
       return wrap(
-        `<${tag} className={${str(node.type === 'card' ? `${cls} mw-card` : cls)}}${cardAttrs}${tap ? ` onClick={() => ${tap}}` : ''}>\n${icon}\n${image}\n${eyebrow}\n${title}\n${children}\n${pad}</${tag}>`,
+        `<${tag} className={${str(node.type === 'card' ? `${cls} mw-card` : cls)}}${cardAttrs}${tap ? ` onClick={() => ${tap}}` : ''}>\n${icon}\n${image}\n${eyebrow}\n${title}\n${subtitle}\n${children}\n${pad}</${tag}>`,
       );
     }
     case 'tabs': {
