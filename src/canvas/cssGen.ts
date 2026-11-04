@@ -483,7 +483,7 @@ export function generateCss(
   const rules: string[] = [
     '.mw-css-root,.mw-app{container-type:inline-size;container-name:mw;font-family:var(--font-body);color:var(--openui-text-primary);background:var(--openui-bg);-webkit-font-smoothing:antialiased}',
     '.mw-app{--type-display:var(--type-display-base);--type-title:var(--type-title-base);--pad-screen:var(--pad-screen-base);--gap-section:var(--gap-section-base)}',
-    '.mw-app{--mw-motion-fast:160ms;--mw-motion-med:280ms;--mw-motion-slow:480ms;--mw-ease-out:cubic-bezier(.22,1,.36,1)}',
+    '.mw-app{--mw-motion-fast:160ms;--mw-motion-med:280ms;--mw-motion-slow:700ms;--mw-ease-out:cubic-bezier(.22,1,.36,1)}',
     '.mw-app *{box-sizing:border-box}',
     '.mw-app button{font-family:inherit}',
     '.mw-app img{max-width:100%}',
@@ -565,8 +565,14 @@ export function generateCss(
       const preset = String(node.props.motion || 'none');
       if (['rise', 'fade', 'slide', 'scale'].includes(preset)) {
         const sel = `:where(.${nodeClass(node.id)})`;
+        const customDuration =
+          typeof node.props.motionDuration === 'string' &&
+          /^\d+(?:\.\d+)?(?:s|ms)$/.test(node.props.motionDuration.trim())
+            ? node.props.motionDuration.trim()
+            : null;
+        const duration = customDuration || 'var(--mw-motion-slow)';
         rules.push(
-          `${sel}{animation:mw-${preset} var(--mw-motion-slow) var(--mw-ease-out) both}`,
+          `${sel}{animation:mw-${preset} ${duration} var(--mw-ease-out) both}`,
         );
         rules.push(
           `@media (prefers-reduced-motion:reduce){${sel}{animation:none;opacity:1;transform:none}}`,

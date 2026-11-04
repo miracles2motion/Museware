@@ -16,6 +16,7 @@ import { useUi } from '../store/useUi';
 import { illustrateTarget } from './imagery';
 import { visualBaseline, type VisualDraft } from './visualDrafts';
 import { clearReference, getReference, isReferenceBlueprint } from './referenceSession';
+import { nameProjectFromBlueprint } from './projectName';
 import {
   adjustBlueprint,
   approveBlueprint,
@@ -185,6 +186,7 @@ export async function answerBlueprint(
   if (!doc.blueprint) return;
   if (useAgent.getState().demoMode) {
     useProject.getState().setBlueprint(doc.blueprint.text, true);
+    nameProjectFromBlueprint(doc.blueprint.text);
     await startDemoBuild('steady');
   } else {
     await approveBlueprint('steady', preserveScreenId);

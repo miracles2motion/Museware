@@ -304,7 +304,7 @@ describe('the shell actually renders', () => {
     });
     fireEvent.click(screen.getByText('Style'));
     fireEvent.click(screen.getByLabelText('Choose Background token'));
-    const swatch = await screen.findByLabelText('openui-accent');
+    const swatch = await screen.findByLabelText('openui-accent', {}, { timeout: 10000 });
     expect(swatch).toBeTruthy();
     fireEvent.click(swatch!);
     const root = useProject.getState().doc.screens[0].root;

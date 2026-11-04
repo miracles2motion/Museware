@@ -52,6 +52,7 @@ interface UiStore {
   toggleInspector: () => void;
   runMode: boolean;
   runScreenId: string | null;
+  aboutOpen: boolean;
   onboardingOpen: boolean;
   settingsOpen: boolean;
   exportOpen: boolean;
@@ -87,6 +88,7 @@ interface UiStore {
   setRunMode: (on: boolean, screenId?: string) => void;
   setModal: (
     key:
+      | 'aboutOpen'
       | 'onboardingOpen'
       | 'settingsOpen'
       | 'exportOpen'
@@ -174,6 +176,7 @@ export const useUi = create<UiStore>((set, get) => ({
   inspectorDrawerOpen: false,
   runMode: false,
   runScreenId: null,
+  aboutOpen: false,
   onboardingOpen: false,
   settingsOpen: false,
   exportOpen: false,
@@ -268,6 +271,7 @@ export const useUi = create<UiStore>((set, get) => ({
   setModal: (key, open) =>
     set(() => {
       const patch: Record<string, boolean> = {
+        aboutOpen: false,
         onboardingOpen: false,
         settingsOpen: false,
         exportOpen: false,

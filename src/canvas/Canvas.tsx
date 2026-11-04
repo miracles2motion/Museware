@@ -5,9 +5,11 @@ import {
   GripVertical,
   ImagePlus,
   Monitor,
+  Moon,
   Plus,
   Smartphone,
   Sparkles,
+  Sun,
   Tablet,
 } from 'lucide-react';
 import { useProject } from '../store/useProject';
@@ -15,6 +17,7 @@ import { useUi, BREAKPOINT_WIDTHS } from '../store/useUi';
 import { useDrag, buildDropOps, nodeIdFromElement, dropTargetFor } from './drag';
 import { fitScale, fitSize, toLocalBox } from './fit';
 import { CanvasStyle, NodeView } from './NodeView';
+import { useResolvedCanvasTheme } from '../design/theme';
 import { findNode } from '../ops/treeUtils';
 import { stageScreenshot } from '../rail/stageScreenshot';
 import { Button } from '../components/ui';
@@ -41,6 +44,8 @@ export function Canvas() {
   const runMode = useUi((s) => s.runMode);
   const startPrompt = useUi((s) => s.startPrompt);
   const toast = useUi((s) => s.toast);
+  const setProjectPreview = useUi((s) => s.setProjectPreview);
+  const resolvedCanvasTheme = useResolvedCanvasTheme(doc.tokens.openuiTheme.theme_mode);
   const drag = useDrag((s) => s.drag);
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -419,6 +424,16 @@ export function Canvas() {
           }}
         >
           {actualSize ? '100%' : 'Fit'}
+        </button>
+        <button
+          type="button"
+          className="chip"
+          aria-label={`Project theme: ${resolvedCanvasTheme}. Click to switch to ${resolvedCanvasTheme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Preview project in ${resolvedCanvasTheme === 'dark' ? 'Light' : 'Dark'} mode`}
+          onClick={() => setProjectPreview(resolvedCanvasTheme === 'dark' ? 'light' : 'dark')}
+        >
+          {resolvedCanvasTheme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+          <span>{resolvedCanvasTheme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
       </div>
 

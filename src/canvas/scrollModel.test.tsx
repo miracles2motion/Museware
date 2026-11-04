@@ -40,7 +40,7 @@ it('keeps the phone generator byte-identical to the published baseline', () => {
   const stripInertMotionDictionary = (css: string) =>
     css
       .replace(
-        '.mw-app{--mw-motion-fast:160ms;--mw-motion-med:280ms;--mw-motion-slow:480ms;--mw-ease-out:cubic-bezier(.22,1,.36,1)}\n',
+        '.mw-app{--mw-motion-fast:160ms;--mw-motion-med:280ms;--mw-motion-slow:700ms;--mw-ease-out:cubic-bezier(.22,1,.36,1)}\n',
         '',
       )
       .replace(`${MOTION_DICTIONARY}\n${SWITCH_MOTION_CSS}\n`, '');

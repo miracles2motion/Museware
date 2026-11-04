@@ -249,7 +249,7 @@ export function Toasts() {
   const toasts = useUi((s) => s.toasts);
   const dismiss = useUi((s) => s.dismissToast);
   const chatExpanded = useUi((s) => s.chatExpanded);
-  const modalOpen = useUi((s) => s.onboardingOpen || s.settingsOpen || s.exportOpen || s.receiptsOpen || s.shortcutsOpen || s.blueprintOpen || !!s.colorCard || s.runMode);
+  const modalOpen = useUi((s) => s.aboutOpen || s.onboardingOpen || s.settingsOpen || s.exportOpen || s.receiptsOpen || s.shortcutsOpen || s.blueprintOpen || !!s.colorCard || s.runMode);
   if (!toasts.length) return null;
   const chatSlot = chatExpanded && !modalOpen ? document.getElementById('chat-toast-slot') : null;
   const content = (

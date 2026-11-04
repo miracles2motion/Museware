@@ -171,24 +171,16 @@ export default function App() {
     return () => media.removeEventListener('change', apply);
   }, [theme]);
 
-  // First run (§9.1): the first time the editor appears without a key, show the
-  // one-screen setup — paste a key, watch the models prove themselves, pick a
-  // start. Once only; the Topbar keeps a door to it forever.
+  // First run: new users start immediately with the shared house key; we do not
+  // pop the onboarding key modal automatically. Prompting occurs dynamically only
+  // if quota is exhausted. The Topbar maintains an explicit door to Settings/Keys.
   useEffect(() => {
     if (booting || route !== 'editor') return;
-    let seen = false;
-    try {
-      seen = Boolean(localStorage.getItem('museware/onboarded'));
-    } catch {
-      seen = true;
-    }
-    if (seen || hasSessionKey()) return;
     try {
       localStorage.setItem('museware/onboarded', '1');
     } catch {
-      /* private mode — the modal simply shows again next time */
+      /* ignore storage errors in restricted contexts */
     }
-    useUi.getState().setModal('onboardingOpen', true);
   }, [route, booting]);
 
   // Back/forward or an edited URL opens the named project; replaceState emits no hashchange.

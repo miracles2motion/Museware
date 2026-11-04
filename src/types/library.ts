@@ -123,6 +123,18 @@ export const MOTION_PROP = p(
   { options: ['none', 'rise', 'fade', 'slide', 'scale'], defaultValue: 'none' },
 );
 
+export const MOTION_DURATION_PROP = p(
+  'motionDuration',
+  'Motion timing',
+  'select',
+  'Behavior',
+  'Duration of the entrance animation.',
+  {
+    options: ['0.3s', '0.5s', '0.7s', '1.0s', '1.4s'],
+    defaultValue: '0.7s',
+  },
+);
+
 export const PAGE_ROLE_PROP = p(
   'role',
   'Page role',
@@ -941,6 +953,8 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
 for (const item of COMPONENT_SPECS) {
   item.props.push(MOTION_PROP);
   item.defaultProps.motion = 'none';
+  item.props.push(MOTION_DURATION_PROP);
+  item.defaultProps.motionDuration = '0.7s';
   if (item.type === 'section' || item.type === 'col') {
     item.props.push(PAGE_ROLE_PROP);
     item.defaultProps.role = 'none';

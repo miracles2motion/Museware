@@ -19,7 +19,7 @@ import { buildProjectIndex } from './projectIndex';
 import { BUILDER_PROPS_PRIMER } from './propsPrimer';
 import { buildScopeContext, scopedPrimer } from './scopeContext';
 import { preferenceNote } from './designMemory';
-import { nameProjectAfterBuild } from './projectName';
+import { nameProjectAfterBuild, nameProjectFromBlueprint } from './projectName';
 import { canvasOutline, subtreeOutline } from './canvasOutline';
 import {
   parseBlueprint,
@@ -2868,6 +2868,7 @@ export async function approveBlueprint(
   const doc = useProject.getState().doc;
   if (!doc.blueprint?.text) return;
   useProject.getState().setBlueprint(doc.blueprint.text, true);
+  nameProjectFromBlueprint(doc.blueprint.text);
   addSystem('✓ Blueprint approved');
   if (mode === 'blueprint') {
     addSystem('Blueprint stored — build it whenever you are ready.');

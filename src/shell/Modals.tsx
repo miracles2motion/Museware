@@ -1,4 +1,5 @@
 import { useUi } from '../store/useUi';
+import { AboutModal } from './modals/AboutModal';
 import { SettingsModal } from './modals/SettingsModal';
 import { ExportModal } from './modals/ExportModal';
 import { ReceiptsModal } from './modals/ReceiptsModal';
@@ -7,6 +8,7 @@ import { OnboardingModal } from './modals/OnboardingModal';
 import { BlueprintModal } from './modals/BlueprintModal';
 
 export function Modals() {
+  const aboutOpen = useUi((s) => s.aboutOpen);
   const onboarding = useUi((s) => s.onboardingOpen);
   const settings = useUi((s) => s.settingsOpen);
   const exportOpen = useUi((s) => s.exportOpen);
@@ -17,6 +19,7 @@ export function Modals() {
   const close =
     (
       key:
+        | 'aboutOpen'
         | 'onboardingOpen'
         | 'settingsOpen'
         | 'exportOpen'
@@ -29,6 +32,7 @@ export function Modals() {
 
   return (
     <>
+      {aboutOpen && <AboutModal onClose={close('aboutOpen')} />}
       {onboarding && <OnboardingModal onClose={close('onboardingOpen')} />}
       {settings && <SettingsModal onClose={close('settingsOpen')} />}
       {exportOpen && <ExportModal onClose={close('exportOpen')} />}

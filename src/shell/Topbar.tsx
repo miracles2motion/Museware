@@ -562,7 +562,7 @@ export function Topbar() {
               type="button"
               onClick={() => {
                 setMenu(null);
-                setModal('onboardingOpen', true);
+                setModal('aboutOpen', true);
               }}
             >
               About Museware

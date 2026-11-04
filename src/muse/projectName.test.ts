@@ -4,7 +4,7 @@ import { createProject, useProject } from '../store/useProject';
 import { emptyScreen } from '../ops/screenOps';
 import { parseProjectDoc } from '../persist/schema';
 import { createSavedProject, readSavedProject, renameSavedProject } from '../persist/save';
-import { nameProjectAfterBuild } from './projectName';
+import { nameProjectAfterBuild, nameProjectFromBlueprint, extractNameFromBlueprint } from './projectName';
 
 beforeEach(() => {
   const entry = emptyScreen('KOYO Tea Landing', { id: 'tea', entry: true });
@@ -56,5 +56,22 @@ describe('project naming after a build', () => {
     useProject.getState().setName('My custom name');
     useProject.getState().undo();
     expect(useProject.getState().doc.name).toBe('My custom name');
+  });
+
+  it('extracts project names cleanly from blueprints and user tasks', () => {
+    expect(extractNameFromBlueprint('SCREEN: HyperScale AI\n- hero (hero) Inference')).toBe('HyperScale AI');
+    expect(extractNameFromBlueprint('SCREEN: Home\n- hero (hero) Boutique Tea Shop - Best Teas')).toBe('Boutique Tea Shop');
+    expect(extractNameFromBlueprint('RULES: Create a SaaS Analytics Platform\nSCREEN: Home')).toBe('SaaS Analytics Platform');
+  });
+
+  it('automatically renames untitled projects from blueprint and locks against overwrite', () => {
+    useProject.getState().hydrate({ ...createProject(), name: 'Untitled project' });
+    expect(nameProjectFromBlueprint('SCREEN: CloudGPU Platform\n- hero (hero) Launch')).toBe(true);
+    expect(useProject.getState().doc.name).toBe('CloudGPU Platform');
+    expect(useProject.getState().doc.projectNameLocked).toBe(true);
+
+    // Later calls do not overwrite locked name
+    expect(nameProjectFromBlueprint('SCREEN: Different Name')).toBe(false);
+    expect(useProject.getState().doc.name).toBe('CloudGPU Platform');
   });
 });
