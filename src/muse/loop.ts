@@ -44,6 +44,7 @@ import {
   rebuildNote,
   reviewerPrompt,
 } from './prompts';
+import { captureVisualReviewCollage } from '../export/visualReview';
 import type { Action, OpError, ProjectDoc, ScreenDoc } from '../types/tree';
 import { entryScreen, findNodeInDoc, clone, walk } from '../ops/treeUtils';
 import { applyOps } from '../ops/apply';
@@ -1346,10 +1347,23 @@ async function reviewer(
   task: string,
   outline: string,
   findings: string,
+  snapshot?: string,
 ): Promise<{ verdict: 'pass' | 'problems' | 'error'; notes: string }> {
   const models = useAgent.getState().models;
   try {
     const wonder = useAgent.getState().wonder;
+    const hasImage = Boolean(snapshot && snapshot.startsWith('data:image/'));
+    const userContent = hasImage
+      ? ([
+          { type: 'text', text: reviewerPrompt(task, outline, findings, true) },
+          { type: 'image_url', image_url: { url: snapshot } },
+        ] as unknown as string)
+      : reviewerPrompt(task, outline, findings, false);
+
+    const systemPrompt = hasImage
+      ? 'You are a strict design reviewer with vision. Inspect the rendered canvas screenshot alongside the outline. Reply with PASS or PROBLEMS only.'
+      : 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.';
+
     const request = () =>
       chatStream({
         model: (wonder ? models?.architect.id : models?.chat.id) || 'muse-spark-1.3',
@@ -1357,9 +1371,9 @@ async function reviewer(
         messages: [
           {
             role: 'system',
-            content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
+            content: systemPrompt,
           },
-          { role: 'user', content: reviewerPrompt(task, outline, findings) },
+          { role: 'user', content: userContent },
         ],
         signal: controller?.signal,
         maxTokens: 700,
@@ -1385,9 +1399,9 @@ async function reviewer(
         messages: [
           {
             role: 'system',
-            content: 'You are a strict design reviewer. Reply with PASS or PROBLEMS only.',
+            content: systemPrompt,
           },
-          { role: 'user', content: reviewerPrompt(task, outline, findings) },
+          { role: 'user', content: userContent },
         ],
         signal: controller?.signal,
         maxTokens: 700,
@@ -1559,10 +1573,17 @@ export async function verifyGate(
     return;
   }
   const outline = `${canvasOutline(doc, screenIds)}\nCURRENT TOKEN SHEET (text only):\n${buildTokenSheet(doc.tokens)}`;
+  let snapshot = '';
+  try {
+    snapshot = await captureVisualReviewCollage(doc, screenIds[0]);
+  } catch {
+    // Graceful fallback to text outline if capture is unavailable
+  }
   const first = await reviewer(
     task,
     outline,
     formatFindings(findings.filter((f) => !f.advisory)),
+    snapshot,
   );
   if (useProject.getState().documentEpoch !== reviewEpoch || controller?.signal.aborted)
     return;
@@ -1655,10 +1676,17 @@ export async function verifyGate(
     );
     return;
   }
+  let secondSnapshot = '';
+  try {
+    secondSnapshot = await captureVisualReviewCollage(after, screenIds[0]);
+  } catch {
+    // Graceful fallback to text outline if capture is unavailable
+  }
   const second = await reviewer(
     task,
     `${canvasOutline(after, screenIds)}\nCURRENT TOKEN SHEET (text only):\n${buildTokenSheet(after.tokens)}`,
     formatFindings(findings.filter((f) => !f.advisory)),
+    secondSnapshot,
   );
   if (useProject.getState().documentEpoch !== reviewEpoch || controller?.signal.aborted)
     return;

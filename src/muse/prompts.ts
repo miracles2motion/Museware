@@ -95,7 +95,32 @@ export function reviewerPrompt(
   task: string,
   outline: string,
   findings = 'No lint findings.',
+  hasImage = false,
 ): string {
+  if (hasImage) {
+    return `A builder was asked: ${task}
+It produced:
+${outline}
+DETERMINISTIC LINT FINDINGS:
+${findings}
+VISUAL INSPECTION MANDATE:
+You are provided a real visual screenshot collage of the rendered page with two side-by-side viewports:
+- Left: DESKTOP VIEW (1024px)
+- Right: MOBILE VIEW (390px)
+
+Inspect the rendered image directly. Answer exactly PASS, or PROBLEMS: a numbered list formatted as:
+PROBLEMS:
+1. [node_id] <concrete defect description>
+
+STRUCTURAL DEFECT CHECKLIST (report ONLY genuine structural problems):
+1. Voids: Is >40% of the hero or section empty blank space with no content (e.g. split hero with text on the left and a blank void on the right)?
+2. Card Parity / Orphans: Does a grid have an orphan card on row 2 spanning the entire width while row 1 has 2 cards (e.g. 3 cards forced into 2 columns)?
+3. Stat Balance: Is a 3-stat row split into 2+1 instead of an even, balanced row?
+4. Overflow / Clipping: Does text, inputs, or buttons clip, collide, or overflow beyond container or screen margins?
+5. Legibility & Contrast: Is text unreadable due to low contrast against its background?
+
+STRICT BOUNDARY: Do NOT bikeshed over subjective aesthetic preferences (e.g. 2px padding, minor shade differences). If the layout is balanced, responsive, and legible on both Desktop and Mobile, answer PASS.`;
+  }
   return `A builder was asked: ${task}
 It produced:
 ${outline}
