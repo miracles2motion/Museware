@@ -15,6 +15,7 @@ import { Bindings } from '../inspector/Bindings';
 import { useAgent } from '../store/useAgent';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import { screenSlugForLabel, type RuntimeApi } from './runtime';
+import { scrollToLabel } from './navScroll';
 
 export type RunDevice = 390 | 768 | 1280;
 export function initialRunDevice(kind: 'web' | 'app'): RunDevice {
@@ -97,14 +98,17 @@ export function RunMode() {
     (to: string) => {
       const direct = doc.screens.find((s) => s.id === to);
       const slug = direct ? direct.id : screenSlugForLabel(doc.screens, to);
-      if (slug) {
+      if (slug && slug !== screen?.id) {
         setScreenId(slug);
         setState((prev) => ({ ...prev, __screen: slug }));
       } else {
-        toast(`No screen called “${to}” yet.`);
+        const scrolled = scrollToLabel(to);
+        if (!scrolled) {
+          toast(`No screen called “${to}” yet.`);
+        }
       }
     },
-    [doc.screens, toast],
+    [doc.screens, screen?.id, toast],
   );
 
   const setKey = useCallback((key: string, value: unknown) => {

@@ -12,6 +12,7 @@ import {
 } from 'react';
 import type { Action, ComponentNode, ProjectDoc } from '../types/tree';
 import { isVisible, runActions, screenSlugForLabel, useRuntime } from '../preview/runtime';
+import { scrollToLabel } from '../preview/navScroll';
 import { nodeClass } from './cssGen';
 import { enterPanel } from './reveal';
 import { avatarPlaceholder, placeholderImage } from './placeholder';
@@ -575,23 +576,39 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       );
     case 'navbar': {
       const items = asList(p.items);
+      const handleNavClick = (label: string, explicitTo?: string) => {
+        if (mode !== 'run') return;
+        const targetLabel = explicitTo || label;
+        const target = runtime ? screenSlugForLabel(runtime.screens, targetLabel) : null;
+        if (target && runtime) {
+          runtime.navigate(target);
+          if (target === runtime.screenId) scrollToLabel(targetLabel);
+          fire('tap');
+          return;
+        }
+        const scrolled = scrollToLabel(targetLabel);
+        if (!scrolled && runtime) {
+          runtime.navigate(targetLabel);
+        }
+        fire('tap');
+      };
       const navItem = (item: string) => (
         <button
           key={item}
           type="button"
           className="mw-nav-item"
-          onClick={() => {
-            if (mode !== 'run' || !runtime) return;
-            const target = screenSlugForLabel(runtime.screens, item);
-            if (target) runtime.navigate(target);
-            fire('tap');
-          }}
+          onClick={() => handleNavClick(item)}
         >
           {item}
         </button>
       );
       return (
-        <nav className={`${cls} mw-nav`} data-variant={asText(p.variant, 'glass')}>
+        <nav
+          id={node.id}
+          data-node-id={node.id}
+          className={`${cls} mw-nav`}
+          data-variant={asText(p.variant, 'glass')}
+        >
           <span className="mw-nav-brand">{asText(p.brand, doc.name)}</span>
           <span className="mw-nav-items">
             {items.map(navItem)}
@@ -599,10 +616,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
               <button
                 type="button"
                 className="mw-nav-cta"
-                onClick={() => {
-                  if (mode === 'run' && runtime && p.ctaTo)
-                    runtime.navigate(asText(p.ctaTo));
-                }}
+                onClick={() => handleNavClick(asText(p.cta), asText(p.ctaTo))}
               >
                 {asText(p.cta)}
               </button>
@@ -616,10 +630,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
                 <button
                   type="button"
                   className="mw-nav-item"
-                  onClick={() => {
-                    if (mode === 'run' && runtime && p.ctaTo)
-                      runtime.navigate(asText(p.ctaTo));
-                  }}
+                  onClick={() => handleNavClick(asText(p.cta), asText(p.ctaTo))}
                 >
                   {asText(p.cta)}
                 </button>
@@ -632,8 +643,25 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'bottomnav': {
       const items = asList(p.items);
       const isSticky = p.sticky !== false && p.sticky !== 'false';
+      const handleBottomNavClick = (item: string) => {
+        if (mode !== 'run') return;
+        const target = runtime ? screenSlugForLabel(runtime.screens, item) : null;
+        if (target && runtime) {
+          runtime.navigate(target);
+          if (target === runtime.screenId) scrollToLabel(item);
+          fire('tap');
+          return;
+        }
+        const scrolled = scrollToLabel(item);
+        if (!scrolled && runtime) {
+          runtime.navigate(item);
+        }
+        fire('tap');
+      };
       return (
         <nav
+          id={node.id}
+          data-node-id={node.id}
           className={cls}
           data-variant={asText(p.variant, 'glass')}
           style={isSticky ? { position: 'sticky', bottom: 0, marginTop: 'auto', zIndex: 20 } : undefined}
@@ -652,12 +680,7 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
                 color:
                   i === 0 ? 'var(--openui-text-brand)' : 'var(--openui-text-secondary)',
               }}
-              onClick={() => {
-                if (mode !== 'run' || !runtime) return;
-                const target = screenSlugForLabel(runtime.screens, item);
-                if (target) runtime.navigate(target);
-                fire('tap');
-              }}
+              onClick={() => handleBottomNavClick(item)}
             >
               <Icon name={resolveBottomNavIcon(item, i)} size={20} />
               <span>{item}</span>
@@ -890,6 +913,8 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
       const hasMedia = Boolean(imageSrc || media.length);
       return (
         <div
+          id={node.id}
+          data-node-id={node.id}
           className={`${cls} mw-hero`}
           data-layout={asText(p.layout, 'split')}
           data-surface={asText(p.surface, 'gradient')}
@@ -990,6 +1015,8 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'section':
       return (
         <section
+          id={node.id}
+          data-node-id={node.id}
           className={`${cls} mw-section`}
           role={
             p.role === 'footer'
@@ -1080,6 +1107,8 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'card':
       return (
         <div
+          id={node.id}
+          data-node-id={node.id}
           className={`${cls} mw-card`}
           data-variant={asText(p.variant, 'elevated')}
           data-clickable={Boolean(node.events?.tap?.length)}
@@ -1130,6 +1159,8 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
     case 'form':
       return (
         <form
+          id={node.id}
+          data-node-id={node.id}
           className={cls}
           onSubmit={(e) => {
             e.preventDefault();
@@ -1162,6 +1193,8 @@ export function NodeBody({ node, doc, mode, screenId, row }: Props) {
 
   return (
     <div
+      id={node.id}
+      data-node-id={node.id}
       className={cls}
       role={
         node.type === 'col'

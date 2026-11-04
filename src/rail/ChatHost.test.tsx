@@ -7,6 +7,10 @@ import { useProject, createProject } from '../store/useProject';
 import { useAgent } from '../store/useAgent';
 
 beforeEach(() => {
+  if (!globalThis.PointerEvent) {
+    // @ts-expect-error polyfill for jsdom
+    globalThis.PointerEvent = class PointerEvent extends MouseEvent {};
+  }
   useProject.getState().replaceDoc(createProject());
   useProject.setState({ ready: true });
   useUi.setState({
@@ -191,6 +195,44 @@ describe('muse focus', () => {
       }),
     );
     expect(screen.getByLabelText('Unread messages')).toBeTruthy();
+  });
+
+  it('allows dragging the chat launcher and clamps it within screen bounds without opening on drag', () => {
+    useUi.setState({ chatExpanded: false });
+    render(<ChatHost />);
+    const launcher = screen.getByRole('button', { name: 'Open muse chat' });
+    expect(launcher).toBeTruthy();
+
+    // Mock getBoundingClientRect
+    launcher.getBoundingClientRect = () =>
+      ({
+        left: 200,
+        top: 400,
+        right: 256,
+        bottom: 456,
+        width: 56,
+        height: 56,
+        x: 200,
+        y: 400,
+        toJSON: () => {},
+      }) as DOMRect;
+
+    // Pointer down
+    fireEvent.pointerDown(launcher, { clientX: 220, clientY: 420, button: 0, pointerId: 1 });
+
+    // Drag move > 5px
+    fireEvent.pointerMove(launcher, { clientX: 280, clientY: 460, pointerId: 1 });
+    expect(launcher.getAttribute('data-dragging')).toBe('true');
+    expect(launcher.style.left).toBe('260px');
+    expect(launcher.style.top).toBe('440px');
+
+    // Pointer up after drag
+    fireEvent.pointerUp(launcher);
+    fireEvent.click(launcher);
+
+    // Chat should remain closed because user dragged, not tapped
+    expect(useUi.getState().chatExpanded).toBe(false);
+    expect(screen.getByRole('button', { name: 'Open muse chat' })).toBeTruthy();
   });
 });
 

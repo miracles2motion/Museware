@@ -4365,11 +4365,10 @@ button.how-card .field-hint {
     transform: scale(1);
   }
 }
-/* Shrink toward the centre of the bottom-right launcher so its destination is clear. */
+/* Shrink toward the bottom-center launcher so its destination is clear. */
 .chat-focus[data-minimizing='true'] {
   pointer-events: none;
-  transform-origin: calc(100% - var(--mw-space-4) - var(--mw-space-6) - var(--mw-space-1))
-    calc(100% - var(--mw-space-4) - var(--mw-space-6) - var(--mw-space-1));
+  transform-origin: 50% calc(100% - var(--mw-space-6));
   animation: chat-minimize-out var(--mw-chat-minimize-motion) var(--mw-ease-out) forwards;
 }
 @keyframes chat-minimize-out {
@@ -4447,9 +4446,10 @@ button.how-card .field-hint {
 }
 .chat-launcher {
   position: fixed;
-  left: auto;
-  right: var(--mw-space-4);
-  bottom: var(--mw-space-4);
+  left: 50%;
+  right: auto;
+  bottom: calc(var(--mw-space-3) + 24px);
+  transform: translateX(-50%);
   z-index: var(--mw-z-launcher);
   width: var(--mw-chat-launcher-size);
   height: var(--mw-chat-launcher-size);
@@ -4460,7 +4460,18 @@ button.how-card .field-hint {
   box-shadow: var(--mw-shadow-e2);
   display: grid;
   place-items: center;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.chat-launcher[data-dragging='true'] {
+  cursor: grabbing;
+  transition: none !important;
+}
+@media (max-width: 1023px) {
+  .chat-launcher {
+    bottom: calc(var(--mw-shell-geometry-60) + var(--mw-space-2));
+  }
 }
 .chat-unread {
   position: absolute;

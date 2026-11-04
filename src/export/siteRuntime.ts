@@ -106,7 +106,20 @@ export function startSite(
         (slug && s.id.includes(slug)) ||
         s.name.toLowerCase() === target.toLowerCase(),
     );
-    if (!screen) return;
+    if (!screen) {
+      const rawId = target.replace(/^#/, '');
+      const el =
+        document.getElementById(rawId) ||
+        document.getElementById(slug) ||
+        document.getElementById(`section_${slug}`) ||
+        document.querySelector<HTMLElement>(`[data-node-id="${rawId}"], [data-node-id="${slug}"], [data-node-id="section_${slug}"]`) ||
+        document.querySelector<HTMLElement>(`.n-${slug}, .n-section_${slug}, .n-${rawId}`) ||
+        document.querySelector<HTMLElement>(`section[id*="${slug}"], [class*="section_"][class*="${slug}"]`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
     const changed = typeof state.__screen === 'string' && state.__screen !== screen.id;
     document.querySelectorAll<HTMLElement>('[data-screen]').forEach((el) => {
       el.hidden = el.dataset.screen !== screen.id;

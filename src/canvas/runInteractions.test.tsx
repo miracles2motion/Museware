@@ -54,6 +54,31 @@ describe('run interactions', () => {
     fireEvent.click(details.querySelector('button')!);
     expect(runtime.navigate).toHaveBeenCalledWith('home');
   });
+  it('smoothly scrolls to an in-page section when navbar item is clicked on a single-page site', () => {
+    const screenDoc = emptyScreen('Landing', { id: 'landing_root', entry: true });
+    const sectionCoffees = n('section_coffees', 'section', { title: 'Three coffees' });
+    const nav = n('nav_main', 'navbar', { brand: 'Ember', items: ['Coffees'] });
+    screenDoc.root.children = [nav, sectionCoffees];
+    const doc = { ...createProject(), screens: [screenDoc] };
+    const runtime: RuntimeApi = {
+      screenId: 'landing_root',
+      state: {},
+      screens: [screenDoc],
+      setKey: vi.fn(),
+      toast: vi.fn(),
+      navigate: vi.fn(),
+      openUrl: vi.fn(),
+    };
+    const { container } = render(<NodeView doc={doc} screen={screenDoc} mode="run" runtime={runtime} />);
+    const sectionEl = container.querySelector('#section_coffees') as HTMLElement;
+    sectionEl.scrollIntoView = vi.fn();
+
+    const navButton = screen.getAllByRole('button', { name: 'Coffees' })[0];
+    fireEvent.click(navButton);
+
+    expect(sectionEl.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(runtime.navigate).not.toHaveBeenCalled();
+  });
   it('fires textarea change on blur', () => {
     const child = n('input_a', 'textarea', { bindKey: 'note', placeholder: 'Notes' });
     child.events = { change: [{ type: 'toast', text: 'changed' }] };

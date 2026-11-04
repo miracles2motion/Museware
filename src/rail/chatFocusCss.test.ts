@@ -8,14 +8,14 @@ function rule(selector: string) {
 }
 
 describe('fullscreen chat CSS', () => {
-  it('keeps the focused rail transparent and shadowless and the launcher on the right', () => {
+  it('keeps the focused rail transparent and shadowless and the launcher in the bottom middle', () => {
     const rail = rule('.chat-focus .rail[data-chat-focused]');
     expect(rail).toMatch(/background:\s*transparent\s*;/);
     expect(rail).toMatch(/box-shadow:\s*none\s*;/);
     expect(rail).toMatch(/border:\s*0\s*;/);
     const launcher = rule('.chat-launcher');
-    expect(launcher).toMatch(/left:\s*auto\s*;/);
-    expect(launcher).toMatch(/right:\s*var\(--mw-space-4\)\s*;/);
+    expect(launcher).toMatch(/left:\s*50%\s*;/);
+    expect(launcher).toMatch(/transform:\s*translateX\(-50%\)\s*;/);
   });
   it('uses a legible, full-width blurred overlay with centered readable content', () => {
     expect(rule('.chat-focus')).toMatch(/var\(--mw-bg\)\s+92%/);

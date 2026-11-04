@@ -683,7 +683,15 @@ export default function App() {
         const normalized = slug(target);
         const match = SCREENS.find((s) => s.id === target) || (normalized && SCREENS.find((s) => s.id === normalized || s.id.includes(normalized) || s.name.toLowerCase() === target.toLowerCase()));
         if (match) setScreen(match.id);
-        else if (target) api.toast('No screen called “' + target + '” yet.');
+        else if (target) {
+          const rawId = target.replace(/^#/, '');
+          const el = document.getElementById(rawId) || document.getElementById(normalized) || document.getElementById('section_' + normalized) || document.querySelector('[data-node-id="' + normalized + '"]') || document.querySelector('.n-' + normalized) || document.querySelector('.n-section_' + normalized);
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            api.toast('No screen called “' + target + '” yet.');
+          }
+        }
       },
       toast: (text: string) => {
         setToastText(text);

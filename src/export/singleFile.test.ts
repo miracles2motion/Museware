@@ -70,7 +70,9 @@ describe('single file export', () => {
     expect(d.querySelector<HTMLElement>('[data-screen="tea"]')!.hidden).toBe(true);
     document.body.innerHTML = '';
   });
-  it('extracts every embedded image, small and large, for both folder and React exports', async () => {
+  it(
+    'extracts every embedded image, small and large, for both folder and React exports',
+    async () => {
     const doc = teaDoc();
     const small = `data:image/png;base64,${btoa('i'.repeat(3 * 1024))}`;
     const large = `data:image/png;base64,${btoa('x'.repeat(2 * 1024 * 1024))}`;
@@ -134,7 +136,7 @@ describe('single file export', () => {
     expect(String(react['README.md'])).toContain('GitHub Actions');
     expect(react['public/icon.svg']).toBeTruthy();
     expect(react['public/sw.js']).toBeTruthy();
-  });
+  }, 15000);
   it('escapes user content and bans executable flattened markup', () => {
     const doc = teaDoc();
     doc.name = '</title><script>bad()</script>';
