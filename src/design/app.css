@@ -4460,13 +4460,8 @@ button.how-card .field-hint {
   box-shadow: var(--mw-shadow-e2);
   display: grid;
   place-items: center;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-}
-.chat-launcher[data-dragging='true'] {
-  cursor: grabbing;
-  transition: none !important;
+  cursor: pointer;
+  transition: border-color var(--mw-motion-fast) var(--mw-ease-out), filter var(--mw-motion-fast) var(--mw-ease-out);
 }
 @media (max-width: 1023px) {
   .chat-launcher {
@@ -4540,10 +4535,14 @@ button.how-card .field-hint {
 }
 .chat-card:is(button, a):hover,
 .chat-chip:hover,
-.chat-launcher:hover,
 .chat-minimize:hover {
   border-color: var(--mw-accent);
   transform: translateY(-1px);
+}
+.chat-launcher:hover {
+  border-color: var(--mw-accent);
+  filter: brightness(1.06);
+  transform: translateX(-50%);
 }
 .chat-card:is(button, a):focus-visible,
 .chat-card button:focus-visible,
