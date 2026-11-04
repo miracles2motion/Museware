@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { MusewareLogo } from '../components/MusewareLogo';
 import { useProject, createProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
@@ -410,7 +411,7 @@ export function Landing() {
             setRoute('landing');
           }}
         >
-          <Sparkles size={16} className="lp-brand-mark" />
+          <MusewareLogo size={18} className="lp-brand-mark" title="" />
           {'museware'}
           <span className="lp-brand-dot">.</span>
         </a>
@@ -857,7 +858,7 @@ export function Landing() {
         <div>
           <strong>Identity</strong>
           <span className="lp-footer-mark">
-            <Sparkles size={16} /> museware
+            <MusewareLogo size={16} title="" /> museware
           </span>
           <span>Built with the muse family</span>
         </div>

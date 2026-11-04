@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSaveStatus, writeFailureLabel } from './store/useSaveStatus';
-import { Sparkles } from 'lucide-react';
+import { MusewareLogo } from './components/MusewareLogo';
 import { useProject, createProject } from './store/useProject';
 import { useUi, type Route } from './store/useUi';
 import { useAgent } from './store/useAgent';
@@ -323,7 +323,7 @@ export default function App() {
   if (booting)
     return (
       <div className="boot-splash" role="status" aria-label="Loading Museware">
-        <Sparkles size={32} />
+        <MusewareLogo size={36} />
         <strong>museware</strong>
         <div className="boot-progress">
           <span />

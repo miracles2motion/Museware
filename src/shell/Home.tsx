@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles } from 'lucide-react';
+import { MusewareLogo } from '../components/MusewareLogo';
 import { createProject, useProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
@@ -234,7 +234,7 @@ export function Home() {
         className="brand projects-brand"
         onClick={() => useUi.getState().setRoute('landing')}
       >
-        <Sparkles size={16} /> museware
+        <MusewareLogo size={18} title="" /> museware
       </button>
       <header className="projects-heading">
         <div>

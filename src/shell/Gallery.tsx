@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { MusewareLogo } from '../components/MusewareLogo';
 import { useProject, createProject } from '../store/useProject';
 import { useUi } from '../store/useUi';
 import { Button } from '../components/ui';
@@ -147,7 +148,7 @@ export function Gallery() {
             setRoute('landing');
           }}
         >
-          <Sparkles size={16} className="lp-brand-mark" />
+          <MusewareLogo size={18} className="lp-brand-mark" title="" />
           {'museware'}
           <span className="lp-brand-dot">.</span>
         </a>

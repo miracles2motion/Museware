@@ -17,6 +17,7 @@ import { useUi } from '../store/useUi';
 import { useAgent } from '../store/useAgent';
 import { useSaveStatus, readWriteResults, writeFailureLabel } from '../store/useSaveStatus';
 import { IconButton, Menu, Modal } from '../components/ui';
+import { MusewareLogo } from '../components/MusewareLogo';
 import { CanvasStyle, NodeView } from '../canvas/NodeView';
 import type { ProjectDoc } from '../types/tree';
 import {
@@ -234,19 +235,7 @@ export function Topbar() {
         title="Back to the start page"
         onClick={() => setRoute('landing')}
       >
-        <svg
-          className="brand-mark"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          aria-hidden="true"
-        >
-          <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z" />
-          <path d="M19 16v4M17 18h4" />
-        </svg>
+        <MusewareLogo size={18} className="brand-mark" title="" />
         <span className="brand-word">
           museware<em>.</em>
         </span>

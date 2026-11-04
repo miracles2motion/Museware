@@ -938,7 +938,7 @@ out of demo scope but the tree is portable.
   ].join('\n');
 
   files['icon.svg'] =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="${doc.tokens.openuiTheme.brand_color}"/><path d="M26 66V30h9l13 22 13-22h9v36h-8V44L50 66h-4L34 44v22z" fill="#fff"/></svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="22" fill="${doc.tokens.openuiTheme.brand_color}"/><path d="M22.5 73.5V28.5C22.5 23.52 26.52 19.5 31.5 19.5H33.6C37.5 19.5 40.8 21.6 42.6 24.9L48 33.6L53.4 24.9C55.2 21.6 58.5 19.5 62.4 19.5H64.5C69.48 19.5 73.5 23.52 73.5 28.5V73.5C73.5 75.99 71.49 78 69 78C66.51 78 64.5 75.99 64.5 73.5V36.6L53.7 58.5C51.3 63 44.7 63 42.3 58.5L31.5 36.6V73.5C31.5 75.99 29.49 78 27 78C24.51 78 22.5 75.99 22.5 73.5Z" fill="#fff"/></svg>`;
 
   files['sw.js'] = `const CACHE = 'museware-shell-v1';
 self.addEventListener('install', (event) => {
