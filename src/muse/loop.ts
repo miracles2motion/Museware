@@ -98,7 +98,7 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Fill every list/table/chart dataKey with setMockData: 5–20 realistic rows matching the brief; a dataKey without rows ships an empty section. setMockData replaces all rows at that screen/key, so preserve existing data unless replacement is intended. Video src must be in the user prompt; leave it empty for a procedural reel. ' +
     'Long batches: split them into several edit_canvas calls of at most 12 ops each. An oversized call can be cut off mid-JSON and dropped without being applied.',
   illustrate_images:
-    'Generate images for up to six existing hero, image or card nodes: targets [{id, prompt?}]. Preserve the requested medium, mood, lighting and restrictions in each prompt. Do not generate images for image-free designs; existing images are preserved during automatic builds.',
+    'Generate images for up to six existing hero, image or card nodes: targets [{id, prompt?}]. Prompts must describe ONLY physical objects, setting, materials, lighting, and artistic medium (e.g. "artisan pouring roasted coffee beans into a cooling tray, warm morning light, close-up photograph"). NEVER include website headlines, button labels, slogans, or requests for UI cards or layouts. Pure visual imagery only; zero embedded text or UI.',
   finish: 'End the turn with a two-sentence user-facing summary.',
 };
 

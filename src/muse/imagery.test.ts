@@ -401,4 +401,102 @@ describe('build imagery', () => {
       'https://example.com/user.png',
     );
   });
+
+  it('prevents marketing copy, headlines, and button labels from leaking into image prompts', async () => {
+    const doc = structuredClone(useProject.getState().doc);
+    const heroImage: ComponentNode = {
+      id: 'image_hero',
+      type: 'image',
+      props: {
+        alt: 'Pour-over coffee brewing beside a bag of freshly roasted beans in warm morning light',
+      },
+      styles: {},
+      children: [],
+    };
+    const roasteryImage: ComponentNode = {
+      id: 'image_roastery',
+      type: 'image',
+      props: {
+        alt: 'Roaster tending a small drum roaster with burlap coffee sacks nearby',
+      },
+      styles: {},
+      children: [],
+    };
+    doc.screens[0].root.children = [
+      {
+        id: 'hero_main',
+        type: 'hero',
+        props: {
+          title: 'Coffee roasted in small batches, shipped at peak flavour',
+          subtitle: 'Single-origin lots from 14 partner farms, roasted in 12kg batches and shipped within 48 hours.',
+        },
+        styles: {},
+        children: [
+          heroImage,
+          {
+            id: 'btn_shop',
+            type: 'button',
+            props: { text: "Shop This Week's Roast" },
+            styles: {},
+            children: [],
+          },
+        ],
+      },
+      {
+        id: 'section_story',
+        type: 'section',
+        props: { title: 'From cherry to cup, handled by hand' },
+        styles: {},
+        children: [
+          {
+            id: 'row_story',
+            type: 'row',
+            props: {},
+            styles: {},
+            children: [
+              roasteryImage,
+              {
+                id: 'text_story',
+                type: 'text',
+                props: {
+                  text: 'We buy from fourteen smallholder farms we can name — paying above fair-trade rates.',
+                },
+                styles: {},
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    doc.blueprint = {
+      text: 'SCREEN: Tea\n- hero-main (hero) Split layout, badge "Small-batch", headline "Coffee roasted in small batches, shipped at peak flavour", primary CTA "Shop Now", warm roastery image right\n- section-story (section) Eyebrow "Our Craft", editorial story with roastery image\n- image_roastery (image) warm documentary photography of coffee roaster',
+      decided: true,
+      updatedAt: Date.now(),
+    };
+    useProject.getState().replaceDoc(doc);
+
+    // Illustrate hero image
+    await illustrateTarget({ id: 'image_hero' });
+    const heroPrompt = vi.mocked(generateImage).mock.calls[0][0];
+    // Must contain the pure visual alt description
+    expect(heroPrompt).toContain('Pour-over coffee brewing beside a bag of freshly roasted beans');
+    // Must NOT contain marketing headline, subtitle, or button text
+    expect(heroPrompt).not.toContain('Coffee roasted in small batches, shipped at peak flavour');
+    expect(heroPrompt).not.toContain('Single-origin lots from 14 partner farms');
+    expect(heroPrompt).not.toContain("Shop This Week's Roast");
+    expect(heroPrompt).not.toContain('primary CTA');
+    expect(heroPrompt).not.toContain('Split layout');
+    // Must contain text-free guarantee
+    expect(heroPrompt).toContain('Text-free guarantee');
+
+    // Illustrate roastery image
+    await illustrateTarget({ id: 'image_roastery' });
+    const roasteryPrompt = vi.mocked(generateImage).mock.calls[1][0];
+    expect(roasteryPrompt).toContain('Roaster tending a small drum roaster');
+    expect(roasteryPrompt).not.toContain('Coffee roasted in small batches, shipped at peak flavour');
+    expect(roasteryPrompt).not.toContain('We buy from fourteen smallholder farms');
+    expect(roasteryPrompt).not.toContain('hero-main');
+    expect(roasteryPrompt).toContain('Text-free guarantee');
+  });
 });

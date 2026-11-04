@@ -19,6 +19,62 @@ const rail = (text: string) => {
   if (!buildTimeline(text)) useProject.getState().addRail({ role: 'system', text });
 };
 
+export const TEXT_FREE_DIRECTIVE =
+  'Visual composition: pure visual scene only. Text-free guarantee: do NOT render words, letters, typography, slogans, headlines, labels, UI mockups, cards, or buttons anywhere in the image.';
+
+/** Strip UI copy syntax, quotes, and layout keywords from blueprint art direction. */
+export function sanitizeBlueprintVisualContext(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove component markers like - hero-main (hero)
+    .replace(/^\s*[-*]\s*[\w-]+\s*\([^)]*\)\s*/gm, '')
+    // Remove headline / title / eyebrow in quotes or followed by capitalized titles
+    .replace(
+      /\b(?:headline|title|subtitle|header|eyebrow)\s*(?::|=)?\s*("[^"]*"|'[^']*'|“[^”]*”|[A-Z][a-zA-Z0-9\s·'-]+(?=,|$))/gi,
+      '',
+    )
+    // Remove badge definitions
+    .replace(/\bbadge\s*(?::|=)?\s*("[^"]*"|'[^']*'|“[^”]*”|[^,;.]*)/gi, '')
+    // Remove CTA / button definitions
+    .replace(
+      /\b(?:primary|secondary|nav)?\s*(?:cta|button|link|links)\s*(?:to\s+[^,;.]*|(?::|=)?\s*("[^"]*"|'[^']*'|“[^”]*”|[^,;.]*))/gi,
+      '',
+    )
+    // Remove "secondary to ..."
+    .replace(/\bsecondary\s+to\s+[^,;.]*/gi, '')
+    // Remove subcopy / copy clauses
+    .replace(/\b(?:subcopy|copy|body|paragraph)\s+(?:on|about|with)?\s*[^,;.]*/gi, '')
+    // Remove navigation / interaction phrases
+    .replace(/\b(?:scrolls? to|anchors? to|opens?|navigates? to)\s+[^,;.]*/gi, '')
+    // Remove layout keywords
+    .replace(
+      /\b(?:split layout|centered layout|two-column|single-column|grid layout|sunk surface|elevated surface|glow surface|gradient surface|surface)\b/gi,
+      '',
+    )
+    // Remove remaining quoted strings (which are UI copy or labels)
+    .replace(/"[^"]*"/g, '')
+    .replace(/“[^”]*”/g, '')
+    .replace(/'[^']*'/g, '')
+    // Clean up punctuation and whitespace
+    .replace(/\s*[,;]\s*[,;]+/g, ', ')
+    .replace(/^[,\s;]+|[,\s;]+$/g, '')
+    .replace(/\b(?:and|with)\s*$/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Sanitize an explicit or derived visual subject to remove UI terminology and quotes. */
+export function sanitizeVisualSubject(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/"[^"]*"/g, '')
+    .replace(/“[^”]*”/g, '')
+    .replace(/'[^']*'/g, '')
+    .replace(/\b(?:headline|title|subtitle|header|eyebrow|badge|cta|button|link)\s*[:=]?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Nearby meaningful copy and the blueprint section describe the actual subject. */
 export function imageSubject(
   doc: ProjectDoc,
@@ -27,63 +83,87 @@ export function imageSubject(
   _brief?: string,
   context?: string,
 ): string {
+  // 1. If the node has an informative alt text, use it directly as the pure visual subject.
+  if (typeof node.props.alt === 'string') {
+    const cleanAlt = node.props.alt.trim().replace(/\s+/g, ' ');
+    if (
+      cleanAlt.length >= 8 &&
+      !SCAFFOLD_STRINGS.has(cleanAlt) &&
+      !/^(image|hero|picture|photo|illustration|img)$/i.test(cleanAlt)
+    ) {
+      return sanitizeVisualSubject(cleanAlt).slice(0, 160);
+    }
+  }
+
+  // 2. If alt is missing or generic, find a short product/entity name nearby.
   const parts: string[] = [];
   const add = (text: unknown) => {
     if (typeof text !== 'string') return;
     const clean = text.trim().replace(/\s+/g, ' ');
     if (
       clean &&
-      clean.length <= 240 &&
+      clean.length <= 60 &&
       !SCAFFOLD_STRINGS.has(clean) &&
-      !/^(image|hero|picture|photo)$/i.test(clean) &&
-      !parts.includes(clean)
-    )
-      parts.push(clean);
+      !/^(image|hero|picture|photo|illustration|img)$/i.test(clean) &&
+      !parts.includes(clean) &&
+      // Reject full marketing sentences, button CTAs, or clauses with punctuation
+      !/[.!?]/.test(clean) &&
+      !/\b(?:shop|order|buy|get|click|start|subscribe|sign up|learn more|read more|view all)\b/i.test(
+        clean,
+      )
+    ) {
+      parts.push(sanitizeVisualSubject(clean));
+    }
   };
-  add(node.props.alt);
+
   add(node.props.title);
-  add(node.name);
+  if (!parts.length && node.name && !/^(image|hero|picture|photo|illustration)$/i.test(node.name)) {
+    add(node.name);
+  }
+
   let current = node;
   for (let level = 0; level < 2; level += 1) {
     const parent = findParent(screen.root, current.id)?.parent;
     if (!parent || parent.type === 'screen') break;
     const collect = (child: ComponentNode, depth: number) => {
-      if (child.id === node.id || parts.length >= 4 || depth > 3) return;
+      if (child.id === node.id || parts.length >= 2 || depth > 2) return;
+      if (['button', 'iconbutton', 'link', 'input', 'form', 'textarea'].includes(child.type))
+        return;
+      if (child.type === 'heading') add(child.props.text);
       add(child.props.title);
-      add(child.props.text);
-      add(child.props.subtitle);
       child.children.forEach((item) => collect(item, depth + 1));
     };
     collect(parent, 0);
     current = parent;
-    if (parts.length >= 2) break;
+    if (parts.length >= 1) break;
   }
+
   const blueprint = doc.blueprint?.text || context || '';
   const related = blueprint
     .split(/\r?\n/)
     .find((line) => line.toLowerCase().includes(node.id.toLowerCase()));
-  if (related) add(related.replace(/^\s*[-*]\s*/, '').slice(0, 220));
-  if (!parts.length) add(screen.name);
-  if (!parts.length) add(doc.name);
-  // Include the screen's headline as broad brand context, after local product copy.
-  const headline = (branch: ComponentNode): string | undefined => {
-    if (branch.type === 'heading' && typeof branch.props.text === 'string')
-      return branch.props.text;
-    for (const child of branch.children) {
-      const text = headline(child);
-      if (text) return text;
+  if (related) {
+    const cleanLine = sanitizeBlueprintVisualContext(related);
+    if (cleanLine && cleanLine.length <= 120 && !parts.includes(cleanLine)) {
+      parts.push(cleanLine);
     }
-    return undefined;
-  };
-  add(headline(screen.root));
-  return parts.slice(0, 6).join('; ') || 'the featured product or scene';
+  }
+
+  if (!parts.length && screen.name && !/screen/i.test(screen.name)) {
+    parts.push(screen.name);
+  }
+  if (!parts.length && doc.name && !/project|untitled/i.test(doc.name)) {
+    parts.push(doc.name);
+  }
+
+  return parts.slice(0, 2).join('; ') || 'the featured product or scene';
 }
 
 // Image calls are limited to 1,200 characters by the proxy. Carry explicit
 // target direction first, followed by applicable plan context and local copy.
 const IMAGE_WORDS =
   /\b(?:images?|imagery|photos?|photograph\w*|illustrat\w*|vectors?|artwork|art direction|draw\w*|paint\w*|watercolou?r|lighting|light|palette|mood|style|no text|text-free|lettering)\b/i;
-function relevantImageContext(
+export function relevantImageContext(
   context: string,
   screen: ScreenDoc,
   node: ComponentNode,
@@ -91,11 +171,13 @@ function relevantImageContext(
   if (!context.trim()) return '';
   const sections = blueprintScreenSections(context);
   if (!sections.length) {
-    if (context.length <= 300) return context.trim();
-    return context
-      .split(/(?<=[.!?])\s+|\n+/)
-      .filter((line) => IMAGE_WORDS.test(line))
-      .join(' ');
+    if (context.length <= 300) return sanitizeBlueprintVisualContext(context.trim());
+    return sanitizeBlueprintVisualContext(
+      context
+        .split(/(?<=[.!?])\s+|\n+/)
+        .filter((line) => IMAGE_WORDS.test(line))
+        .join(' '),
+    );
   }
   const shared = blueprintGlobalContext(context);
   const section =
@@ -114,9 +196,11 @@ function relevantImageContext(
       (line) =>
         IMAGE_WORDS.test(line) &&
         (shared.split(/\r?\n/).includes(line) ||
-          !/^\s*[-*]\s*\w+\s*\(/.test(line) ||
+          !/^\s*[-*]\s*[\w-]+\s*\(/.test(line) ||
           line.toLowerCase().includes(node.id.toLowerCase())),
     )
+    .map((line) => sanitizeBlueprintVisualContext(line))
+    .filter(Boolean)
     .join(' ')
     .trim();
 }
@@ -161,13 +245,16 @@ function providerPrompt(
   target: ImageTarget,
   context = '',
 ): string {
-  const targetText = (target.prompt || '').trim().slice(0, 700);
-  const direction = relevantImageContext(
+  const targetText = sanitizeVisualSubject(target.prompt || '').slice(0, 700);
+  const rawDirection = relevantImageContext(
     context || (doc.blueprint?.decided ? doc.blueprint.text : ''),
     screen,
     node,
-  ).slice(0, 250);
-  const subject = imageSubject(doc, screen, node, undefined, context).slice(0, 120);
+  );
+  const direction = rawDirection.slice(0, 220);
+  const subject = targetText
+    ? ''
+    : imageSubject(doc, screen, node, undefined, context).slice(0, 140);
   const theme = doc.tokens.openuiTheme;
   const colors = [
     theme.brand_color,
@@ -179,12 +266,13 @@ function providerPrompt(
   return [
     targetText ? `Requested image: ${targetText}` : '',
     direction
-      ? `Applicable brief/plan context (follow explicit requests; newer target instructions take precedence): ${direction}`
+      ? `Art direction (follow explicit requests; newer target instructions take precedence): ${direction}`
       : '',
-    `Subject and nearby content: ${subject}`,
+    subject ? `Subject and visual scene: ${subject}` : '',
     colors.length
       ? `Palette cues, only when compatible with the request: ${[...new Set(colors)].join(', ')}.`
       : '',
+    TEXT_FREE_DIRECTIVE,
   ]
     .filter(Boolean)
     .join('\n')
